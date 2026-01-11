@@ -8,6 +8,8 @@ import {
   addMessageToGlobalChat,
   createChatForTopic,
   addMessageToTopicChat,
+  updateGlobalChatMessage,
+  updateTopicChatMessage,
 } from "@/firebase/chatStore";
 import { db } from "@/firebase/config";
 import { auth } from "@/firebase/config";
@@ -98,8 +100,9 @@ const topicIdFromURL =
   /* ───────── HANDLERS ───────── */
  const handleSend = async () => {
   if (!inputValue.trim()) return;
+  if (!currentUser?.uid) return;
 
-  const topicId = topicIdFromURL || null;
+  const topicId = topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;
   const inTopic = Boolean(topicId);
   let chatId = activeChatId;
 
@@ -180,6 +183,141 @@ const topicIdFromURL =
     } else {
       await addMessageToGlobalChat(chatId, message);
     }
+
+    // ✅ создаём placeholder-сообщение ассистента и запоминаем его id
+let aiMessageId = null;
+
+try {
+  if (inTopic) {
+    const created = await addMessageToTopicChat(
+      topicId,
+      chatId,
+      "NaviMind syncing…",
+      "assistant"
+    );
+    aiMessageId = created?.messageId || null;
+  } else {
+    const created = await addMessageToGlobalChat(
+      chatId,
+      "NaviMind syncing…",
+      "assistant"
+    );
+    aiMessageId = created?.messageId || null;
+  }
+} catch (e) {
+  console.error("Failed to create AI placeholder:", e);
+}
+
+
+// 🤖 GET AI RESPONSE (SSE if available, JSON fallback)
+try {
+  const res = await fetch("/api/rag", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // не обязательно, но полезно: сервер может понять, что мы хотим стрим
+      "Accept": "text/event-stream",
+    },
+    body: JSON.stringify({ question: message }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+
+  // ---------- 1) SSE STREAM ----------
+  if (res.body && (contentType.includes("text/event-stream") || contentType.includes("text/plain"))) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    let buffer = "";
+    let finalText = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events separated by blank line
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+
+      for (const chunk of parts) {
+        const lines = chunk.split("\n");
+
+        let event = "";
+        let data = "";
+
+       for (const line of lines) {
+  if (line.startsWith("event:")) event = line.slice(6).trim();
+
+  if (line.startsWith("data:")) {
+    // НЕ используем trim() — иначе токены " be", " must" теряют пробел и текст склеивается
+    let part = line.slice(5);
+
+    // по SSE часто после "data:" стоит один пробел — убираем только его
+    if (part.startsWith(" ")) part = part.slice(1);
+
+    data += (data ? "\n" : "") + part;
+  }
+}
+
+        if (event === "token") {
+          const token = data.replace(/\\n/g, "\n");
+          finalText += token;
+        }
+
+        if (event === "error") {
+          throw new Error(data || "OpenAI stream error");
+        }
+      }
+    }
+
+    // финальный апдейт в Firestore один раз
+    if (aiMessageId) {
+      const payload = { content: finalText || " " };
+      if (inTopic) {
+        await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);
+      } else {
+        await updateGlobalChatMessage(chatId, aiMessageId, payload);
+      }
+    }
+  }
+
+  // ---------- 2) JSON FALLBACK ----------
+  else {
+    const data = await res.json();
+
+    if (data?.answer && aiMessageId) {
+      const payload = { content: data.answer };
+      if (inTopic) {
+        await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);
+      } else {
+        await updateGlobalChatMessage(chatId, aiMessageId, payload);
+      }
+    }
+  }
+} catch (aiError) {
+  console.error("AI response error:", aiError);
+
+  if (aiMessageId) {
+    const errText = "NaviMind: error getting response.";
+    try {
+      const payload = { content: errText };
+      if (inTopic) {
+        await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);
+      } else {
+        await updateGlobalChatMessage(chatId, aiMessageId, payload);
+      }
+    } catch (e) {
+      console.error("Failed to update AI placeholder:", e);
+    }
+  }
+}
+
   } catch (err) {
     console.error("[InputBar.handleSend] error:", {
       message: err?.message || String(err),

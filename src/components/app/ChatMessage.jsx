@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { UIContext } from "@/context/UIContext";
 import { Check, Copy } from "lucide-react";
 
@@ -58,19 +58,34 @@ function UserMessage({ content, copied, onCopy }) {
 }
 
 // Компонент сообщения AI — кнопка копии слева
-function AssistantMessage({ content, copied, onCopy }) {
+function AssistantMessage({ content, displayText, copied, onCopy }) {
+  const text = String(displayText ?? content ?? "");
+
+  // индикатор ожидания (placeholder)
+  const isSyncing =
+    text.trim() === "NaviMind syncing…" ||
+    text.trim() === "NaviMind syncing..." ||
+    text.toLowerCase().includes("syncing");
+
+  if (isSyncing) {
+    return (
+      <div className="w-full flex justify-start mt-6">
+        <div className="text-sm text-gray-400 flex items-center gap-2 select-none">
+          <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
+          <span>NaviMind syncing…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // обычный ответ ассистента (без bubble)
   return (
     <div className="w-full flex justify-start mt-6">
-      <div
-        className={`
-          p-3 rounded-xl
-          text-[17px] sm:text-base font-normal
-          leading-relaxed whitespace-pre-wrap shadow-md break-words
-          w-fit max-w-full
-          bg-gray-900 text-gray-200
-        `}
-      >
-        {content}
+      <div className="max-w-full">
+        <div className="text-[17px] sm:text-base font-normal leading-relaxed whitespace-pre-wrap break-words text-gray-200">
+          {text}
+        </div>
+
         <CopyButton copied={copied} onCopy={onCopy} className="justify-start" />
       </div>
     </div>
@@ -87,27 +102,91 @@ export default function ChatMessage({ message }) {
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
+  // UI typing (только локально, Firestore не трогаем)
+  const [typedText, setTypedText] = useState("");
+  const typingTimerRef = useRef(null);
+  const hasTypedOnceRef = useRef(false);
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const testContent =
-    "Certainly. Here’s a detailed explanation that spans multiple lines to simulate a long, thoughtful AI response designed to fill the entire MainArea. In professional maritime operations, it is critical that every officer understands not only the procedural steps, but also the underlying purpose and implications of each action taken during navigation, cargo transfer, or inspection readiness.\n\nFor instance, during Port State Control preparation, a well-structured checklist not only ensures compliance but also boosts the confidence of your crew and demonstrates operational discipline to inspectors. This includes readiness of logbooks, certifications, safety equipment, engine room cleanliness, and bridge documentation.\n\nFurthermore, the integration of modern digital tools, such as AI-enhanced checklists and real-time inspection simulations, can dramatically reduce human error and enhance compliance readiness. It is not simply about ticking boxes, but about maintaining a culture of safety, efficiency, and continuous improvement across all departments on board the vessel.\n\nThus, leveraging tools like DeepSea AI not only improves inspection outcomes but also cultivates a professional standard that aligns with global best practices across IMO, SOLAS, and ISM Code frameworks.";
+  // Для определения момента: было "syncing…" -> стало реальным текстом
+const prevContentRef = useRef(String(content || ""));
 
-  const finalText = isAssistant ? testContent : content;
+useEffect(() => {
+  if (!isClient) return;
+  if (role !== "assistant") return;
+
+  const current = String(content || "");
+  const prev = String(prevContentRef.current || "");
+
+  const isSyncing = (t) => {
+    const s = String(t || "");
+    return (
+      s.trim() === "NaviMind syncing…" ||
+      s.trim() === "NaviMind syncing..." ||
+      s.toLowerCase().includes("syncing")
+    );
+  };
+
+  const prevWasSyncing = isSyncing(prev);
+  const nowIsSyncing = isSyncing(current);
+
+  // Если мы всё ещё ждём — ничего не печатаем, просто держим typedText синхронно
+  if (nowIsSyncing) {
+    setTypedText(current);
+    prevContentRef.current = current;
+    return;
+  }
+
+  // Ключевая логика:
+  // Печатать начинаем ТОЛЬКО когда было "syncing…" и внезапно пришёл финальный текст
+  if (prevWasSyncing && current) {
+    // сброс и старт "печатания"
+    hasTypedOnceRef.current = false;
+    setTypedText("");
+
+    if (typingTimerRef.current) {
+      clearInterval(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+
+    typingTimerRef.current = setInterval(() => {
+      setTypedText((prevTyped) => {
+        const nextLen = Math.min(prevTyped.length + 2, current.length);
+        const next = current.slice(0, nextLen);
+
+        if (nextLen >= current.length) {
+          hasTypedOnceRef.current = true;
+          clearInterval(typingTimerRef.current);
+          typingTimerRef.current = null;
+          return current;
+        }
+
+        return next;
+      });
+    }, 16);
+  } else {
+    // Обычный кейс: просто показываем как есть (история/перерендеры)
+    setTypedText(current);
+  }
+
+  prevContentRef.current = current;
+}, [content, role, isClient]);
 
   const handleCopy = () => {
     if (typeof window === "undefined") return;
 
-    if (typeof finalText === "string" && navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(finalText)
+    if (typeof content === "string" && navigator?.clipboard?.writeText) {
+  navigator.clipboard.writeText(content)
         .then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         })
-        .catch(() => fallbackCopy(finalText));
+        .catch(() => fallbackCopy(content));
     } else {
-      fallbackCopy(finalText);
+      fallbackCopy(content);
     }
   };
 
@@ -138,8 +217,13 @@ export default function ChatMessage({ message }) {
   }
   if (isAssistant) {
     return (
-      <AssistantMessage content={finalText} copied={copied} onCopy={handleCopy} />
-    );
+  <AssistantMessage
+    content={content}
+    displayText={typedText}
+    copied={copied}
+    onCopy={handleCopy}
+  />
+);
   }
   return null;
 }

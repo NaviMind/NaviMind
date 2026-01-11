@@ -171,4 +171,3 @@ export default React.memo(ChatItem, (prevProps, nextProps) => {
     prevProps.activeChatId === nextProps.activeChatId
   );
 });
-

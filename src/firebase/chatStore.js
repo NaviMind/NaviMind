@@ -12,7 +12,7 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  setDoc
+  setDoc,
 } from "firebase/firestore";
 
 // ─────────── CHAT (GLOBAL) ───────────
@@ -36,7 +36,7 @@ export async function createUserChat() {
   };
 }
 
-export async function addMessageToChat(chatId, messageContent) {
+export async function addMessageToChat(chatId, messageContent, role = "user") {
   const user = auth.currentUser;
   if (!user) throw new Error("User not authenticated");
 
@@ -52,20 +52,24 @@ export async function addMessageToChat(chatId, messageContent) {
 );
 
   const message = {
-    role: "user",
-    content: messageContent,
-    timestamp: serverTimestamp(),
-  };
+  role,
+  content: messageContent,
+  timestamp: serverTimestamp(),
+};
 
-  await addDoc(messagesRef, message);
+  const messageRef = await addDoc(messagesRef, message);
 
   // если это первое сообщение — формируем заголовок
-  const snapshot = await getDocs(messagesRef);
-  if (snapshot.size === 1) {
-    const titleWords = messageContent.trim().split(/\s+/).slice(0, 8).join(" ");
-    const title = titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
-    await updateDoc(chatRef, { title });
-  }
+  const chatSnap = await getDoc(chatRef);
+
+if (!chatSnap.data()?.title) {
+  const titleWords = messageContent.trim().split(/\s+/).slice(0, 8).join(" ");
+  const title =
+    titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
+
+  await updateDoc(chatRef, { title });
+}
+  return { messageId: messageRef.id };
 }
 
 export async function loadUserChats(uid) {
@@ -215,7 +219,7 @@ export async function createChatForTopic({ uid, topicId, messageText }) {
   };
 }
 
-export async function addMessageToTopicChat(topicId, chatId, messageContent) {
+export async function addMessageToTopicChat(topicId, chatId, messageContent, role = "user") {
   const user = auth.currentUser;
   const uid = user?.uid;
   if (!uid) throw new Error("User not authenticated");
@@ -241,20 +245,65 @@ export async function addMessageToTopicChat(topicId, chatId, messageContent) {
   );
 
   const message = {
-    role: "user",
-    content: messageContent,
-    timestamp: serverTimestamp(),
-  };
+  role,
+  content: messageContent,
+  timestamp: serverTimestamp(),
+};
 
-  await addDoc(messagesRef, message);
+  const messageRef = await addDoc(messagesRef, message);
 
   // Если это первое сообщение — формируем заголовок из него
-  const snapshot = await getDocs(messagesRef);
-  if (snapshot.size === 1) {
-    const titleWords = messageContent.trim().split(/\s+/).slice(0, 8).join(" ");
-    const title = titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
-    await updateDoc(chatRef, { title });
-  }
+  const chatSnap = await getDoc(chatRef);
+
+if (!chatSnap.data()?.title || chatSnap.data()?.title === "New Chat") {
+  const titleWords = messageContent.trim().split(/\s+/).slice(0, 8).join(" ");
+  const title =
+    titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
+
+  await updateDoc(chatRef, { title });
+}
+
+  return { messageId: messageRef.id };
+
+}
+
+// ─────────── UPDATE MESSAGE (GLOBAL) ───────────
+export async function updateGlobalChatMessage(chatId, messageId, patch = {}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("User not authenticated");
+
+  const uid = user.uid;
+
+  const msgRef = doc(db, "users", uid, "chats", chatId, "messages", messageId);
+
+  await updateDoc(msgRef, {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─────────── UPDATE MESSAGE (TOPIC) ───────────
+export async function updateTopicChatMessage(topicId, chatId, messageId, patch = {}) {
+  const user = auth.currentUser;
+  const uid = user?.uid;
+  if (!uid) throw new Error("User not authenticated");
+
+  const msgRef = doc(
+    db,
+    "users",
+    uid,
+    "topics",
+    topicId,
+    "chats",
+    chatId,
+    "messages",
+    messageId
+  );
+
+  await updateDoc(msgRef, {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // ✅ Алиасы, чтобы импорт в InputBar был единым стилем
