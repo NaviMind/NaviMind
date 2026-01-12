@@ -3,6 +3,8 @@
 import { useContext, useState, useEffect, useRef } from "react";
 import { UIContext } from "@/context/UIContext";
 import { Check, Copy } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // Регулируешь ширину сообщений здесь:
 const USER_MESSAGE_WIDTH = "max-w-[70%]";
@@ -57,6 +59,34 @@ function UserMessage({ content, copied, onCopy }) {
   );
 }
 
+function splitHighlight(text) {
+  if (!text) return { main: text, highlight: null };
+
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return { main: text, highlight: null };
+
+  const lastLine = lines[lines.length - 1];
+
+  const highlightTriggers = [
+    /^if you want/i,
+    /^in practice/i,
+    /^a common mistake/i,
+    /^focus first/i,
+    /^what matters most/i,
+  ];
+
+  const isHighlight = highlightTriggers.some(r => r.test(lastLine));
+
+  if (!isHighlight) {
+    return { main: text, highlight: null };
+  }
+
+  return {
+    main: lines.slice(0, -1).join("\n\n"),
+    highlight: lastLine,
+  };
+}
+
 // Компонент сообщения AI — кнопка копии слева
 function AssistantMessage({ content, displayText, copied, onCopy }) {
   const text = String(displayText ?? content ?? "");
@@ -78,20 +108,60 @@ function AssistantMessage({ content, displayText, copied, onCopy }) {
     );
   }
 
-  // обычный ответ ассистента (без bubble)
+    const { main, highlight } = splitHighlight(text);
+
   return (
     <div className="w-full flex justify-start mt-6">
-      <div className="max-w-full">
-        <div className="text-[17px] sm:text-base font-normal leading-relaxed whitespace-pre-wrap break-words text-gray-200">
-          {text}
+      <div className="max-w-full space-y-4">
+        {/* Основной текст */}
+        <div className="text-[17px] sm:text-base font-normal leading-relaxed break-words text-gray-200">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
+
+              h2: ({ children }) => (
+                <h2 className="mt-6 mb-3 text-[18px] sm:text-lg font-semibold text-white">
+                  {children}
+                </h2>
+              ),
+              h3: ({ children }) => (
+                <h3 className="mt-5 mb-2 text-[17px] sm:text-base font-semibold text-white/90">
+                  {children}
+                </h3>
+              ),
+
+              ul: ({ children }) => <ul className="mb-4 pl-5 list-disc">{children}</ul>,
+              ol: ({ children }) => <ol className="mb-4 pl-5 list-decimal">{children}</ol>,
+              li: ({ children }) => <li className="mb-2">{children}</li>,
+
+              hr: () => <div className="my-6 h-px w-full bg-white/10" />,
+
+              strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+            }}
+          >
+            {main}
+          </ReactMarkdown>
         </div>
+
+        {/* Highlight bubble (premium) */}
+        {highlight && (
+          <div className="relative bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 text-blue-400 select-none">💡</div>
+              <div className="text-[15px] sm:text-base leading-relaxed text-gray-100">
+                {highlight}
+              </div>
+            </div>
+          </div>
+        )}
 
         <CopyButton copied={copied} onCopy={onCopy} className="justify-start" />
       </div>
     </div>
   );
-}
-
+  }
+  
 export default function ChatMessage({ message }) {
   const { role, content } = message;
   const { language } = useContext(UIContext);
