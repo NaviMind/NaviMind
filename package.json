@@ -1,0 +1,32 @@
+{
+  "name": "deepsea-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.0",
+    "dayjs": "^1.11.13",
+    "firebase": "^12.1.0",
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.511.0",
+    "next": "^15.4.8",
+    "openai": "^6.15.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17"
+  }
+}
