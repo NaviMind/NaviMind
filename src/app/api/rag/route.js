@@ -8,7 +8,6 @@ import { clarificationStrategy } from "@/ai/clarificationStrategy";
 import { documentAnalysisGuidance } from "@/ai/documentAnalysisGuidance";
 import { imageAnalysisGuide } from "@/ai/imageAnalysisGuide";
 import { regulatoryEvidenceGuidance } from "@/ai/regulatoryEvidenceGuidance";
-import { retrieveFromSupabase } from "@/ai/retrieveFromSupabase";
 import { ragRules } from "@/ai/ragRules";
 import { analyzeRagIntent } from "@/ai/ragIntentAnalyzer";
 
@@ -63,16 +62,8 @@ export async function POST(req) {
         headers: { "Content-Type": "text/event-stream; charset=utf-8" },
       });
     }
-
    // 🧠 RAG INTENT ANALYSIS (cheap LLM step)
 const intent = await analyzeRagIntent(openai, question);
-
-// 🔎 RAG RETRIEVAL (intent-aware, limited)
-const ragChunks = await retrieveFromSupabase(
-  question,
-  intent,
-  5
-);
 
     const ragContext =
       ragChunks.length > 0
