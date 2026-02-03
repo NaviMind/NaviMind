@@ -19,7 +19,6 @@ import { doc, getDoc } from "firebase/firestore";
 
 import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
-import AIModelSelector from "./AIModelSelector";
 
 const FILES_LIMIT = 5;
 
@@ -372,70 +371,69 @@ try {
   backdrop-blur-sm
   ${isActive ? "border-blue-500 animate-glow" : ""}`}
 >
-            {/* INPUT ROW */}
-            <div className="flex items-start w-full">
-              <textarea
-  ref={inputRef}
-  rows={1}
-  value={inputValue}
-  onChange={(e) => {
-    setInputValue(e.target.value);
-    if (e.target.value.trim()) setIsActive(true);
-  }}
-  onFocus={(e) => {
-  setIsActive(true);
-  // iOS PWA focus boost
-  setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-}}
-  onBlur={() => {
-    if (!inputValue.trim()) setIsActive(false);
-  }}
-  onKeyDown={handleKeyDown}
-                className="flex-1 w-full resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[48px] max-h-[168px] overflow-y-auto custom-scroll py-3 px-4"
-                placeholder="Ask anything in your language..."
-                style={{ minWidth: 0 }}
-              />
-            </div>
+            {/* INPUT ROW — single line */}
+<div className="flex items-center w-full gap-1 px-1">
+  {/* 📎 Attach File */}
+  <Tooltip content="Add photos & files" position="top">
+    <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
+      <img
+        src="/Attach_File.svg"
+        alt="Attach"
+        className="h-5 w-5"
+      />
+      <input
+        type="file"
+        multiple
+        onChange={handleFileChange}
+        className="sr-only"
+      />
+    </label>
+  </Tooltip>
 
-            {/* ICON ROW */}
-            <div className="flex items-center justify-between mt-1 w-full gap-1 px-0 md:px-1">
-              <div className="flex items-center gap-1">
-                {/* 📎 Attach File */}
-                <Tooltip content="Add photos & files" position="bottom">
-                  <label className="relative cursor-pointer p-1 md:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[38px] min-h-[38px] md:min-w-[40px] md:min-h-[40px] flex items-center justify-center">
-                    <img
-                      src="/Attach_File.svg"
-                      alt="Attach"
-                      className="h-5 w-5 md:h-5 md:w-5"
-                    />
-                    <input
-                      type="file"
-                      multiple
-                      onChange={handleFileChange}
-                      className="sr-only"
-                    />
-                  </label>
-                </Tooltip>
+  {/* ✍️ Textarea */}
+  <textarea
+    ref={inputRef}
+    rows={1}
+    value={inputValue}
+    onChange={(e) => {
+      setInputValue(e.target.value);
+      if (e.target.value.trim()) setIsActive(true);
+    }}
+    onFocus={(e) => {
+      setIsActive(true);
+      setTimeout(
+        () =>
+          e.target.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          }),
+        100
+      );
+    }}
+    onBlur={() => {
+      if (!inputValue.trim()) setIsActive(false);
+    }}
+    onKeyDown={handleKeyDown}
+    className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
+    placeholder="Ask anything in your language..."
+    style={{ minWidth: 0 }}
+  />
 
-                {/* 🤖 AI Model Selector */}
-                <AIModelSelector />
-              </div>
-
-              {/* ⬆ Send Button */}
-              <Tooltip content="Send" position="bottom">
-                <button
-                  onClick={handleSend}
-                  className="p-1 md:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[32px] min-h-[32px] md:min-w-[40px] md:min-h-[40px] flex items-center justify-center"
-                  disabled={!inputValue.trim()}
-                >
-                  <img
-                    src="/Arrow_Send.svg"
-                    alt="Send"
-                    className="h-5 w-5 md:h-5 md:w-5"
-                  />
-                </button>
-              </Tooltip>
-            </div>
+  {/* ⬆ Send Button */}
+  <Tooltip content="Send" position="top">
+    <button
+      onClick={handleSend}
+      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center"
+      disabled={!inputValue.trim()}
+    >
+      <img
+        src="/Arrow_Send.svg"
+        alt="Send"
+        className="h-5 w-5"
+      />
+    </button>
+  </Tooltip>
+</div>
 
             {/* Uploaded Files Preview */}
             {fileAlert && (

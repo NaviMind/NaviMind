@@ -8,8 +8,6 @@ import { clarificationStrategy } from "@/ai/clarificationStrategy";
 import { documentAnalysisGuidance } from "@/ai/documentAnalysisGuidance";
 import { imageAnalysisGuide } from "@/ai/imageAnalysisGuide";
 import { regulatoryEvidenceGuidance } from "@/ai/regulatoryEvidenceGuidance";
-import { ragRules } from "@/ai/ragRules";
-import { analyzeRagIntent } from "@/ai/ragIntentAnalyzer";
 
 export const runtime = "nodejs";
 
@@ -25,7 +23,6 @@ const SYSTEM_PROMPT = [
   safetyRules,
   confidenceCalibration,
   clarificationStrategy,
-  ragRules,
   documentAnalysisGuidance,
   imageAnalysisGuide,
   regulatoryEvidenceGuidance,
@@ -62,18 +59,6 @@ export async function POST(req) {
         headers: { "Content-Type": "text/event-stream; charset=utf-8" },
       });
     }
-   // 🧠 RAG INTENT ANALYSIS (cheap LLM step)
-const intent = await analyzeRagIntent(openai, question);
-
-    const ragContext =
-      ragChunks.length > 0
-        ? `RAG CONTEXT — authoritative sources from NaviMind knowledge base:\n\n${ragChunks
-            .map(
-              (c, i) =>
-                `SOURCE ${i + 1}:\nTitle: ${c.title}\nCategory: ${c.category}\nText:\n${c.text}`
-            )
-            .join("\n\n---\n\n")}`
-        : "";
 
     const encoder = new TextEncoder();
 
@@ -84,11 +69,9 @@ const intent = await analyzeRagIntent(openai, question);
 
           const messages = [
             {
-              role: "system",
-              content: `${SYSTEM_PROMPT}${
-                ragContext ? `\n\n---\n\n${ragContext}` : ""
-              }`,
-            },
+  role: "system",
+  content: SYSTEM_PROMPT,
+},
 
             // 🧠 Chat history
             ...chatHistory.map((m) => ({
