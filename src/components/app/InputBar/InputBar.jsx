@@ -16,9 +16,13 @@ import { auth } from "@/firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
 import { ChatContext } from "@/context/ChatContext";
 import { doc, getDoc } from "firebase/firestore";
-
 import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
+import {
+  shouldUpdateSummary,
+  generateChatSummary,
+} from "@/ai/chatSummary";
+
 
 const FILES_LIMIT = 5;
 
@@ -183,6 +187,32 @@ const topicIdFromURL =
       await addMessageToGlobalChat(chatId, message);
     }
 
+    // 🧠 SUMMARY (MVP, safe)
+try {
+  const chatSessionKey = inTopic ? topicId : "global";
+  const chatSessions = projectChatSessions?.[chatSessionKey] || [];
+  const currentChat = chatSessions.find(c => c.chatId === chatId);
+
+  const messageCount = currentChat?.messages?.length || 0;
+
+  if (shouldUpdateSummary(messageCount)) {
+    const summary = await generateChatSummary(
+      currentChat?.messages || []
+    );
+
+    if (summary) {
+      await updateChatSummary({
+        uid: currentUser.uid,
+        chatId,
+        topicId: inTopic ? topicId : null,
+        summaryText: summary,
+      });
+    }
+  }
+} catch (e) {
+  console.warn("Summary skipped (safe):", e);
+}
+
     // ✅ создаём placeholder-сообщение ассистента и запоминаем его id
 let aiMessageId = null;
 
@@ -207,6 +237,28 @@ try {
   console.error("Failed to create AI placeholder:", e);
 }
 
+// 🧠 Resolve current chat safely
+const chatSessionKey = inTopic ? topicId : "global";
+const chatSessions = projectChatSessions?.[chatSessionKey] || [];
+const currentChat = chatSessions.find(c => c.chatId === chatId);
+
+// 🧠 Build safe chat history for AI
+const rawMessages = Array.isArray(currentChat?.messages)
+  ? currentChat.messages
+      .filter(
+        m =>
+          (m.role === "user" || m.role === "assistant") &&
+          m.content &&
+          !m.content.startsWith("NaviMind syncing")
+      )
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+      }))
+  : [];
+
+const chatHistory = [...rawMessages, { role: "user", content: message }]
+  .slice(-10);
 
 // 🤖 GET AI RESPONSE (SSE if available, JSON fallback)
 try {
@@ -214,10 +266,12 @@ try {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // не обязательно, но полезно: сервер может понять, что мы хотим стрим
       "Accept": "text/event-stream",
     },
-    body: JSON.stringify({ question: message }),
+    body: JSON.stringify({
+  question: message,
+  chatHistory,
+}),
   });
 
   if (!res.ok) {

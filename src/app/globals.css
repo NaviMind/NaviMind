@@ -160,3 +160,20 @@ textarea {
 body {
   height: calc(var(--vh) * 100);
 }
+
+@keyframes compassSway {
+  0% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(-15deg);
+  }
+}
+
+.compass-sway {
+  animation: compassSway 2.2s ease-in-out infinite;
+  transform-origin: center center;
+}

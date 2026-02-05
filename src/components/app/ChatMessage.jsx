@@ -12,25 +12,23 @@ const ASSISTANT_MESSAGE_WIDTH = "w-fit max-w-full";
 
 // Кнопка копирования с тултипом (позицию задаём через props)
 function CopyButton({ copied, onCopy, className = "" }) {
-  // Показываем тултип только на десктопе и когда не скопировано
   return (
-    <div className={`flex mt-2 relative group w-fit ${className}`}>
+    <div className={`flex mt-2 relative w-fit ${className}`}>
       <button
         onClick={onCopy}
-        className="text-gray-400 hover:text-white transition text-sm"
+        className="peer text-gray-400 hover:text-white transition text-sm"
         aria-label={copied ? "Copied" : "Copy"}
-        tabIndex={0}
         type="button"
       >
         {copied ? (
-          <Check size={16} strokeWidth={2} className="text-green-400" />
+          <Check size={20} strokeWidth={2} />
         ) : (
-          <Copy size={16} strokeWidth={2} />
+          <Copy size={18} strokeWidth={2} />
         )}
       </button>
-      {/* Tooltip: hidden на мобилке */}
+
       {!copied && (
-        <div className="hidden sm:block absolute top-full mt-2 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white text-xs px-3 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        <div className="hidden sm:block absolute top-full mt-2 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white text-xs px-3 py-1 rounded shadow opacity-0 pointer-events-none peer-hover:opacity-100 transition-opacity whitespace-nowrap">
           Copy
         </div>
       )}
@@ -38,12 +36,14 @@ function CopyButton({ copied, onCopy, className = "" }) {
   );
 }
 
+
 // Компонент сообщения пользователя — кнопка копии справа
 function UserMessage({ content, copied, onCopy }) {
   return (
     <div className="w-full flex justify-end mt-6">
       <div
         className={`
+          group
           p-3 rounded-xl
           text-[17px] sm:text-base font-normal
           leading-relaxed whitespace-pre-wrap shadow-md break-words
@@ -53,7 +53,11 @@ function UserMessage({ content, copied, onCopy }) {
         `}
       >
         {content}
-        <CopyButton copied={copied} onCopy={onCopy} className="justify-end ml-auto" />
+        <CopyButton
+  copied={copied}
+  onCopy={onCopy}
+  className="justify-end ml-auto opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+/>
       </div>
     </div>
   );
@@ -88,7 +92,7 @@ function splitHighlight(text) {
 }
 
 // Компонент сообщения AI — кнопка копии слева
-function AssistantMessage({ content, displayText, copied, onCopy }) {
+function AssistantMessage({ content, displayText, copied, onCopy, showCopy }) {
   const text = String(displayText ?? content ?? "");
 
   // индикатор ожидания (placeholder)
@@ -101,8 +105,13 @@ function AssistantMessage({ content, displayText, copied, onCopy }) {
     return (
       <div className="w-full flex justify-start mt-6">
         <div className="text-sm text-gray-400 flex items-center gap-2 select-none">
-          <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
-          <span>NaviMind syncing…</span>
+          <div className="flex items-center gap-2 select-none">
+  <img
+    src="/compass.png"
+    alt="NaviMind analyzing"
+    className="w-12 h-12 compass-sway"
+  />
+</div>
         </div>
       </div>
     );
@@ -173,7 +182,9 @@ li: ({ children }) => (
           </div>
         )}
 
-        <CopyButton copied={copied} onCopy={onCopy} className="justify-start" />
+        {showCopy && (
+  <CopyButton copied={copied} onCopy={onCopy} className="justify-start" />
+)}
       </div>
     </div>
   );
@@ -309,6 +320,7 @@ useEffect(() => {
     displayText={typedText}
     copied={copied}
     onCopy={handleCopy}
+    showCopy={hasTypedOnceRef.current}
   />
 );
   }

@@ -10,6 +10,9 @@ export default function ChatArea({ messages, children }) {
 
   const hasMessages = Array.isArray(messages) && messages.length > 0;
 
+  const lastMessage = hasMessages ? messages[messages.length - 1] : null;
+  const isAssistantTyping = lastMessage?.role === "assistant" && lastMessage?.isStreaming === true;
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -25,10 +28,12 @@ export default function ChatArea({ messages, children }) {
     if (!ref) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = ref;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      setShowScrollButton(distanceFromBottom > 200);
-    };
+  if (isAssistantTyping) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = ref;
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+  setShowScrollButton(distanceFromBottom > 200);
+};
 
     ref.addEventListener("scroll", handleScroll);
     return () => ref.removeEventListener("scroll", handleScroll);

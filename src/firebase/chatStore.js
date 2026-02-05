@@ -23,6 +23,7 @@ export async function createUserChat() {
 
   const chatData = {
   title: "",
+  summary: "",
   createdAt: serverTimestamp(),
   ownerId: user.uid,
 };
@@ -156,7 +157,7 @@ export async function createUserTopic(topicName) {
 
   const topicData = {
     name: topicName,               
-    title: topicName,              
+    title: topicName,             
     createdAt: serverTimestamp(),
     ownerId: user.uid,
   };
@@ -205,6 +206,7 @@ export async function createChatForTopic({ uid, topicId, messageText }) {
   // Создаём пустой чат внутри топика
   const chatData = {
     title: "New Chat",
+    summary: "",
     createdAt: serverTimestamp(),
     ownerId: _uid,
     topicId,
@@ -309,3 +311,41 @@ export async function updateTopicChatMessage(topicId, chatId, messageId, patch =
 // ✅ Алиасы, чтобы импорт в InputBar был единым стилем
 export const createChatGlobal = createUserChat;
 export const addMessageToGlobalChat = addMessageToChat;
+
+// ─────────── CHAT SUMMARY ───────────
+
+export async function updateChatSummary({
+  uid,
+  chatId,
+  topicId = null,
+  summaryText,
+}) {
+  if (!uid || !chatId) return;
+
+  try {
+    let chatRef;
+
+    if (topicId) {
+      // чат внутри topic
+      chatRef = doc(
+        db,
+        "users",
+        uid,
+        "topics",
+        topicId,
+        "chats",
+        chatId
+      );
+    } else {
+      // глобальный чат
+      chatRef = doc(db, "users", uid, "chats", chatId);
+    }
+
+    await updateDoc(chatRef, {
+      summary: summaryText,
+      summaryUpdatedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("❌ Failed to update chat summary:", err);
+  }
+}

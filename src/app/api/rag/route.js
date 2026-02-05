@@ -8,6 +8,37 @@ import { clarificationStrategy } from "@/ai/clarificationStrategy";
 import { documentAnalysisGuidance } from "@/ai/documentAnalysisGuidance";
 import { imageAnalysisGuide } from "@/ai/imageAnalysisGuide";
 import { regulatoryEvidenceGuidance } from "@/ai/regulatoryEvidenceGuidance";
+import { assistantRoleAndValue } from "@/ai/assistantRoleAndValue";
+
+async function generateChatSummary({ messages }) {
+  if (!messages || messages.length === 0) return "";
+
+  const prompt = `
+Summarize the following conversation in 3–4 short sentences.
+Focus on the main topic, goals, and important decisions.
+Do NOT include greetings or small talk.
+
+Conversation:
+${messages
+  .map(m => `${m.role.toUpperCase()}: ${m.content}`)
+  .join("\n")}
+`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: "You summarize conversations clearly and concisely." },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    return completion.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    console.error("❌ Failed to generate summary:", err);
+    return "";
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -19,6 +50,7 @@ const openai = new OpenAI({
 
 const SYSTEM_PROMPT = [
   systemInstruction,
+  assistantRoleAndValue,
   responseStyle,
   safetyRules,
   confidenceCalibration,
@@ -43,7 +75,8 @@ export async function POST(req) {
 
     const {
       question,
-      chatHistory = [], // [{ role, content }]
+      chatHistory = [], 
+      summary = "",
     } = body;
 
     if (!process.env.OPENAI_API_KEY) {
@@ -67,21 +100,28 @@ export async function POST(req) {
         try {
           controller.enqueue(encoder.encode(sse("status", "start")));
 
-          const messages = [
-            {
-  role: "system",
-  content: SYSTEM_PROMPT,
-},
+          const summaryBlock = summary
+  ? {
+      role: "system",
+      content: `Conversation summary (context from earlier messages):\n${summary}`,
+    }
+  : null;
 
-            // 🧠 Chat history
-            ...chatHistory.map((m) => ({
-              role: m.role,
-              content: String(m.content),
-            })),
+         const messages = [
+  {
+    role: "system",
+    content: SYSTEM_PROMPT,
+  },
 
-            // 👤 Current question
-            { role: "user", content: String(question) },
-          ];
+  ...(summaryBlock ? [summaryBlock] : []),
+
+  ...chatHistory.map((m) => ({
+    role: m.role,
+    content: String(m.content),
+  })),
+
+  { role: "user", content: String(question) },
+];
 
           const completion = await openai.chat.completions.create({
             model: "gpt-4.1-mini",
