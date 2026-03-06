@@ -9,13 +9,17 @@ export function UIProvider({ children }) {
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("EN");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [advancedTouched, setAdvancedTouched] = useState(false);
+  const [advancedCompleted, setAdvancedCompleted] = useState(false);
+  const [vesselProfileSaved, setVesselProfileSaved] = useState(false);
+  const [isVesselProfileOpen, setVesselProfileOpen] = useState(false);
+  const [openAdvancedDirectly, setOpenAdvancedDirectly] = useState(false);
+  
   const [isSidebarOpen, setSidebarOpen] = useState(() => {
-  // если уже есть сохранённое значение — читаем его
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("sidebarOpen");
     if (saved !== null) return saved === "true";
-    // если нет сохранённого — по ширине экрана
-    return window.innerWidth > 900; // десктоп открыт, мобилка закрыта
+    return window.innerWidth > 900; 
   }
   return true;
 });
@@ -92,7 +96,17 @@ export function UIProvider({ children }) {
         setLanguage,
         inputText,        
         setInputText, 
-        isFullscreen    
+        isFullscreen,
+        advancedTouched,
+        setAdvancedTouched,
+        advancedCompleted,
+        setAdvancedCompleted,
+        vesselProfileSaved,
+        setVesselProfileSaved,
+        isVesselProfileOpen,
+        setVesselProfileOpen,
+        openAdvancedDirectly,
+        setOpenAdvancedDirectly,
       }}
     >
       {children}
