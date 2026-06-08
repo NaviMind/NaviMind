@@ -246,6 +246,8 @@ const removeFile = (filename) => {
 </div>
 
             {/* Uploaded Files Preview */}
+            <FilePreview files={uploadedFiles} onRemove={removeFile} />
+
             {fileAlert && (
               <div className="mx-auto my-2 px-4 py-2 rounded-lg flex items-center gap-2 bg-red-600 text-white shadow font-medium w-fit min-w-[160px] max-w-full animate-fade-in">
                 <svg
@@ -285,7 +287,6 @@ const removeFile = (filename) => {
               </div>
             )}
 
-            <FilePreview files={uploadedFiles} onRemove={removeFile} />
           </div>
         </div>
       </div>
