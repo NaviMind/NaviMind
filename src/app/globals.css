@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Touch devices: disable stuck hover states ─── */
+@media (hover: none) and (pointer: coarse) {
+  button:hover,
+  label:hover,
+  a:hover,
+  [role="button"]:hover {
+    background-color: transparent !important;
+    opacity: 1 !important;
+  }
+
+  button:active,
+  label:active,
+  [role="button"]:active {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
 /* ─── Цветовые переменные темы ─── */
 :root {
   --bg-app: #0b1220;
