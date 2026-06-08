@@ -44,25 +44,21 @@ export default function ChatOptionsDropdown({
     if (!targetRef?.current) return;
 
     const rect = targetRef.current.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
-
     const menuHeight = 160;
     const menuWidth = isMobile ? 220 : 180;
 
-    let top = rect.bottom + scrollY + 8;
+    let top = rect.bottom + 8;
     let left = isMobile
       ? Math.max((window.innerWidth - menuWidth) / 2, 8)
-      : rect.left + scrollX + 8;
+      : rect.left + 8;
 
-    const willOverflowBottom = top + menuHeight > window.innerHeight + scrollY;
-    if (willOverflowBottom) {
-      top = rect.top + scrollY - menuHeight - 2;
-      if (top < scrollY + 8) top = scrollY + 8;
+    if (top + menuHeight > window.innerHeight) {
+      top = rect.top - menuHeight - 2;
+      if (top < 8) top = 8;
     }
 
-    if (!isMobile && left + menuWidth > window.innerWidth + scrollX) {
-      left = window.innerWidth + scrollX - menuWidth - 4;
+    if (!isMobile && left + menuWidth > window.innerWidth) {
+      left = window.innerWidth - menuWidth - 4;
       left = Math.max(left, 8);
     }
 
@@ -136,11 +132,11 @@ export default function ChatOptionsDropdown({
           <div
             ref={menuRef}
             style={{
-              position: "absolute",
+              position: "fixed",
               top: coords.top,
               left: coords.left,
               minWidth: isMobile ? 220 : 180,
-              zIndex: 50,
+              zIndex: 9999,
             }}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg ring-1 ring-slate-700 p-1 text-sm transition"
           >
