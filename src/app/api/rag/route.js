@@ -16,24 +16,29 @@ import { webAutonomyPolicy } from "@/ai/webAutonomyPolicy";
 
 function isOperationalScenario(question) {
   if (!question) return false;
-
   const q = question.toLowerCase();
-
   return (
-    q.includes("can we") ||
-    q.includes("should we") ||
-    q.includes("continue") ||
-    q.includes("stop") ||
-    q.includes("suspend") ||
-    q.includes("operation") ||
-    q.includes("cargo") ||
-    q.includes("ballast") ||
-    q.includes("bunkering") ||
-    q.includes("terminal") ||
-    q.includes("pressure") ||
-    q.includes("limit") ||
+    q.includes("can we") || q.includes("should we") || q.includes("continue") ||
+    q.includes("stop") || q.includes("suspend") || q.includes("operation") ||
+    q.includes("cargo") || q.includes("ballast") || q.includes("bunkering") ||
+    q.includes("terminal") || q.includes("pressure") || q.includes("limit") ||
     q.includes("risk")
   );
+}
+
+function needsWebSearch(question) {
+  if (!question) return false;
+  const q = question.toLowerCase();
+  const triggers = [
+    "solas", "marpol", "stcw", "ism", "isps", "isgott",
+    "regulation", "requirement", "certificate", "inspection",
+    "port state", "psc", "flag state", "class", "classification",
+    "imo", "msc", "mepc", "circular", "amendment", "code",
+    "latest", "current", "updated", "new rule", "how many",
+    "minimum", "maximum", "what is required", "procedure",
+    "interval", "frequency", "drill", "record", "log",
+  ];
+  return triggers.some((t) => q.includes(t));
 }
 
 export const runtime = "nodejs";
@@ -135,103 +140,72 @@ const assembledSystemPrompt = [
           controller.enqueue(encoder.encode(sse("status", "start")));
 
           const summaryBlock = summary
-  ? {
-      role: "system",
-      content: `
-IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.
-This information MUST be considered when answering the user.
-${summary}
-`,
-}
-  : null;
+            ? {
+                role: "system",
+                content: `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`,
+              }
+            : null;
 
-         const messages = [
-  {
-    role: "system",
-    content: assembledSystemPrompt,
-  },
+          const messages = [
+            { role: "system", content: assembledSystemPrompt },
+            ...(summaryBlock ? [summaryBlock] : []),
+            ...chatHistory.map((m) => ({
+              role: m.role,
+              content: String(m.content),
+            })),
+            {
+              role: "user",
+              content: [
+                { type: "input_text", text: String(question) },
+                ...(hasDocs
+                  ? [{ type: "input_text", text: `\n\n[Attached Documents]\n${extractedDocs.join("\n\n---\n\n")}` }]
+                  : []),
+                ...imageUrls.map((url) => ({
+                  type: "input_image",
+                  image_url: url,
+                })),
+              ],
+            },
+          ];
 
-  ...(summaryBlock ? [summaryBlock] : []),
-
-  ...chatHistory.map((m) => ({
-    role: m.role,
-    content: String(m.content),
-  })),
-
- {
-  role: "user",
-  content: [
-    { type: "input_text", text: String(question) },
-    ...(hasDocs
-      ? [{ type: "input_text", text: `\n\n[Attached Documents]\n${extractedDocs.join("\n\n---\n\n")}` }]
-      : []),
-    ...imageUrls.map((url) => ({
-      type: "input_image",
-      image_url: url,
-    })),
-  ],
-}
-];
+          const useWebSearch = needsWebSearch(question);
 
           const completion = await openai.responses.create({
-  model: "gpt-4.1",
-  stream: false,
-  tools: [{ type: "web_search_preview" }],
-  input: messages,
-});
+            model: "gpt-4.1",
+            stream: true,
+            ...(useWebSearch ? { tools: [{ type: "web_search_preview" }] } : {}),
+            input: messages,
+          });
 
-          const rawWebAnswer = completion.output_text || "";
-          const annotations =
-  completion.output?.[1]?.content?.[0]?.annotations || [];
+          const collectedSources = [];
 
-const sources = annotations
-  .filter((a) => a.type === "url_citation")
-  .map((a) => ({
-    title: a.title,
-    url: a.url,
-  }));
-        
-          const rewriteCompletion = await openai.responses.create({
-  model: "gpt-4.1",
-  stream: true,
-  input: [
-    {
-      role: "system",
-      content: assembledSystemPrompt,
-    },
-    {
-      role: "user",
-      content: `
-Rewrite the following information strictly in operational maritime style.
-Do NOT add new facts.
-Preserve accuracy.
+          for await (const event of completion) {
+            if (event.type === "response.output_text.delta") {
+              controller.enqueue(encoder.encode(sse("token", event.delta)));
+            }
 
-${rawWebAnswer}
-`,
-    },
-  ],
-});
+            if (event.type === "response.completed") {
+              const annotations =
+                event.response?.output?.[1]?.content?.[0]?.annotations || [];
+              annotations
+                .filter((a) => a.type === "url_citation")
+                .forEach((a) =>
+                  collectedSources.push({ title: a.title, url: a.url })
+                );
+            }
 
-for await (const event of rewriteCompletion) {
-  if (event.type === "response.output_text.delta") {
-    const token = event.delta;
-    controller.enqueue(encoder.encode(sse("token", token)));
-  }
+            if (event.type === "response.error") {
+              controller.enqueue(
+                encoder.encode(sse("error", event.error?.message || "Unknown error"))
+              );
+            }
+          }
 
-  if (event.type === "response.error") {
-    controller.enqueue(
-      encoder.encode(sse("error", event.error?.message || "Unknown error"))
-    );
-  }
-}
-
-if (sources.length > 0) {
-  controller.enqueue(
-    encoder.encode(
-      sse("sources", JSON.stringify(sources))
-    )
-  );
-}
+          if (collectedSources.length > 0) {
+            controller.enqueue(
+              encoder.encode(sse("sources", JSON.stringify(collectedSources)))
+            );
+          }
 
 controller.enqueue(encoder.encode(sse("status", "done")));
 controller.close();
