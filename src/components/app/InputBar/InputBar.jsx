@@ -190,6 +190,9 @@ const removeFile = (filename) => {
   backdrop-blur-sm
   ${isActive ? "border-blue-500 animate-glow" : ""}`}
 >
+            {/* Uploaded Files Preview */}
+            <FilePreview files={uploadedFiles} onRemove={removeFile} />
+
             {/* INPUT ROW — single line */}
 <div className="flex items-end w-full gap-1 px-1">
   {/* 📎 Attach File */}
@@ -244,9 +247,6 @@ const removeFile = (filename) => {
     </button>
   </Tooltip>
 </div>
-
-            {/* Uploaded Files Preview */}
-            <FilePreview files={uploadedFiles} onRemove={removeFile} />
 
             {fileAlert && (
               <div className="mx-auto my-2 px-4 py-2 rounded-lg flex items-center gap-2 bg-red-600 text-white shadow font-medium w-fit min-w-[160px] max-w-full animate-fade-in">
