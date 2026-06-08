@@ -40,6 +40,15 @@ async function uploadAttachments({ uid, chatId, topicId, files }) {
   return uploaded;
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
   const ref = topicId
     ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
@@ -157,16 +166,31 @@ sendLocks.add(sendKey);
 
   // ───────── SAVE USER MESSAGE ─────────
 
-let uploadedAttachments = [];
+const imageFiles = attachments.filter((f) => f.type.startsWith("image/"));
+const documentFiles = attachments.filter((f) => !f.type.startsWith("image/"));
 
-if (attachments.length > 0) {
-  uploadedAttachments = await uploadAttachments({
+let uploadedImages = [];
+if (imageFiles.length > 0) {
+  uploadedImages = await uploadAttachments({
     uid: currentUser.uid,
     chatId,
     topicId: inTopic ? topicId : null,
-    files: attachments,
+    files: imageFiles,
   });
 }
+
+const documentPayloads = await Promise.all(
+  documentFiles.map(async (file) => ({
+    name: file.name,
+    type: file.type,
+    data: await fileToBase64(file),
+  }))
+);
+
+const uploadedAttachments = [
+  ...uploadedImages,
+  ...documentFiles.map((f) => ({ name: f.name, type: f.type })),
+];
 
 const userMessagePayload = {
   role: "user",
@@ -218,11 +242,12 @@ const summary = await fetchChatSummaryFromStore({
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
-  question: message,
-  chatHistory,
-  summary,
-  imageUrls: uploadedAttachments.map(a => a.url),
-}),
+      question: message,
+      chatHistory,
+      summary,
+      imageUrls: uploadedImages.map((a) => a.url),
+      documentFiles: documentPayloads,
+    }),
   });
 
   const contentType = res.headers.get("content-type") || "";

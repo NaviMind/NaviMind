@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
 
 import { systemInstruction } from "@/ai/systemInstruction";
 import { responseStyle } from "@/ai/responseStyle";
@@ -56,10 +58,37 @@ export async function POST(req) {
     
     const {
       question,
-      chatHistory = [], 
+      chatHistory = [],
       summary = "",
       imageUrls = [],
+      documentFiles = [],
     } = body;
+
+    // ── Extract text from uploaded documents ──
+    const extractedDocs = [];
+    for (const docFile of documentFiles) {
+      try {
+        const buffer = Buffer.from(docFile.data, "base64");
+        if (docFile.type === "application/pdf" || docFile.name?.endsWith(".pdf")) {
+          const parsed = await pdfParse(buffer);
+          extractedDocs.push(`[Document: ${docFile.name}]\n${parsed.text}`);
+        } else if (
+          docFile.type?.includes("wordprocessingml") ||
+          docFile.name?.endsWith(".docx") ||
+          docFile.name?.endsWith(".doc")
+        ) {
+          const result = await mammoth.extractRawText({ buffer });
+          extractedDocs.push(`[Document: ${docFile.name}]\n${result.value}`);
+        } else if (docFile.type === "text/plain" || docFile.name?.endsWith(".txt")) {
+          extractedDocs.push(`[Document: ${docFile.name}]\n${buffer.toString("utf8")}`);
+        }
+      } catch (e) {
+        extractedDocs.push(`[Document: ${docFile.name}] (failed to extract text)`);
+      }
+    }
+
+    const hasImages = imageUrls.length > 0;
+    const hasDocs = extractedDocs.length > 0;
 
     const basePrompt = [
   systemInstruction,
@@ -72,9 +101,9 @@ export async function POST(req) {
 ].join("\n\n---\n\n");
 
 const contextualBlocks = [
-  imageUrls.length > 0 ? imageAnalysisGuide : null,
+  hasImages ? imageAnalysisGuide : null,
+  hasDocs ? documentAnalysisGuidance : null,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
-  imageUrls.length > 0 ? documentAnalysisGuidance : null,
 ].filter(Boolean);
 
 const assembledSystemPrompt = [
@@ -82,7 +111,7 @@ const assembledSystemPrompt = [
   ...contextualBlocks,
 ].join("\n\n---\n\n");
 
-    const isImageMode = Array.isArray(imageUrls) && imageUrls.length > 0;
+    const isImageMode = hasImages || hasDocs;
 
     if (!process.env.OPENAI_API_KEY) {
       return new Response(sse("error", "Missing OPENAI_API_KEY"), {
@@ -133,6 +162,9 @@ ${summary}
   role: "user",
   content: [
     { type: "input_text", text: String(question) },
+    ...(hasDocs
+      ? [{ type: "input_text", text: `\n\n[Attached Documents]\n${extractedDocs.join("\n\n---\n\n")}` }]
+      : []),
     ...imageUrls.map((url) => ({
       type: "input_image",
       image_url: url,
