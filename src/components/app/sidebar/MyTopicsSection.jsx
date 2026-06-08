@@ -4,6 +4,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatItem from "./ChatItem";
 import SidebarSectionTitle from "./SidebarSectionTitle";
+import Icon from "@/components/common/Icon";
 
 export default function MyTopicsSection({ onSidebarItemClick }) {
   const {
@@ -75,9 +76,9 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
       className="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
     >
       {isExpanded ? (
-        <img src="/folder-open.svg" alt="Open Folder" className="w-5 h-5" draggable="false" />
+        <Icon name="folder-open" size={20} />
       ) : (
-        <img src="/folder-close.svg" alt="Closed Folder" className="w-5 h-5" draggable="false" />
+        <Icon name="folder-close" size={20} />
       )}
     </button>
     <div className="absolute top-full mt-2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 group-hover/topic:opacity-100 transition-opacity z-[100] whitespace-nowrap translate-x-[26px] hidden sm:block">
@@ -137,7 +138,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
       aria-label="Show menu"
       type="button"
     >
-      <img src="/More_Vert.svg" alt="More" className="w-4 h-4" draggable="false" />
+      <Icon name="more-vert" size={16} />
     </button>
   )}
 

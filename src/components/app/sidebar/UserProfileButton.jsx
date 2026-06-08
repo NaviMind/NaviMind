@@ -5,6 +5,7 @@ import UserMenuDropdown from "@/components/app/UserMenuDropdown";
 import { UIContext } from "@/context/UIContext";
 import { auth } from "@/firebase/config";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import Icon from "@/components/common/Icon";
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -114,12 +115,7 @@ export default function UserAvatar() {
       bg-blue-600
     "
   >
-    <img
-      src="Person User.svg"
-      alt="User icon"
-      className="w-5 h-5"
-      draggable="false"
-    />
+    <Icon name="person" size={20} />
   </span>
 )}
 

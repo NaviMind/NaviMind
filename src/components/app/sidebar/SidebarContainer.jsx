@@ -10,8 +10,9 @@ import SidebarSectionTitle from "./SidebarSectionTitle";
 import MyTopicsSection from "./MyTopicsSection";
 import NewChatButton from "./NewChatButton";
 import ChatListSection from "./ChatListSection";
-import UserProfileButton from "./UserProfileButton"; 
+import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
+import Icon from "@/components/common/Icon";
 
 
 export default function SidebarContainer({
@@ -102,7 +103,7 @@ useEffect(() => {
             >
               {/* Крестик/гамбургер */}
               {mobileMode ? (
-                <img src="/Close_Small.svg" alt="Close" className="w-6 h-6" />
+                <Icon name="close" size={24} />
               ) : (
                 <svg
                   className="h-6 w-6 text-gray-800 dark:text-gray-200"
@@ -137,12 +138,7 @@ useEffect(() => {
   transition-colors duration-200 min-h-[38px] 
 "
 >
-  <img
-    src="/Vessel Profile.svg"
-    alt="Vessel Profile"
-    className="w-5 h-5"
-    draggable="false"
-  />
+  <Icon name="vessel-profile" size={20} />
   <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
     Vessel Profile
   </span>
@@ -162,12 +158,7 @@ useEffect(() => {
   transition-colors duration-200 min-h-[38px] 
 "
 >
-  <img
-    src="/create_new.svg"
-    alt="Create Topic"
-    className="w-5 h-5"
-    draggable="false"
-  />
+  <Icon name="create-new" size={20} />
   <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
     Create Topic
   </span>
@@ -179,12 +170,7 @@ useEffect(() => {
  (!projectChatSessions?.global || !projectChatSessions.global.length) && (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="flex items-center text-[#9CA3AF] pointer-events-auto">
-      <img
-        src="/chat_bubble.svg"
-        alt=""
-        className="w-8 h-8 mr-3 opacity-80"
-        draggable="false"
-      />
+      <Icon name="chat-bubble" size={32} className="mr-3 opacity-80" />
       <div className="flex flex-col leading-tight text-left">
         <span className="text-[15px] font-medium">No chats yet.</span>
         <span className="text-[15px]">Just start typing.</span>

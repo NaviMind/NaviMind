@@ -2,6 +2,7 @@
 
 import { useContext } from "react";
 import { UIContext } from "@/context/UIContext";
+import Icon from "@/components/common/Icon";
 
 export default function QuickCheckCard({ question, onNext }) {
   const { setInputText } = useContext(UIContext);
@@ -14,7 +15,8 @@ export default function QuickCheckCard({ question, onNext }) {
     <div className="w-full max-w-2xl mx-auto mt-10 px-4 py-6 rounded-2xl shadow-md">
       {/* Заголовок с лампочкой */}
       <div className="flex items-center gap-2 mb-4">
-        <img src="/Lightbulb.svg" alt="Idea" className="w-7 h-7 sm:w-8 sm:h-8" />
+        <Icon name="lightbulb" size={28} className="sm:hidden" />
+        <Icon name="lightbulb" size={32} className="hidden sm:block" />
         <span className="text-white/70 text-sm sm:text-base tracking-wide">
           Quick Check:
         </span>
@@ -41,7 +43,7 @@ export default function QuickCheckCard({ question, onNext }) {
 "
     aria-label="Next question"
   >
-    <img src="/Arrow_Right.svg" alt="" className="w-4 h-4" />
+    <Icon name="arrow-right" size={16} />
   </button>
 
   {/* Tooltip — показываем только на десктопе */}
@@ -56,7 +58,7 @@ export default function QuickCheckCard({ question, onNext }) {
     className="inline-flex items-center gap-2 px-3.5 h-9 rounded-md text-white/70 hover:text-white hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
     aria-label="Ask this"
   >
-    <img src="/Chat.svg" alt="" className="w-4 h-4 opacity-80" />
+    <Icon name="chat" size={16} className="opacity-80" />
     <span className="text-sm">Ask this</span>
   </button>
 </div>

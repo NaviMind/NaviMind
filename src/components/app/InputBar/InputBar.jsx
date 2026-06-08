@@ -10,6 +10,7 @@ import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
+import Icon from "@/components/common/Icon";
 
 const FILES_LIMIT = 5;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -198,11 +199,7 @@ const removeFile = (filename) => {
   {/* 📎 Attach File */}
   <Tooltip content="Add photos & files" position="top">
     <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
-      <img
-        src="/Attach_File.svg"
-        alt="Attach"
-        className="h-5 w-5"
-      />
+      <Icon name="attach-file" size={20} />
       <input
         type="file"
         multiple
@@ -239,11 +236,7 @@ const removeFile = (filename) => {
       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center"
       disabled={!inputValue.trim()}
     >
-      <img
-        src="/Arrow_Send.svg"
-        alt="Send"
-        className="h-5 w-5"
-      />
+      <Icon name="arrow-send" size={20} />
     </button>
   </Tooltip>
 </div>

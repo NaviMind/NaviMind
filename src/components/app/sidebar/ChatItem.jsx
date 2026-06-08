@@ -6,6 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import { renameChatInFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
+import Icon from "@/components/common/Icon";
 
 function ChatItem({ chat, projId, route, onSidebarItemClick, nested = false }) {
   const router = useRouter();
@@ -106,12 +107,7 @@ if (!chat.title) return null;
   <span className="truncate text-[15px]">{chatTitle || ""}</span>
 
   {chat.isPinned && (
-    <img
-      src="/Pin.svg"
-      alt="Pinned"
-      className="w-[18px] h-[18px] opacity-90 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] shrink-0"
-      draggable="false"
-    />
+    <Icon name="pin" size={18} className="opacity-90 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] shrink-0" />
   )}
 </div>
     </button>
@@ -134,7 +130,7 @@ if (!chat.title) return null;
       aria-label="Show menu"
       type="button"
     >
-      <img src="/More_Vert.svg" alt="More" className="w-4 h-4" draggable="false" />
+      <Icon name="more-vert" size={16} />
     </button>
   )}
 

@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState, useContext } from "react";
 import { UIContext } from "@/context/UIContext";
+import Icon from "@/components/common/Icon";
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -105,7 +106,7 @@ export default function UserMenuDropdown({
         onClick={onSettings}
         className="flex items-center w-full text-left px-4 py-2 text-sm font-normal rounded-lg hover:bg-slate-700 transition"
       >
-        <img src="/Settings.svg" alt="Settings" className="w-5 h-5 mr-2 opacity-90" />
+        <Icon name="settings" size={20} className="mr-2 opacity-90" />
         Settings
       </button>
 
@@ -113,7 +114,7 @@ export default function UserMenuDropdown({
         onClick={onHelp}
         className="flex items-center w-full text-left px-4 py-2 text-sm font-normal rounded-lg hover:bg-slate-700 transition"
       >
-        <img src="/Help.svg" alt="Help" className="w-5 h-5 mr-2 opacity-90" />
+        <Icon name="help" size={20} className="mr-2 opacity-90" />
         Help
       </button>
 
@@ -122,7 +123,7 @@ export default function UserMenuDropdown({
         onClick={() => toggleLogout(true)}
         className="flex items-center w-full text-left px-4 py-2 text-sm font-normal rounded-lg hover:bg-slate-700 transition"
       >
-        <img src="/Logout.svg" alt="Log Out" className="w-5 h-5 mr-2 opacity-90" />
+        <Icon name="logout" size={20} className="mr-2 opacity-90" />
         Log Out
       </button>
     </div>,

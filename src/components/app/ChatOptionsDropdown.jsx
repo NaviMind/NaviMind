@@ -9,6 +9,7 @@ import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import Icon from "@/components/common/Icon";
 
 
 // Мобайл‑детектор
@@ -151,11 +152,7 @@ export default function ChatOptionsDropdown({
   }}
   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
 >
-  <img
-    src={isPinned ? "/Unpin.svg" : "/Pin.svg"}
-    alt={isPinned ? "Unpin" : "Pin"}
-    className="w-5 h-5 opacity-80"
-  />
+  <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
 </button>
 
@@ -170,7 +167,7 @@ export default function ChatOptionsDropdown({
   }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
             >
-              <img src="/Share.svg" alt="Share" className="w-5 h-5 opacity-80" />
+              <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
             </button>
 
@@ -181,7 +178,7 @@ export default function ChatOptionsDropdown({
               }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
             >
-              <img src="/Edit.svg" alt="Rename" className="w-5 h-5 opacity-80" />
+              <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
             </button>
 
@@ -192,7 +189,7 @@ export default function ChatOptionsDropdown({
               }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-red-400 dark:text-red-350 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition"
             >
-              <img src="/Delete.svg" alt="Delete" className="w-5 h-5 opacity-80" />
+              <Icon name="delete" size={20} className="opacity-80" />
               <span className="text-inherit">Delete</span>
             </button>
           </div>,
