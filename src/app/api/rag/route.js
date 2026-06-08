@@ -1,6 +1,4 @@
 import OpenAI from "openai";
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
 
 import { systemInstruction } from "@/ai/systemInstruction";
 import { responseStyle } from "@/ai/responseStyle";
@@ -75,6 +73,7 @@ export async function POST(req) {
       try {
         const buffer = Buffer.from(docFile.data, "base64");
         if (docFile.type === "application/pdf" || docFile.name?.endsWith(".pdf")) {
+          const pdfParse = (await import("pdf-parse")).default;
           const parsed = await pdfParse(buffer);
           extractedDocs.push(`[Document: ${docFile.name}]\n${parsed.text}`);
         } else if (
@@ -82,6 +81,7 @@ export async function POST(req) {
           docFile.name?.endsWith(".docx") ||
           docFile.name?.endsWith(".doc")
         ) {
+          const mammoth = await import("mammoth");
           const result = await mammoth.extractRawText({ buffer });
           extractedDocs.push(`[Document: ${docFile.name}]\n${result.value}`);
         } else if (docFile.type === "text/plain" || docFile.name?.endsWith(".txt")) {
