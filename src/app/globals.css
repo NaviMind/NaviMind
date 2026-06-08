@@ -13,23 +13,6 @@
   --border-subtle: rgba(255, 255, 255, 0.08);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg-app: #f8fafc;
-    --bg-sidebar: rgba(241, 245, 249, 0.98);
-    --bg-topbar: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #334155;
-    --text-muted: #64748b;
-    --border-subtle: rgba(0, 0, 0, 0.08);
-  }
-}
-
-body {
-  background-color: var(--bg-app);
-  color: var(--text-primary);
-}
-
 /* Кастомный скролл для всех нужных мест */
 .custom-scroll::-webkit-scrollbar {
   width: 6px;
