@@ -39,6 +39,18 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="NaviMind" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+
+        {/* Preload frequently used icons to prevent lazy-load flicker */}
+        {[
+          "/Arrow_Send.svg", "/Attach_File.svg", "/More_Vert.svg",
+          "/Pin.svg", "/Unpin.svg", "/Delete.svg", "/Edit.svg", "/Share.svg",
+          "/Vessel Profile.svg", "/create_new.svg", "/Close_Small.svg",
+          "/Settings.svg", "/Logout.svg", "/chat_bubble.svg",
+          "/Person User.svg", "/Chat.svg", "/Lightbulb.svg",
+          "/Scroll To Bottom.svg", "/Scroll to Bottom Mobile.svg",
+        ].map((href) => (
+          <link key={href} rel="preload" href={href} as="image" type="image/svg+xml" />
+        ))}
       </head>
 
       <body
