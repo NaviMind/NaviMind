@@ -220,7 +220,7 @@ useEffect(() => {
   <aside
     className={[
       "fixed left-0 top-0 z-50 h-full w-4/5 max-w-xs",
-      "bg-[#0b1220] backdrop-blur-sm text-gray-200",
+      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
       "flex flex-col",
       "transition-transform duration-300 sm:hidden",
       isSidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none",
@@ -240,8 +240,7 @@ useEffect(() => {
     className={[
       ui.isSidebarOpen ? "sm:flex" : "sm:hidden",
       "hidden flex-col h-full",
-      "bg-gray-900/80 backdrop-blur-sm",
-      "text-gray-800 dark:text-gray-200",
+      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
       "flex flex-col",
       "transition-[width] duration-300 ease-in-out",
     ].join(" ")}

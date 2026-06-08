@@ -33,7 +33,8 @@ export default function RootLayout({ children }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#0b1220" />
+        <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="NaviMind" />
@@ -42,7 +43,7 @@ export default function RootLayout({ children }) {
       </head>
 
       <body
-  className={`${outfit.className} bg-[#0b1220] text-white w-full max-w-[100vw] overflow-x-hidden`}
+  className={`${outfit.className} w-full max-w-[100vw] overflow-x-hidden`}
   style={{ WebkitTapHighlightColor: "transparent" }}
 >
         {children}

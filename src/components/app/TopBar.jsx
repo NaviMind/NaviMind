@@ -35,7 +35,7 @@ export default function TopBar() {
   const handleNewChat = () => router.push("/");
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[#0b1220] shadow px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] shadow px-4 z-30" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
       {/* Левый блок: New Chat (desktop) + Open Sidebar (гамбургер) */}
       {!isSidebarOpen && (
         <div className="flex items-center space-x-2">
