@@ -133,13 +133,28 @@ meteors.forEach((m, i) => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animationId);
+        clearTimeout(meteorTimeout);
+      } else {
+        meteors.length = 0;
+        meteorIndex = 0;
+        animate();
+        runMeteorCycle();
+      }
+    };
+
     window.addEventListener("resize", handleResize);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-  window.removeEventListener("resize", handleResize);
-  if (meteorTimeout) clearTimeout(meteorTimeout);
-  if (animationId) cancelAnimationFrame(animationId);
-};
+      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearTimeout(meteorTimeout);
+      cancelAnimationFrame(animationId);
+    };
   }, 
   []);
 
