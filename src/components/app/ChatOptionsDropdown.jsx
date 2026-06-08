@@ -35,12 +35,13 @@ export default function ChatOptionsDropdown({
 }) {
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [coords, setCoords] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
 
   useEffect(() => {
-    if (!isOpen || !targetRef?.current) return;
+    if (!isOpen) { setCoords(null); return; }
+    if (!targetRef?.current) return;
 
     const rect = targetRef.current.getBoundingClientRect();
     const scrollY = window.scrollY || window.pageYOffset;
@@ -130,7 +131,7 @@ export default function ChatOptionsDropdown({
 
   return (
     <>
-      {isOpen && !confirmOpen &&
+      {isOpen && !confirmOpen && coords &&
         createPortal(
           <div
             ref={menuRef}
