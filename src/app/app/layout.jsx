@@ -33,12 +33,13 @@ function AppShell({ children }) {
       const h = window.visualViewport?.height ?? window.innerHeight;
       document.documentElement.style.setProperty('--app-height', `${h}px`);
     };
+    const resetScroll = () => window.scrollTo(0, 0);
     update();
     window.visualViewport?.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('scroll', update);
+    window.visualViewport?.addEventListener('scroll', resetScroll);
     return () => {
       window.visualViewport?.removeEventListener('resize', update);
-      window.visualViewport?.removeEventListener('scroll', update);
+      window.visualViewport?.removeEventListener('scroll', resetScroll);
     };
   }, []);
 
