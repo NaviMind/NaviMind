@@ -1,11 +1,15 @@
 "use client";
 
+"use client";
+
 import { useContext, useRef, useState, useEffect, createRef } from "react";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
+import { renameChatInFirestore } from "@/firebase/chatStore";
+import { auth } from "@/firebase/config";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -121,8 +125,11 @@ export default function DynamicProjectPage() {
       type="text"
       value={renameText}
       onChange={(e) => setRenameText(e.target.value)}
-      onKeyDown={(e) => {
+      onKeyDown={async (e) => {
         if (e.key === "Enter" && renameText.trim()) {
+          if (auth.currentUser) {
+            await renameChatInFirestore(auth.currentUser.uid, c.chatId, renameText.trim(), project);
+          }
           renameChat(c.chatId, renameText.trim());
           setRenamingId(null);
         } else if (e.key === "Escape") {
@@ -177,6 +184,7 @@ export default function DynamicProjectPage() {
 
   <ChatOptionsDropdown
     chatId={c.chatId}
+    topicId={project}
     currentTitle={c.title}
     targetRef={anchorRef}
     isOpen={isDropdownOpen}

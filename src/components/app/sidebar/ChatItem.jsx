@@ -55,16 +55,18 @@ function ChatItem({ chat, projId, route, onSidebarItemClick, nested = false }) {
     });
   };
 
+  const effectiveTopicId = projId && projId !== "global" ? projId : null;
+
   const handleRename = async () => {
   const newTitle = renameText.trim();
   if (!newTitle) return;
 
   const user = auth.currentUser;
   if (user) {
-    await renameChatInFirestore(user.uid, chat.chatId, newTitle); // 🧠 Firestore
+    await renameChatInFirestore(user.uid, chat.chatId, newTitle, effectiveTopicId);
   }
 
-  renameChat(chat.chatId, newTitle); // 🧠 Context
+  renameChat(chat.chatId, newTitle);
   setRenamingId(null);
 };
 
@@ -141,6 +143,7 @@ if (!chat.title) return null;
 
   <ChatOptionsDropdown
     chatId={chat.chatId}
+    topicId={effectiveTopicId}
     targetRef={anchorRef}
     isOpen={openMenu?.chatId === chat.chatId}
     currentTitle={chatTitle}

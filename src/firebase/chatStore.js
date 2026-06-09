@@ -108,44 +108,46 @@ export function subscribeToMessages(uid, chatId, callback) {
   });
 }
 
-export async function deleteChatFromFirestore(uid, chatId) {
+export async function deleteChatFromFirestore(uid, chatId, topicId = null) {
   try {
-    const chatRef = doc(db, "users", uid, "chats", chatId);
+    const chatRef = topicId
+      ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
+      : doc(db, "users", uid, "chats", chatId);
     const messagesRef = collection(chatRef, "messages");
     const snapshot = await getDocs(messagesRef);
-    const deletions = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    const deletions = snapshot.docs.map(d => deleteDoc(d.ref));
     await Promise.all(deletions);
     await deleteDoc(chatRef);
-    console.log("✅ Chat and messages deleted from Firestore");
   } catch (error) {
     console.error("❌ Error deleting chat from Firestore:", error);
   }
 }
 
-export async function renameChatInFirestore(uid, chatId, newTitle) {
+export async function renameChatInFirestore(uid, chatId, newTitle, topicId = null) {
   try {
-    const chatRef = doc(db, "users", uid, "chats", chatId);
+    const chatRef = topicId
+      ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
+      : doc(db, "users", uid, "chats", chatId);
     await updateDoc(chatRef, { title: newTitle });
-    console.log("✏️ Chat renamed in Firestore");
   } catch (error) {
     console.error("❌ Failed to rename chat:", error);
   }
 }
 
-export async function togglePinChat(uid, chatId) {
+export async function togglePinChat(uid, chatId, topicId = null) {
   try {
-    const chatRef = doc(db, "users", uid, "chats", chatId);
+    const chatRef = topicId
+      ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
+      : doc(db, "users", uid, "chats", chatId);
     const snapshot = await getDoc(chatRef);
 
     if (!snapshot.exists()) {
       console.warn("⚠️ Chat not found:", chatId);
-      return;
+      return false;
     }
 
     const current = snapshot.data().isPinned || false;
     await updateDoc(chatRef, { isPinned: !current });
-
-    console.log(`📌 Chat ${chatId} ${!current ? "pinned" : "unpinned"} successfully`);
     return !current;
   } catch (error) {
     console.error("❌ Failed to toggle pin state:", error);
@@ -232,9 +234,11 @@ export async function createChatForTopic({ uid, topicId, messageText }) {
   if (!_uid) throw new Error("User not authenticated");
   if (!topicId) throw new Error("Topic ID is required");
 
-  // Создаём пустой чат внутри топика
+  const rawTitle = messageText?.trim().split(/\s+/).slice(0, 8).join(" ") || "New Chat";
+  const title = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
+
   const chatData = {
-    title: "New Chat",
+    title,
     summary: "",
     createdAt: serverTimestamp(),
     ownerId: _uid,
@@ -292,21 +296,6 @@ export async function addMessageToTopicChat(
         };
 
   const messageRef = await addDoc(messagesRef, message);
-
-  const chatSnap = await getDoc(chatRef);
-
-  if (!chatSnap.data()?.title || chatSnap.data()?.title === "New Chat") {
-    const textForTitle =
-      typeof messageData === "object"
-        ? messageData.content
-        : messageData;
-
-    const titleWords = textForTitle.trim().split(/\s+/).slice(0, 8).join(" ");
-    const title =
-      titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
-
-    await updateDoc(chatRef, { title });
-  }
 
   return { messageId: messageRef.id };
 }

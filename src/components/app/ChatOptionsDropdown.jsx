@@ -27,6 +27,7 @@ export default function ChatOptionsDropdown({
   onClose,
   targetRef,
   chatId,
+  topicId = null,
   currentTitle = "",
   initialIsPinned = false,
   onShare,
@@ -96,7 +97,7 @@ export default function ChatOptionsDropdown({
   const handleDelete = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    await deleteChatFromFirestore(user.uid, chatId);
+    await deleteChatFromFirestore(user.uid, chatId, topicId);
     onDelete(chatId);
   };
 
@@ -131,7 +132,7 @@ export default function ChatOptionsDropdown({
   onClick={async () => {
     const user = auth.currentUser;
     if (!user) return;
-    const newState = await togglePinChat(user.uid, chatId);
+    const newState = await togglePinChat(user.uid, chatId, topicId);
     setIsPinned(newState);
     onClose();
   }}
