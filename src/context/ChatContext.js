@@ -1,6 +1,6 @@
 "use client";
 
-import { subscribeToMessages, subscribeToUserChats, subscribeToUserTopics } from "@/firebase/chatStore";
+import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats } from "@/firebase/chatStore";
 import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
@@ -39,11 +39,22 @@ export function ChatProvider({ children }) {
   const ref = collection(db, "users", userId, "topics");
   const snap = await getDocs(ref);
   const topics = {};
-  snap.forEach((docSnap) => {
+  const topicChats = {};
+
+  await Promise.all(snap.docs.map(async (docSnap) => {
     const d = docSnap.data();
     topics[docSnap.id] = { name: d?.name || d?.title || "Untitled Topic" };
-  });
+
+    const chatsRef = collection(db, "users", userId, "topics", docSnap.id, "chats");
+    const chatsSnap = await getDocs(chatsRef);
+    topicChats[docSnap.id] = chatsSnap.docs.map(chatDoc => ({
+      chatId: chatDoc.id,
+      ...chatDoc.data(),
+    }));
+  }));
+
   setCustomProjects(topics);
+  setProjectChatSessions(prev => ({ ...prev, ...topicChats }));
 };
 
 const loadUserChats = async (userId) => {
@@ -76,7 +87,7 @@ useEffect(() => {
 
       // 🔁 Подписка на чаты
       unsubscribeChats = subscribeToUserChats(user.uid, (chats) => {
-        setProjectChatSessions({ global: chats });
+        setProjectChatSessions(prev => ({ ...prev, global: chats }));
       });
 
       // 🔁 Подписка на топики (нормализуем в словарь)
@@ -103,20 +114,32 @@ useEffect(() => {
 }, []);
 
   /* ───────── subscriptions ───────── */
+
+  // Подписка на чаты активного топика (real-time обновление списка)
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !activeProject || activeProject === "global") return;
+
+    const unsubscribe = subscribeToTopicChats(uid, activeProject, (chats) => {
+      setProjectChatSessions(prev => ({ ...prev, [activeProject]: chats }));
+    });
+
+    return () => unsubscribe();
+  }, [activeProject]);
+
+  // Подписка на сообщения активного чата (учитывает topicId)
   useEffect(() => {
     if (!activeChatId || !auth.currentUser) return;
 
-    const unsubscribe = subscribeToMessages(
-      auth.currentUser.uid,
-      activeChatId,
-      (msgs) => {
-        setMessages(msgs);
-        console.log("🧠 Загруженные сообщения:", msgs);
-      }
-    );
+    const uid = auth.currentUser.uid;
+    const topicId = activeProject && activeProject !== "global" ? activeProject : null;
+
+    const unsubscribe = topicId
+      ? subscribeToTopicMessages(uid, topicId, activeChatId, (msgs) => setMessages(msgs))
+      : subscribeToMessages(uid, activeChatId, (msgs) => setMessages(msgs));
 
     return () => unsubscribe();
-  }, [activeChatId]);
+  }, [activeChatId, activeProject]);
 
   /* ───────── persistence ───────── */
   useEffect(() => {

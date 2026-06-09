@@ -3,9 +3,9 @@
 import { useContext, useRef, useState, useEffect, createRef } from "react";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
-import ChatMessage from "@/components/app/ChatMessage";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
+import Icon from "@/components/common/Icon";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -14,15 +14,15 @@ export default function DynamicProjectPage() {
     activeChatId,
     setActiveProject,
     setActiveChatId,
+    openChatSession,
     renameChat,
     deleteChat,
     projectChatSessions,
-    getActiveChatSession,
     customProjects,
+    messages,
   } = useContext(ChatContext);
 
-  const chat = getActiveChatSession();
-  const hasChat = chat && Array.isArray(chat.messages) && chat.messages.length > 0;
+  const hasChat = Boolean(activeChatId) && messages && messages.length > 0;
   const chats = projectChatSessions?.[project] || [];
 
   const [renamingId, setRenamingId] = useState(null);
@@ -55,10 +55,8 @@ export default function DynamicProjectPage() {
   };
 
   useEffect(() => {
-  if (!activeProject && project) {
     setActiveProject(project);
-  }
-}, []);
+  }, [project]);
 
   // Получение названия проекта (My Topics)
   const currentProjectName =
@@ -67,7 +65,7 @@ export default function DynamicProjectPage() {
 
   if (hasChat) {
     return (
-      <ChatArea messages={chat.messages}/>
+      <ChatArea messages={messages} />
     );
   }
 
@@ -75,12 +73,7 @@ export default function DynamicProjectPage() {
     <main className="w-full flex flex-col items-center py-6 px-4 overflow-y-auto custom-scroll">
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
-          <img
-            src="/folder-open.svg"
-            alt="Folder"
-            className="w-6 h-6 mr-2 flex-shrink-0"
-            draggable="false"
-          />
+          <Icon name="folder-open" size={24} className="mr-2 flex-shrink-0" />
            {/* Название проекта — адаптивный размер */}
           <span
             className="block w-full text-[15px] whitespace-normal break-words leading-20t"
@@ -141,7 +134,7 @@ export default function DynamicProjectPage() {
     />
   ) : (
     <button
-      onClick={() => setActiveChatId(c.chatId)}
+      onClick={() => openChatSession(c.chatId, project)}
       className="flex-1 text-left truncate px-2 py-1 pr-8 text-[15px] sm:text-base"
       style={{ maxWidth: "82vw", lineHeight: 1.25 }}
     >
@@ -171,12 +164,7 @@ export default function DynamicProjectPage() {
       `}
       aria-label="Chat options"
     >
-      <img
-        src="/More_Vert.svg"
-        alt="More"
-        className="h-4 w-4"
-        draggable="false"
-      />
+      <Icon name="more-vert" size={16} />
     </button>
   )}
 
@@ -192,6 +180,7 @@ export default function DynamicProjectPage() {
     currentTitle={c.title}
     targetRef={anchorRef}
     isOpen={isDropdownOpen}
+    initialIsPinned={!!c.isPinned}
     onShare={() => setOpenMenu(null)}
     onRename={() => {
       setRenameText(c.title);

@@ -206,7 +206,25 @@ export async function deleteTopicFromFirestore(uid, topicId) {
     console.error("❌ Failed to delete topic:", error);
   }
 }
- // ─────────── TOPIC CHATS (вложенные чаты внутри topic) ───────────
+export function subscribeToTopicChats(uid, topicId, callback) {
+  const ref = collection(db, "users", uid, "topics", topicId, "chats");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const chats = snapshot.docs.map(doc => ({ chatId: doc.id, ...doc.data() }));
+    callback(chats);
+  });
+}
+
+export function subscribeToTopicMessages(uid, topicId, chatId, callback) {
+  const ref = collection(db, "users", uid, "topics", topicId, "chats", chatId, "messages");
+  const q = query(ref, orderBy("timestamp", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(messages);
+  });
+}
+
+// ─────────── TOPIC CHATS (вложенные чаты внутри topic) ───────────
 
 export async function createChatForTopic({ uid, topicId, messageText }) {
   const user = auth.currentUser;
