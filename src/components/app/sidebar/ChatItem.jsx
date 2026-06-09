@@ -103,14 +103,12 @@ if (!chat.title) return null;
       }}
       className={`flex flex-1 min-w-0 items-center text-left ${nested ? "pl-[12px]" : ""}`}
     >
-      <div className="flex items-center gap-2 w-full">
-  <span className="truncate text-[15px]">{chatTitle || ""}</span>
-
-  {chat.isPinned && (
-    <Icon name="pin" size={18} className="opacity-90 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] shrink-0" />
-  )}
-</div>
+      <span className="truncate text-[15px]">{chatTitle || ""}</span>
     </button>
+  )}
+
+  {chat.isPinned && !isBeingRenamed && (
+    <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
   )}
 
   {!isBeingRenamed && (
