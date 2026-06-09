@@ -13,6 +13,18 @@ export default function HomePage() {
   const { messages } = useContext(ChatContext);
 
   const [index, setIndex] = useState(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      setIsKeyboardOpen(window.innerHeight - vv.height > 150);
+    };
+    check();
+    window.visualViewport?.addEventListener("resize", check);
+    return () => window.visualViewport?.removeEventListener("resize", check);
+  }, []);
 
   // Получить случайный индекс
   const pickRandomIndex = () => {
@@ -59,7 +71,7 @@ export default function HomePage() {
   return (
     <>
       {/* Карточка показывается, как и раньше, пока нет сообщений */}
-     {messages.length === 0 && current && (
+     {messages.length === 0 && current && !isKeyboardOpen && (
   <div className="flex flex-col items-center justify-center mt-6 px-4 animate-fade-in">
     <div className="w-full max-w-xl flex flex-col items-center space-y-6">
       {/* Баннер установки PWA */}
