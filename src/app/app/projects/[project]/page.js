@@ -170,7 +170,7 @@ export default function DynamicProjectPage() {
         });
       }}
       className={`
-        peer absolute right-2 p-2 rounded-full
+        peer flex-shrink-0 p-2 rounded-full
         flex items-center justify-center
         bg-transparent hover:bg-gray-300 dark:hover:bg-gray-600
         transition
