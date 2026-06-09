@@ -26,6 +26,22 @@ function AppShell({ children }) {
     setOpenAdvancedDirectly
   } = useContext(UIContext);
 
+  // Keep layout pinned to visual viewport so the header stays
+  // visible when the iOS keyboard opens
+  useEffect(() => {
+    const update = () => {
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', `${h}px`);
+    };
+    update();
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
+  }, []);
+
   useEffect(() => {
     if (
       vesselProfileSaved &&
@@ -82,7 +98,16 @@ export default function AppLayout({ children }) {
   return (
     <UIProvider>
       <ChatProvider>
-        <div className="flex h-[100dvh] w-full overflow-hidden bg-[var(--bg-app)]">
+        <div
+          className="flex w-full overflow-hidden bg-[var(--bg-app)]"
+          style={{
+            height: "var(--app-height, 100dvh)",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+          }}
+        >
           <AppShell>{children}</AppShell>
         </div>
       </ChatProvider>
