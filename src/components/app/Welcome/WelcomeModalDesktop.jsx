@@ -186,20 +186,6 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
         {/* Footer */}
         <div className="px-10 pt-4 pb-6 flex-shrink-0 space-y-4">
 
-          {/* Dot indicators */}
-          <div className="flex justify-center items-center gap-2">
-            {cards.map((_, i) => (
-              <div
-                key={i}
-                className={`rounded-full transition-all duration-300 ${
-                  i === currentCard
-                    ? "w-6 h-2 bg-blue-500"
-                    : "w-2 h-2 bg-white/25"
-                }`}
-              />
-            ))}
-          </div>
-
           {/* Actions */}
           {isLast ? (
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -243,18 +229,29 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
               </button>
             </div>
           ) : (
-            <div className="flex justify-end">
+            <div className="flex justify-center">
               <button
                 onClick={handleNext}
-                className="h-10 px-6 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow transition flex items-center gap-2"
+                className="h-10 px-8 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow transition"
               >
                 Continue
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
               </button>
             </div>
           )}
+
+          {/* Dot indicators */}
+          <div className="flex justify-center items-center gap-2">
+            {cards.map((_, i) => (
+              <div
+                key={i}
+                className={`rounded-full transition-all duration-300 ${
+                  i === currentCard
+                    ? "w-6 h-2 bg-blue-500"
+                    : "w-2 h-2 bg-white/25"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
