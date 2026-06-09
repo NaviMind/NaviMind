@@ -155,9 +155,12 @@ export async function togglePinChat(uid, chatId, topicId = null) {
   }
 }
 
-export async function getChatMessages(uid, chatId) {
-  const ref = collection(db, "users", uid, "chats", chatId, "messages");
-  const snap = await getDocs(ref);
+export async function getChatMessages(uid, chatId, topicId = null) {
+  const ref = topicId
+    ? collection(db, "users", uid, "topics", topicId, "chats", chatId, "messages")
+    : collection(db, "users", uid, "chats", chatId, "messages");
+  const q = query(ref, orderBy("timestamp", "asc"));
+  const snap = await getDocs(q);
   return snap.docs.map((doc) => doc.data());
 }
 

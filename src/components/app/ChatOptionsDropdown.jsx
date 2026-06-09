@@ -151,8 +151,8 @@ export default function ChatOptionsDropdown({
     const user = auth.currentUser;
     if (!user) return;
 
-    const messages = await getChatMessages(user.uid, chatId); 
-    await exportChatAsTxt(messages); 
+    const messages = await getChatMessages(user.uid, chatId, topicId);
+    await exportChatAsTxt(messages, currentTitle);
     onClose();
   }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
