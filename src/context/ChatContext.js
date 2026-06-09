@@ -73,7 +73,7 @@ snap.forEach((doc) => {
   });
 });
 
-setProjectChatSessions({ global: chats });
+setProjectChatSessions(prev => ({ ...prev, global: chats }));
 };
 
 useEffect(() => {
