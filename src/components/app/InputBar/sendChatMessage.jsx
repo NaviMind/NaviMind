@@ -169,6 +169,21 @@ sendLocks.add(sendKey);
     }
   }
 
+  // ───────── CONTEXT BUILD (before saving new messages) ─────────
+  const previousMessages = await fetchLastMessages({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+  });
+
+  const summary = await fetchChatSummaryFromStore({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+  });
+
+  const chatHistory = previousMessages;
+
   // ───────── SAVE USER MESSAGE ─────────
 
 const imageFiles = attachments.filter((f) => f.type.startsWith("image/"));
@@ -220,24 +235,6 @@ if (inTopic) {
       await addMessageToGlobalChat(chatId, "NaviMind syncing…", "assistant")
     )?.messageId;
   }
-
- // ───────── CONTEXT BUILD (SAFE) ─────────
-const previousMessages = await fetchLastMessages({
-  uid: currentUser.uid,
-  chatId,
-  topicId: inTopic ? topicId : null,
-});
-
-const chatHistory = [
-  ...previousMessages,
-  { role: "user", content: message },
-];
-
-const summary = await fetchChatSummaryFromStore({
-  uid: currentUser.uid,
-  chatId,
-  topicId: inTopic ? topicId : null,
-});
 
   // ───────── AI REQUEST ─────────
   const res = await fetch("/api/rag", {
