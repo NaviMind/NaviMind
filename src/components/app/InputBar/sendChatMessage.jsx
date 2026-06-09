@@ -98,6 +98,7 @@ export async function sendChatMessage({
   const inTopic = Boolean(topicId);
   let chatId = activeChatId;
   const isNewChat = !chatId;
+  let aiMessageId;
 
   const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}`;
 
@@ -225,7 +226,6 @@ if (inTopic) {
 }
 
   // ───────── AI PLACEHOLDER ─────────
-  let aiMessageId;
   if (inTopic) {
     aiMessageId = (
       await addMessageToTopicChat(topicId, chatId, "NaviMind syncing…", "assistant")
@@ -364,6 +364,17 @@ if (!summaryLocks.has(summaryKey)) {
 }
   } catch (err) {
     console.error("❌ sendChatMessage error:", err);
+    // Replace the stuck placeholder so the user isn't left with an infinite spinner
+    if (aiMessageId && chatId) {
+      try {
+        const errPayload = { content: `⚠️ Error: ${err?.message || "Something went wrong. Please try again."}` };
+        if (inTopic && topicId) {
+          await updateTopicChatMessage(topicId, chatId, aiMessageId, errPayload);
+        } else {
+          await updateGlobalChatMessage(chatId, aiMessageId, errPayload);
+        }
+      } catch { /* silent */ }
+    }
   } finally {
     sendLocks.delete(sendKey);
   }
