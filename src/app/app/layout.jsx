@@ -99,7 +99,10 @@ export default function AppLayout({ children }) {
   return (
     <UIProvider>
       <ChatProvider>
-        <div className="flex h-[100dvh] w-full overflow-hidden bg-[var(--bg-app)]">
+        <div
+          className="flex w-full overflow-hidden bg-[var(--bg-app)]"
+          style={{ height: "var(--app-height, 100dvh)" }}
+        >
           <AppShell>{children}</AppShell>
         </div>
       </ChatProvider>
