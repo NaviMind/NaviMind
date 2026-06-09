@@ -34,6 +34,7 @@ export default function ChatOptionsDropdown({
   onShare,
   onRename,
   onDelete,
+  onEnterSelectMode,
 }) {
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
@@ -170,6 +171,19 @@ export default function ChatOptionsDropdown({
               <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
             </button>
+
+            {onEnterSelectMode && (
+              <button
+                onClick={() => {
+                  onEnterSelectMode();
+                  onClose();
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+              >
+                <Icon name="select" size={20} className="opacity-80" />
+                <span>Select</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

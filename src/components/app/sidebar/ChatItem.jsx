@@ -8,7 +8,17 @@ import { renameChatInFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 
-function ChatItem({ chat, projId, route, onSidebarItemClick, nested = false }) {
+function ChatItem({
+  chat,
+  projId,
+  route,
+  onSidebarItemClick,
+  nested = false,
+  isSelectMode = false,
+  isSelected = false,
+  onToggleSelect,
+  onEnterSelectMode,
+}) {
   const router = useRouter();
   const {
     activeChatId,
@@ -74,98 +84,123 @@ if (!chat.title) return null;
 
   return (
     <div
-  key={chat.chatId}
-  className={`
-    group relative flex items-center px-3 py-1 rounded-md transition-all duration-200
-    ${isActive
-      ? "bg-white/10 text-white"
-      : "hover:bg-white/5 hover:text-gray-200"}
-  `}
-  style={{ minHeight: 42 }}
->
-  {isBeingRenamed ? (
-    <input
-      id={"rename-input-" + chat.chatId}
-      type="text"
-      value={renameText ?? ""}
-      onChange={(e) => setRenameText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") handleRename();
-        else if (e.key === "Escape") setRenamingId(null);
-      }}
-      onBlur={handleRename}
-      className="flex-1 bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
-      autoFocus
-    />
-  ) : (
-    <button
-      onClick={() => {
-        openChatSession(chat.chatId, projId, router, route);
-        onSidebarItemClick?.();
-      }}
-      className={`flex flex-1 min-w-0 items-center text-left ${nested ? "pl-[12px]" : ""}`}
-    >
-      <span className="truncate text-[15px]">{chatTitle || ""}</span>
-    </button>
-  )}
-
-  {chat.isPinned && !isBeingRenamed && (
-    <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
-  )}
-
-  {!isBeingRenamed && (
-    <button
-      ref={anchorRef}
-      onClick={(e) => {
-        e.stopPropagation();
-        setOpenMenu({ chatId: chat.chatId, anchorRef });
-      }}
+      key={chat.chatId}
       className={`
-        peer flex-shrink-0 ml-2 p-2 rounded-full
-        bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700
-        transition-opacity
-        opacity-100 md:opacity-0 md:group-hover:opacity-100
-        flex items-center justify-center
+        group relative flex items-center px-3 py-1 rounded-md transition-all duration-200
+        ${isSelectMode && isSelected ? "bg-white/10" : ""}
+        ${!isSelectMode && isActive ? "bg-white/10 text-white" : ""}
+        ${!isSelectMode && !isActive ? "hover:bg-white/5 hover:text-gray-200" : ""}
+        ${isSelectMode ? "cursor-pointer" : ""}
       `}
-      aria-label="Show menu"
-      type="button"
+      style={{ minHeight: 42 }}
+      onClick={isSelectMode ? () => onToggleSelect?.(chat.chatId) : undefined}
     >
-      <Icon name="more-vert" size={16} />
-    </button>
-  )}
+      {/* Checkbox in select mode */}
+      {isSelectMode && (
+        <div className="flex-shrink-0 mr-2 flex items-center justify-center">
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+            isSelected
+              ? "bg-blue-500 border-blue-500"
+              : "border-gray-500"
+          }`}>
+            {isSelected && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
 
-  {/* ⬇️ Hack: отключаем фон li/div, если ховер именно на peer */}
-  <style jsx>{`
-    .group:hover:has(.peer:hover) {
-      background-color: transparent !important;
-    }
-  `}</style>
+      {isBeingRenamed ? (
+        <input
+          id={"rename-input-" + chat.chatId}
+          type="text"
+          value={renameText ?? ""}
+          onChange={(e) => setRenameText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleRename();
+            else if (e.key === "Escape") setRenamingId(null);
+          }}
+          onBlur={handleRename}
+          className="flex-1 bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
+          autoFocus
+        />
+      ) : (
+        <button
+          onClick={isSelectMode ? undefined : () => {
+            openChatSession(chat.chatId, projId, router, route);
+            onSidebarItemClick?.();
+          }}
+          className={`flex flex-1 min-w-0 items-center text-left ${nested ? "pl-[12px]" : ""}`}
+          tabIndex={isSelectMode ? -1 : 0}
+        >
+          <span className="truncate text-[15px]">{chatTitle || ""}</span>
+        </button>
+      )}
 
-  <ChatOptionsDropdown
-    chatId={chat.chatId}
-    topicId={effectiveTopicId}
-    targetRef={anchorRef}
-    isOpen={openMenu?.chatId === chat.chatId}
-    currentTitle={chatTitle}
-    initialIsPinned={!!chat.isPinned}
-    onRename={(id) => {
-      setRenameText(chat.title);
-      setRenamingId(id);
-      setOpenMenu(null);
-    }}
-    onDelete={handleDeleteChat}
-    onShare={(id) => console.log("Share", id)}
-    onClose={() => setOpenMenu(null)}
-  />
-</div>
+      {chat.isPinned && !isBeingRenamed && !isSelectMode && (
+        <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+      )}
+
+      {!isBeingRenamed && !isSelectMode && (
+        <button
+          ref={anchorRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenMenu({ chatId: chat.chatId, anchorRef });
+          }}
+          className={`
+            peer flex-shrink-0 ml-2 p-2 rounded-full
+            bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700
+            transition-opacity
+            opacity-100 md:opacity-0 md:group-hover:opacity-100
+            flex items-center justify-center
+          `}
+          aria-label="Show menu"
+          type="button"
+        >
+          <Icon name="more-vert" size={16} />
+        </button>
+      )}
+
+      {/* Hack: disable hover bg when hovering the three-dot menu */}
+      <style jsx>{`
+        .group:hover:has(.peer:hover) {
+          background-color: transparent !important;
+        }
+      `}</style>
+
+      {!isSelectMode && (
+        <ChatOptionsDropdown
+          chatId={chat.chatId}
+          topicId={effectiveTopicId}
+          targetRef={anchorRef}
+          isOpen={openMenu?.chatId === chat.chatId}
+          currentTitle={chatTitle}
+          initialIsPinned={!!chat.isPinned}
+          onEnterSelectMode={() => {
+            onEnterSelectMode?.(chat.chatId);
+            setOpenMenu(null);
+          }}
+          onRename={(id) => {
+            setRenameText(chat.title);
+            setRenamingId(id);
+            setOpenMenu(null);
+          }}
+          onDelete={handleDeleteChat}
+          onShare={(id) => console.log("Share", id)}
+          onClose={() => setOpenMenu(null)}
+        />
+      )}
+    </div>
   );
 }
 
-export default React.memo(ChatItem, (prevProps, nextProps) => {
-  // 🔍 проверяем, нужно ли реально перерисовывать
-  return (
-    prevProps.chat.chatId === nextProps.chat.chatId &&
-    prevProps.chat.title === nextProps.chat.title &&
-    prevProps.activeChatId === nextProps.activeChatId
-  );
-});
+export default React.memo(ChatItem, (prev, next) =>
+  prev.chat.chatId === next.chat.chatId &&
+  prev.chat.title === next.chat.title &&
+  prev.chat.isPinned === next.chat.isPinned &&
+  prev.isSelectMode === next.isSelectMode &&
+  prev.isSelected === next.isSelected
+);
