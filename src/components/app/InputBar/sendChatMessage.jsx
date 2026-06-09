@@ -68,7 +68,7 @@ const getMessagesRef = (uid, chatId, topicId) =>
 async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
   const q = query(
     getMessagesRef(uid, chatId, topicId),
-    orderBy("createdAt", "desc"),
+    orderBy("timestamp", "desc"),
     limit(limitCount)
   );
 
@@ -106,6 +106,8 @@ if (sendLocks.has(sendKey)) {
 }
 
 sendLocks.add(sendKey);
+
+  try {
 
   // ───────── CREATE CHAT IF NEEDED ─────────
   if (!chatId) {
@@ -363,5 +365,9 @@ if (!summaryLocks.has(summaryKey)) {
     summaryLocks.delete(summaryKey);
   }
 }
-sendLocks.delete(sendKey);
+  } catch (err) {
+    console.error("❌ sendChatMessage error:", err);
+  } finally {
+    sendLocks.delete(sendKey);
+  }
 }
