@@ -211,7 +211,7 @@ export default function ChatOptionsDropdown({
       <button
         type="button"
         className="px-4 py-[6px] text-sm rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
-        onClick={onClose}
+        onClick={() => { setConfirmOpen(false); onClose(); }}
       >
         Cancel
       </button>
