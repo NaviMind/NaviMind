@@ -96,7 +96,7 @@ function UserMessage({ content, attachments = [], copied, onCopy }) {
           <CopyButton
             copied={copied}
             onCopy={onCopy}
-            className="mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+            className="mt-1 mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
           />
         </div>
       </div>
