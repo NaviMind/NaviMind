@@ -16,8 +16,10 @@ export default function WelcomeModal() {
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    const alreadyAccepted = localStorage.getItem("navimind_welcome_accepted");
-    if (!alreadyAccepted) setOpen(true);
+    // TODO: uncomment before launch to show welcome only once
+    // const alreadyAccepted = localStorage.getItem("navimind_welcome_accepted");
+    // if (!alreadyAccepted) setOpen(true);
+    setOpen(true);
 
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
