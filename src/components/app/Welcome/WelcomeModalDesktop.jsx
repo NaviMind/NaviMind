@@ -129,7 +129,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
       </div>
 
       {/* Glass card */}
-      <div className="w-[calc(100%-6cm)] h-[calc(100%-2cm)]
+      <div className="w-full max-w-2xl
                       bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
                       rounded-2xl ring-1 ring-white/10 shadow-2xl
                       flex flex-col overflow-hidden">
@@ -143,12 +143,11 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
           </p>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 relative px-10 pb-4 overflow-hidden">
+        {/* Content */}
+        <div className="px-8 pb-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentCard}
-              className="absolute inset-x-6 inset-y-0 w-[calc(100%-3rem)] h-full overflow-y-auto custom-scroll"
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
@@ -184,11 +183,11 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
         </div>
 
         {/* Footer */}
-        <div className="px-10 pt-4 pb-6 flex-shrink-0 space-y-4">
+        <div className="px-8 pt-2 pb-6 flex-shrink-0 flex flex-col items-center gap-4">
 
           {/* Actions */}
           {isLast ? (
-            <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="w-full flex items-center justify-between gap-4 flex-wrap">
               <label className="flex items-center gap-2 text-[0.95rem] text-gray-800 dark:text-gray-300 cursor-pointer">
                 <input
                   type="checkbox"
