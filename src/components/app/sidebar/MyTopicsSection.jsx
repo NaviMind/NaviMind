@@ -48,7 +48,12 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
       {Object.entries(customProjects).map(([projId, proj], idx) => {
         const isActive = projId === activeProject;
         const isExpanded = expandedProjects[projId] || false;
-        const chats = projectChatSessions[projId] || [];
+        const rawChats = projectChatSessions[projId] || [];
+        const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
+        const chats = [...rawChats].sort((a, b) => {
+          if (!!a.isPinned !== !!b.isPinned) return a.isPinned ? -1 : 1;
+          return toMs(b.createdAt) - toMs(a.createdAt);
+        });
         const limitedChats = chats.slice(0, 5);
 
         if (!anchorRefs.current[projId]) {

@@ -27,7 +27,11 @@ export default function DynamicProjectPage() {
   } = useContext(ChatContext);
 
   const hasChat = Boolean(activeChatId) && messages && messages.length > 0;
-  const chats = projectChatSessions?.[project] || [];
+  const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
+  const chats = [...(projectChatSessions?.[project] || [])].sort((a, b) => {
+    if (!!a.isPinned !== !!b.isPinned) return a.isPinned ? -1 : 1;
+    return toMs(b.createdAt) - toMs(a.createdAt);
+  });
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
@@ -142,11 +146,15 @@ export default function DynamicProjectPage() {
   ) : (
     <button
       onClick={() => openChatSession(c.chatId, project)}
-      className="flex-1 text-left truncate px-2 py-1 pr-8 text-[15px] sm:text-base"
-      style={{ maxWidth: "82vw", lineHeight: 1.25 }}
+      className="flex-1 min-w-0 text-left truncate px-2 py-1 text-[15px] sm:text-base"
+      style={{ lineHeight: 1.25 }}
     >
       {fullTitle(c.title)}
     </button>
+  )}
+
+  {c.isPinned && !isBeingRenamed && (
+    <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
   )}
 
   {/* --- ТРИ ТОЧКИ --- */}
