@@ -43,7 +43,11 @@ export function ChatProvider({ children }) {
 
   await Promise.all(snap.docs.map(async (docSnap) => {
     const d = docSnap.data();
-    topics[docSnap.id] = { name: d?.name || d?.title || "Untitled Topic" };
+    topics[docSnap.id] = {
+      name: d?.name || d?.title || "Untitled Topic",
+      isPinned: !!d?.isPinned,
+      createdAt: d?.createdAt,
+    };
 
     const chatsRef = collection(db, "users", userId, "topics", docSnap.id, "chats");
     const chatsSnap = await getDocs(chatsRef);
@@ -94,7 +98,11 @@ useEffect(() => {
       unsubscribeTopics = subscribeToUserTopics(user.uid, (topicsArr) => {
         const map = {};
         topicsArr.forEach((t) => {
-          map[t.topicId] = { name: t?.name || t?.title || "Untitled Topic" };
+          map[t.topicId] = {
+            name: t?.name || t?.title || "Untitled Topic",
+            isPinned: !!t?.isPinned,
+            createdAt: t?.createdAt,
+          };
         });
         setCustomProjects(map);
       });

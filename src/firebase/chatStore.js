@@ -199,6 +199,20 @@ export function subscribeToUserTopics(uid, callback) {
   });
 }
 
+export async function togglePinTopic(uid, topicId) {
+  try {
+    const topicRef = doc(db, "users", uid, "topics", topicId);
+    const snapshot = await getDoc(topicRef);
+    if (!snapshot.exists()) return false;
+    const current = snapshot.data().isPinned || false;
+    await updateDoc(topicRef, { isPinned: !current });
+    return !current;
+  } catch (error) {
+    console.error("❌ Failed to toggle topic pin:", error);
+    throw error;
+  }
+}
+
 export async function deleteTopicFromFirestore(uid, topicId) {
   try {
     const topicRef = doc(db, "users", uid, "topics", topicId);

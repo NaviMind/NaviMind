@@ -30,6 +30,7 @@ export default function ChatOptionsDropdown({
   topicId = null,
   currentTitle = "",
   initialIsPinned = false,
+  onPin,
   onShare,
   onRename,
   onDelete,
@@ -132,7 +133,9 @@ export default function ChatOptionsDropdown({
   onClick={async () => {
     const user = auth.currentUser;
     if (!user) return;
-    const newState = await togglePinChat(user.uid, chatId, topicId);
+    const newState = onPin
+      ? await onPin()
+      : await togglePinChat(user.uid, chatId, topicId);
     setIsPinned(newState);
     onClose();
   }}

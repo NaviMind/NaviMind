@@ -5,6 +5,8 @@ import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatItem from "./ChatItem";
 import SidebarSectionTitle from "./SidebarSectionTitle";
 import Icon from "@/components/common/Icon";
+import { togglePinTopic } from "@/firebase/chatStore";
+import { auth } from "@/firebase/config";
 
 export default function MyTopicsSection({ onSidebarItemClick }) {
   const {
@@ -43,9 +45,15 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   if (!Object.keys(customProjects).length) return null;
 
+  const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
+  const sortedTopics = Object.entries(customProjects).sort(([, a], [, b]) => {
+    if (!!a.isPinned !== !!b.isPinned) return a.isPinned ? -1 : 1;
+    return toMs(b.createdAt) - toMs(a.createdAt);
+  });
+
   return (
     <>
-      {Object.entries(customProjects).map(([projId, proj], idx) => {
+      {sortedTopics.map(([projId, proj], idx) => {
         const isActive = projId === activeProject;
         const isExpanded = expandedProjects[projId] || false;
         const rawChats = projectChatSessions[projId] || [];
@@ -125,6 +133,11 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
     )}
   </button>
 
+  {/* --- Иконка пина (если топик закреплён) --- */}
+  {proj.isPinned && !isBeingRenamed && (
+    <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+  )}
+
   {/* --- ТРИ ТОЧКИ Options (dropdown) --- */}
   {!isBeingRenamed && (
     <button
@@ -159,6 +172,17 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
     currentTitle={proj.name}
     targetRef={anchorRef}
     isOpen={isDropdownOpen}
+    initialIsPinned={!!proj.isPinned}
+    onPin={async () => {
+      const user = auth.currentUser;
+      if (!user) return !!proj.isPinned;
+      const newState = await togglePinTopic(user.uid, projId);
+      setCustomProjects(prev => ({
+        ...prev,
+        [projId]: { ...prev[projId], isPinned: newState },
+      }));
+      return newState;
+    }}
     onShare={() => setOpenMenu(null)}
     onRename={() => {
       setRenameText(proj.name);
