@@ -7,8 +7,6 @@ import { auth } from "@/firebase/config";
 import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 
 
@@ -30,6 +28,7 @@ export default function ChatOptionsDropdown({
   targetRef,
   chatId,
   currentTitle = "",
+  initialIsPinned = false,
   onShare,
   onRename,
   onDelete,
@@ -38,7 +37,7 @@ export default function ChatOptionsDropdown({
   const isMobile = useIsMobile();
   const [coords, setCoords] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useState(initialIsPinned);
 
   useEffect(() => {
     if (!isOpen) { setCoords(null); return; }
@@ -109,22 +108,8 @@ export default function ChatOptionsDropdown({
   };
 
   useEffect(() => {
-  const fetchPinState = async () => {
-    const user = auth.currentUser;
-    if (!user || !chatId) return;
-    try {
-      const chatRef = doc(db, "users", user.uid, "chats", chatId);
-      const snap = await getDoc(chatRef);
-      if (snap.exists()) {
-        setIsPinned(!!snap.data().isPinned);
-      }
-    } catch (err) {
-      console.error("Failed to load pin state:", err);
-    }
-  };
-
-  if (isOpen) fetchPinState();
-}, [isOpen, chatId]);
+    setIsPinned(initialIsPinned);
+  }, [initialIsPinned]);
 
   return (
     <>

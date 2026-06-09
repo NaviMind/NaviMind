@@ -144,6 +144,7 @@ if (!chat.title) return null;
     targetRef={anchorRef}
     isOpen={openMenu?.chatId === chat.chatId}
     currentTitle={chatTitle}
+    initialIsPinned={!!chat.isPinned}
     onRename={(id) => {
       setRenameText(chat.title);
       setRenamingId(id);
