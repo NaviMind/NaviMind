@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+
+const CARD_ICONS = [
+  "/welcom/solas.png",
+  "/welcom/Checklist Paper.png",
+  "/welcom/emergency siren light.png",
+  "/welcom/envelope with a letter.png",
+];
 
 export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivacy }) {
   const [accepted, setAccepted] = useState(false);
@@ -115,8 +123,13 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
   const handlePrev = () => setCurrentCard((prev) => (prev - 1 + cards.length) % cards.length);
 
   return (
-    // 🔹 ЛЁГКИЙ overlay (не чёрная заглушка) + лёгкий blur
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/20 dark:bg-gray-800/20 backdrop-blur-xl">
+      {/* Preload all card icons */}
+      <div className="hidden" aria-hidden="true">
+        {CARD_ICONS.map((src) => (
+          <Image key={src} src={src} alt="" width={64} height={64} priority />
+        ))}
+      </div>
       {/* 🔹 Стеклянная карточка */}
       <div className="w-[calc(100%-6cm)] h-[calc(100%-2cm)] 
                       bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
@@ -147,11 +160,16 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
                 <div className="space-y-4">
                   {/* Заголовок с иконкой */}
                   <div className="flex items-center gap-3">
-                    <img
-                      src={cards[currentCard].icon}
-                      alt={cards[currentCard].title}
-                      className="w-16 h-16 object-contain opacity-90"
-                    />
+                    <div className="w-16 h-16 shrink-0 relative">
+                      <Image
+                        src={cards[currentCard].icon}
+                        alt={cards[currentCard].title}
+                        width={64}
+                        height={64}
+                        className="object-contain opacity-90"
+                        priority
+                      />
+                    </div>
                     <h3 className="text-2xl md:text-3xl font-bold 
                         bg-gradient-to-r from-white via-blue-200 to-white 
                         bg-[length:200%_100%] bg-clip-text text-transparent animate-shine">

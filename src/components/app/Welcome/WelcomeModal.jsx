@@ -11,11 +11,14 @@ import PrivacyModalMobile from "../Privacy/PrivacyModalMobile";
 
 export default function WelcomeModal() {
   const [isMobile, setIsMobile] = useState(null);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState("welcome"); // "welcome" | "terms" | "privacy"
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
+    const alreadyAccepted = localStorage.getItem("navimind_welcome_accepted");
+    if (!alreadyAccepted) setOpen(true);
+
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);
@@ -23,8 +26,9 @@ export default function WelcomeModal() {
   }, []);
 
   const handleClose = () => {
+    localStorage.setItem("navimind_welcome_accepted", "1");
     setIsClosing(true);
-    setTimeout(() => setOpen(false), 800); // тайминг = длительность анимации
+    setTimeout(() => setOpen(false), 800);
   };
 
   if (!open || isMobile === null) return null;
