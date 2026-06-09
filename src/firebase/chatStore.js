@@ -279,7 +279,7 @@ export async function addMessageToTopicChat(
 
   await setDoc(
     chatRef,
-    { ownerId: uid, topicId, createdAt: serverTimestamp(), title: "New Chat" },
+    { ownerId: uid, topicId, createdAt: serverTimestamp() },
     { merge: true }
   );
 

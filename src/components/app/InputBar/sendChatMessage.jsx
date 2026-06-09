@@ -8,6 +8,8 @@ import {
   updateChatSummary,
 } from "@/firebase/chatStore";
 import { fetchChatSummary } from "@/ai/chatSummary";
+import { fetchChatTitle } from "@/ai/chatTitle";
+import { updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
@@ -95,6 +97,7 @@ export async function sendChatMessage({
     topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;
   const inTopic = Boolean(topicId);
   let chatId = activeChatId;
+  const isNewChat = !chatId;
 
   const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}`;
 
@@ -320,6 +323,19 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 }
+
+  // ───────── AI TITLE (new chats only, fire & forget) ─────────
+  if (isNewChat) {
+    fetchChatTitle(message).then(async (aiTitle) => {
+      if (!aiTitle) return;
+      try {
+        const chatDocRef = inTopic
+          ? doc(db, "users", currentUser.uid, "topics", topicId, "chats", chatId)
+          : doc(db, "users", currentUser.uid, "chats", chatId);
+        await updateDoc(chatDocRef, { title: aiTitle });
+      } catch { /* silent */ }
+    }).catch(() => {});
+  }
 
   // ───────── SUMMARY UPDATE ─────────
   const summaryKey = `${currentUser.uid}:${inTopic ? topicId : "global"}:${chatId}`;
