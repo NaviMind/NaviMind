@@ -207,12 +207,11 @@ export default function InputBar() {
             <button
               onClick={handleSend}
               disabled={!inputValue.trim()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition
-                bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white"
+              className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white transition"
               type="button"
+              aria-label="Send"
             >
-              <Icon name="arrow-send" size={16} />
-              Send
+              <Icon name="arrow-send" size={20} />
             </button>
           </div>
 
@@ -280,11 +279,11 @@ export default function InputBar() {
                 {showExpandBtn && (
                   <button
                     onClick={() => setIsExpanded(true)}
-                    className="md:hidden absolute bottom-1.5 right-1.5 p-1 rounded text-gray-500 hover:text-white transition"
+                    className="md:hidden absolute top-1.5 right-1.5 p-1 rounded text-gray-400 hover:text-white transition"
                     type="button"
                     aria-label="Expand editor"
                   >
-                    <Maximize2 size={13} />
+                    <Maximize2 size={16} />
                   </button>
                 )}
               </div>
