@@ -257,47 +257,50 @@ export default function InputBar() {
                 </label>
               </Tooltip>
 
-              {/* ✍️ Textarea + expand button */}
-              <div className="relative flex-1">
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  value={inputValue}
-                  onChange={(e) => {
-                    setInputValue(e.target.value);
-                    if (e.target.value.trim()) setIsActive(true);
-                  }}
-                  onFocus={() => setIsActive(true)}
-                  onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
-                  onKeyDown={handleKeyDown}
-                  className="w-full resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
-                  placeholder="Ask anything in your language..."
-                  style={{ minWidth: 0 }}
-                />
+              {/* ✍️ Textarea */}
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  if (e.target.value.trim()) setIsActive(true);
+                }}
+                onFocus={() => setIsActive(true)}
+                onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
+                onKeyDown={handleKeyDown}
+                className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
+                placeholder="Ask anything in your language..."
+                style={{ minWidth: 0 }}
+              />
 
-                {/* Expand button — mobile only, visible when text overflows */}
-                {showExpandBtn && (
+              {/* Right column: expand (top) + send (bottom) */}
+              <div className="flex flex-col items-center justify-between self-stretch py-0.5">
+                {/* Expand — mobile only, top of column */}
+                {showExpandBtn ? (
                   <button
                     onClick={() => setIsExpanded(true)}
-                    className="md:hidden absolute top-1.5 right-1.5 p-1 rounded text-gray-400 hover:text-white transition"
+                    className="md:hidden p-1.5 rounded text-gray-400 hover:text-white transition flex items-center justify-center"
                     type="button"
                     aria-label="Expand editor"
                   >
-                    <Maximize2 size={16} />
+                    <Maximize2 size={15} />
                   </button>
+                ) : (
+                  <div />
                 )}
-              </div>
 
-              {/* ⬆ Send Button */}
-              <Tooltip content="Send" position="top">
-                <button
-                  onClick={handleSend}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center"
-                  disabled={!inputValue.trim()}
-                >
-                  <Icon name="arrow-send" size={20} />
-                </button>
-              </Tooltip>
+                {/* Send — bottom of column */}
+                <Tooltip content="Send" position="top">
+                  <button
+                    onClick={handleSend}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    disabled={!inputValue.trim()}
+                  >
+                    <Icon name="arrow-send" size={20} />
+                  </button>
+                </Tooltip>
+              </div>
             </div>
 
             {fileAlert && (
