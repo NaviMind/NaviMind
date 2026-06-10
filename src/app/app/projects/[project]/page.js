@@ -112,8 +112,8 @@ export default function DynamicProjectPage() {
   const allSelected = selectedIds.size === chats.length && chats.length > 0;
 
   const fullTitle = (t = "") => {
-    const words = t.trim().split(/\s+/).slice(0, 10).join(" ");
-    return words.length > 80 ? words.slice(0, 80) + "…" : words || "Untitled Chat";
+    const words = t.trim().split(/\s+/).slice(0, 20).join(" ");
+    return words.length > 160 ? words.slice(0, 160) + "…" : words || "Untitled Chat";
   };
 
   const currentProjectName =
@@ -243,7 +243,7 @@ export default function DynamicProjectPage() {
                     ) : (
                       <button
                         onClick={isSelectMode ? undefined : () => openChatSession(c.chatId, project)}
-                        className="flex-1 min-w-0 text-left truncate px-2 py-1 text-[15px] sm:text-base"
+                        className="flex-1 min-w-0 text-left px-2 py-1 text-[15px] sm:text-base leading-snug"
                         style={{ lineHeight: 1.25 }}
                         tabIndex={isSelectMode ? -1 : 0}
                       >
