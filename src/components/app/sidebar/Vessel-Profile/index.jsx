@@ -14,6 +14,11 @@ const emptyForm = {
   ballastSystem: "", iceClass: "", specialNotes: "",
   lngContainment: "", lngTankPressure: "", lngBor: "", lngReliq: "",
   lngFuelSystem: "", lngGcu: "", lngSloshing: "", lngMaxFilling: "",
+  // Engine department
+  engMainEngine: "", engAuxEngines: "", engEdg: "", engPropulsion: "",
+  engThrusters: "", engShaftGen: "", engFuelSystem: "", engScrubber: "",
+  engBoiler: "", engIncinerator: "", engInertSystem: "", engCargoCompressor: "",
+  engNotes: "",
 };
 
 export default function VesselProfileModal({ open, onClose, onSave }) {

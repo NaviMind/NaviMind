@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import DeckDepartment from "./departments/Deck";
+import EngineDepartment from "./departments/Engine";
 
 export default function ProfileCard({
   form,
@@ -156,9 +157,7 @@ export default function ProfileCard({
         )}
 
         {department === "engine" && (
-          <div className="text-gray-400 text-sm p-4 text-center">
-            Engine department coming next...
-          </div>
+          <EngineDepartment form={form} setForm={setForm} />
         )}
       </div>
 
