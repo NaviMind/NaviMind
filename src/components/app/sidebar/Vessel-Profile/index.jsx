@@ -6,43 +6,45 @@ import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
 
+const VESSEL_STORAGE_KEY = "navimind_vessel_profile";
+
+const emptyForm = {
+  rank: "", vesselType: "", lpgType: "", offshoreType: "", dpClass: "",
+  capacity: "", capacityUnit: "DWT", flag: "", classification: "",
+  ballastSystem: "", iceClass: "", specialNotes: "",
+  lngContainment: "", lngTankPressure: "", lngBor: "", lngReliq: "",
+  lngFuelSystem: "", lngGcu: "", lngSloshing: "", lngMaxFilling: "",
+};
+
 export default function VesselProfileModal({ open, onClose, onSave }) {
   const firstInputRef = useRef(null);
 
   const {
-  advancedTouched,
-  setAdvancedTouched,
-  advancedCompleted,
-  setAdvancedCompleted,
-  setVesselProfileSaved,
-  openAdvancedDirectly,
-  setOpenAdvancedDirectly,
-} = useContext(UIContext);
+    advancedTouched, setAdvancedTouched,
+    advancedCompleted, setAdvancedCompleted,
+    setVesselProfileSaved,
+    openAdvancedDirectly, setOpenAdvancedDirectly,
+  } = useContext(UIContext);
 
-  const [form, setForm] = useState({
-    rank: "",
-    vesselType: "",
-    lpgType: "",
-    offshoreType: "",
-    dpClass: "",
-    capacity: "",
-    capacityUnit: "DWT",
-    flag: "",
-    classification: "",
-    ballastSystem: "",
-    iceClass: "",
-    specialNotes: "",
+  const [form, setForm] = useState(emptyForm);
+  const [savedForm, setSavedForm] = useState(null); // what was last saved
 
-    // LNG Advanced
-lngContainment: "",
-lngTankPressure: "",
-lngBor: "",
-lngReliq: "",
-lngFuelSystem: "",
-lngGcu: "",
-lngSloshing: "",
-lngMaxFilling: "",
-  });
+  // Load saved profile on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setForm({ ...emptyForm, ...parsed });
+        setSavedForm({ ...emptyForm, ...parsed });
+      }
+    } catch {}
+  }, []);
+
+  const isSaved = Boolean(savedForm);
+  const isDirty = isSaved
+    ? Object.keys(emptyForm).some((k) => form[k] !== savedForm[k])
+    : true;
 
 const advancedSupportedTypes = ["LNG"]; 
 
@@ -78,8 +80,9 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
+    localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
+    setSavedForm({ ...form });
     setVesselProfileSaved(true);
     onSave(form);
   };
@@ -114,6 +117,8 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
       setShowAdvancedOverlay={setShowAdvancedOverlay}
       setStep={setStep}
       slideVariants={slideVariants}
+      isSaved={isSaved}
+      isDirty={isDirty}
     />
   )}
 

@@ -10,14 +10,18 @@ export default function ProfileCard({
   setDepartment,
   supportsAdvanced,
   advancedCompleted,
-  setAdvancedTouched, 
+  setAdvancedTouched,
   onSubmit,
   onClose,
   showAdvancedOverlay,
   setShowAdvancedOverlay,
   setStep,
   slideVariants,
+  isSaved,
+  isDirty,
 }) {
+  const isEditMode = isSaved && !isDirty;
+  const canSave = form.rank && form.vesselType && form.capacity.trim();
   return (
     <motion.form
       key="profile"
@@ -159,16 +163,19 @@ export default function ProfileCard({
       </div>
 
       <button
-        type="submit"
-        disabled={!form.rank || !form.vesselType || !form.capacity.trim()}
+        type={isEditMode ? "button" : "submit"}
+        disabled={!isEditMode && !canSave}
+        onClick={isEditMode ? onClose : undefined}
         className={`
           mt-4 shrink-0 px-4 py-2 rounded-xl font-medium transition
-          ${form.rank && form.vesselType && form.capacity.trim()
-            ? "bg-blue-600 hover:bg-blue-700 text-white"
-            : "bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
+          ${isEditMode
+            ? "bg-gray-600 hover:bg-gray-500 text-white"
+            : canSave
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
         `}
       >
-        Save & Activate
+        {isEditMode ? "Edit" : "Save & Activate"}
       </button>
     </motion.form>
   );
