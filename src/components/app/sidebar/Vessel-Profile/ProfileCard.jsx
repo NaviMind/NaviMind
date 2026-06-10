@@ -181,18 +181,17 @@ export default function ProfileCard({
             transition={{ duration: 0.25 }}
             className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md overflow-hidden"
           >
-            {/* Subtle radial glow */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 50% 45%, rgba(59,130,246,0.10) 0%, transparent 65%)" }} />
-
             {/* Ring + checkmark */}
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 22 }}
-              className="relative mb-6"
+              className="mb-6"
             >
-              <div className="absolute inset-0 rounded-full bg-blue-500/30 blur-2xl scale-150 pointer-events-none" />
-              <div className="relative w-24 h-24 rounded-full border-2 border-blue-500/70 bg-blue-600/15 flex items-center justify-center shadow-lg shadow-blue-900/40">
+              <div
+                className="w-24 h-24 rounded-full border-2 border-blue-500/60 bg-blue-600/10 flex items-center justify-center"
+                style={{ boxShadow: "0 0 48px rgba(59,130,246,0.22)" }}
+              >
                 <motion.svg
                   viewBox="0 0 24 24"
                   fill="none"
