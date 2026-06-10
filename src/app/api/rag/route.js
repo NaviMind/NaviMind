@@ -65,6 +65,7 @@ export async function POST(req) {
       summary = "",
       imageUrls = [],
       documentFiles = [],
+      vesselProfile = null,
     } = body;
 
     // ── Extract text from uploaded documents ──
@@ -95,6 +96,54 @@ export async function POST(req) {
     const hasImages = imageUrls.length > 0;
     const hasDocs = extractedDocs.length > 0;
 
+    // Build vessel profile context block — only include non-empty fields
+    function buildVesselBlock(vp) {
+      if (!vp?.rank || !vp?.vesselType) return null;
+      const line = (label, val, skip) => (val && val !== skip) ? `${label}: ${val}` : null;
+      const rows = [
+        "ACTIVE VESSEL PROFILE",
+        "Use this information to personalise every answer. Do not give generic maritime answers when vessel-specific guidance is possible.",
+        "",
+        line("Rank", vp.rank),
+        line("Vessel Type", vp.vesselType),
+        line("LPG Type", vp.lpgType),
+        line("Offshore Type", vp.offshoreType),
+        line("DP Class", vp.dpClass),
+        vp.capacity ? `Vessel Capacity: ${vp.capacity} ${vp.capacityUnit || ""}`.trim() : null,
+        line("Flag State", vp.flag),
+        line("Classification Society", vp.classification),
+        line("Ballast Water Treatment", vp.ballastSystem),
+        line("Ice Class", vp.iceClass, "No Ice Class"),
+        // LNG advanced
+        line("LNG Containment System", vp.lngContainment),
+        vp.lngTankPressure ? `LNG Tank Design Pressure: ${vp.lngTankPressure} bar` : null,
+        vp.lngBor ? `Natural Boil-Off Rate: ${vp.lngBor}% per day` : null,
+        line("Reliquefaction Plant", vp.lngReliq),
+        line("LNG Fuel System", vp.lngFuelSystem),
+        line("Gas Combustion Unit (GCU)", vp.lngGcu),
+        line("Sloshing Restrictions", vp.lngSloshing),
+        vp.lngMaxFilling ? `Max Cargo Filling Limit: ${vp.lngMaxFilling}%` : null,
+        // Engine
+        line("Main Engine", vp.engMainEngine),
+        line("Aux Engines", vp.engAuxEngines),
+        line("Emergency Generator", vp.engEdg),
+        line("Propulsion Type", vp.engPropulsion),
+        line("Thrusters", vp.engThrusters, "No Thrusters"),
+        line("Shaft Generator", vp.engShaftGen),
+        line("Engine Fuel System", vp.engFuelSystem),
+        line("Scrubber (EGCS)", vp.engScrubber, "No Scrubber"),
+        line("Boiler", vp.engBoiler, "No Boiler"),
+        line("Incinerator", vp.engIncinerator),
+        line("Inert Gas System", vp.engInertSystem),
+        line("Cargo Compressors", vp.engCargoCompressor),
+        line("Deck Notes", vp.specialNotes),
+        line("Engine Notes", vp.engNotes),
+      ].filter(Boolean);
+      return rows.join("\n");
+    }
+
+    const vesselBlock = buildVesselBlock(vesselProfile);
+
     const basePrompt = [
   systemInstruction,
   assistantRoleAndValue,
@@ -106,6 +155,7 @@ export async function POST(req) {
 ].join("\n\n---\n\n");
 
 const contextualBlocks = [
+  vesselBlock,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,

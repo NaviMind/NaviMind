@@ -5,6 +5,8 @@ import DeckDepartment from "./departments/Deck";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
+import { auth } from "@/firebase/config";
+import { saveVesselProfile } from "@/firebase/userRepo";
 
 const VESSEL_STORAGE_KEY = "navimind_vessel_profile";
 const VESSEL_DEPT_KEY = "navimind_vessel_department";
@@ -91,14 +93,23 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
 
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
+
+    // Save locally first (instant feedback)
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     localStorage.setItem(VESSEL_DEPT_KEY, department);
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
-    setVesselProfileData({ rank: form.rank, vesselType: form.vesselType });
+    setVesselProfileData({ ...form }); // full profile in context
+
+    // Persist to Firestore (fire and forget — don't block the UI)
+    const user = auth.currentUser;
+    if (user?.uid) {
+      saveVesselProfile(user.uid, form).catch(() => {});
+    }
+
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);

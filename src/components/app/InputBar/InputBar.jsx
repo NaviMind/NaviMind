@@ -19,7 +19,7 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
 
 
 export default function InputBar() {
-  const { isSidebarOpen, inputText, setInputText } = useContext(UIContext);
+  const { isSidebarOpen, inputText, setInputText, vesselProfileData } = useContext(UIContext);
   const pathname = usePathname();
 const topicIdFromURL =
   pathname && pathname.startsWith("/app/projects/")
@@ -111,6 +111,7 @@ const topicIdFromURL =
     setProjectChatSessions,
     setActiveProject,
     setActiveChatId,
+    vesselProfile: vesselProfileData || null,
   });
 };
 

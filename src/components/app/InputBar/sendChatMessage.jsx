@@ -89,6 +89,7 @@ export async function sendChatMessage({
   setProjectChatSessions,
   setActiveProject,
   setActiveChatId,
+  vesselProfile = null,
 }) {
   if (!message?.trim()) return;
   if (!currentUser?.uid) return;
@@ -249,6 +250,7 @@ if (inTopic) {
       summary,
       imageUrls: uploadedImages.map((a) => a.url),
       documentFiles: documentPayloads,
+      vesselProfile,
     }),
   });
 

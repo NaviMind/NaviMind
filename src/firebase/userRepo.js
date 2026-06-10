@@ -45,3 +45,16 @@ export async function updateUserProfile(uid, data) {
   const ref = doc(db, "users", uid);
   await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 }
+
+export async function saveVesselProfile(uid, vesselData) {
+  if (!uid) return;
+  const ref = doc(db, "users", uid);
+  await setDoc(ref, { vesselProfile: vesselData, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function getVesselProfile(uid) {
+  if (!uid) return null;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  return snap.exists() ? (snap.data()?.vesselProfile ?? null) : null;
+}
