@@ -23,8 +23,18 @@ function AppShell({ children }) {
     advancedCompleted,
     vesselProfileSaved,
     setVesselProfileOpen,
-    setOpenAdvancedDirectly
+    setOpenAdvancedDirectly,
+    theme,
   } = useContext(UIContext);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, [theme]);
 
   // Keep layout pinned to visual viewport so the header stays
   // visible when the iOS keyboard opens
