@@ -296,12 +296,12 @@ if (res.body && contentType.includes("text/event-stream")) {
         finalText += data.replace(/\\n/g, "\n");
       }
 
-      if (event === "source") {
+      if (event === "sources") {
   try {
     const parsed = JSON.parse(data);
-    streamedSources.push(parsed);
+    if (Array.isArray(parsed)) streamedSources.push(...parsed);
   } catch (e) {
-    console.error("Failed to parse source:", data);
+    console.error("Failed to parse sources:", data);
   }
 }
 

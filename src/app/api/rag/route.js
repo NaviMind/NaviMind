@@ -24,10 +24,41 @@ function isOperationalScenario(question) {
   );
 }
 
-function needsWebSearch(question) {
+const FLAG_DOMAINS = {
+  "Panama": "amp.gob.pa",
+  "Liberia": "liscr.com",
+  "Marshall Islands": "register-iri.com",
+  "Bahamas": "bahamasmaritime.com",
+  "Malta": "transport.gov.mt",
+  "Singapore": "mpac.gov.sg",
+  "Hong Kong": "mardep.gov.hk",
+  "Cyprus": "dms.gov.cy",
+  "Norway": "sdir.no",
+  "United Kingdom": "gov.uk",
+  "Greece": "hcg.gr",
+  "Isle of Man": "gov.im",
+  "Cayman Islands": "cishipping.com",
+  "Antigua & Barbuda": "abregistry.ag",
+};
+
+const CLASS_DOMAINS = {
+  "ClassNK": "classnk.or.jp",
+  "DNV": "dnv.com",
+  "Lloyd's Register": "lr.org",
+  "LR": "lr.org",
+  "ABS": "eagle.org",
+  "Bureau Veritas": "bureauveritas.com",
+  "BV": "bureauveritas.com",
+  "RINA": "rina.org",
+  "CCS": "ccs.org.cn",
+  "Korean Register": "krs.co.kr",
+  "KR": "krs.co.kr",
+};
+
+function needsWebSearch(question, vesselProfile = null) {
   if (!question) return false;
   const q = question.toLowerCase();
-  const triggers = [
+  const generalTriggers = [
     "solas", "marpol", "stcw", "ism", "isps", "isgott",
     "regulation", "requirement", "certificate", "inspection",
     "port state", "psc", "flag state", "class", "classification",
@@ -36,7 +67,20 @@ function needsWebSearch(question) {
     "minimum", "maximum", "what is required", "procedure",
     "interval", "frequency", "drill", "record", "log",
   ];
-  return triggers.some((t) => q.includes(t));
+  if (generalTriggers.some((t) => q.includes(t))) return true;
+
+  // With a vessel profile, cast a wider net for anything compliance-adjacent
+  if (vesselProfile?.flag || vesselProfile?.classification) {
+    const profileTriggers = [
+      "rule", "standard", "guidance", "compliance", "survey", "renewal",
+      "deficiency", "detention", "vetting", "sire", "cdi", "rightship",
+      "test", "audit", "must", "shall", "required", "flag", "notice",
+      "equipment", "maintain", "check", "confirm", "verify", "valid",
+    ];
+    if (profileTriggers.some((t) => q.includes(t))) return true;
+  }
+
+  return false;
 }
 
 export const runtime = "nodejs";
@@ -100,10 +144,49 @@ export async function POST(req) {
     function buildVesselBlock(vp) {
       if (!vp?.rank || !vp?.vesselType) return null;
       const line = (label, val, skip) => (val && val !== skip) ? `${label}: ${val}` : null;
+
+      const flagDomain = vp.flag ? FLAG_DOMAINS[vp.flag] : null;
+      const classDomain = vp.classification ? CLASS_DOMAINS[vp.classification] : null;
+
+      const vesselTypeCode = (() => {
+        if (vp.vesselType === "LNG") return "IGC Code (Gas Carriers) applies. All cargo and safety answers must be filtered through IGC.";
+        if (vp.vesselType === "LPG") return "IGC Code (Gas Carriers) applies. Apply fully pressurised / semi-refrigerated rules as appropriate to this vessel.";
+        if (vp.vesselType === "Chemical Tanker") return "IBC Code applies. Always cite specific product and category requirements.";
+        if (vp.vesselType === "Oil Tanker") return "MARPOL Annex I, OCIMF/SIRE standards, and tanker-specific SOLAS requirements apply.";
+        if (vp.vesselType === "Bulk Carrier") return "IMSBC Code and SOLAS XII (Bulk Carrier Safety) apply.";
+        if (vp.vesselType === "Container") return "IMDG Code (if carrying DG), CSS Code, and SOLAS VI cargo securing requirements apply.";
+        if (vp.vesselType === "Ro-Ro") return "SOLAS II-2 (fire safety), the Stockholm Agreement (if applicable), and stability requirements for Ro-Ro vessels apply.";
+        if (vp.vesselType === "Passenger") return "SOLAS passenger ship requirements and relevant flag state passenger safety regulations apply.";
+        if (vp.vesselType === "Offshore") return "MWS requirements, flag state offshore standards, and relevant DP class rules apply.";
+        return null;
+      })();
+
       const rows = [
-        "ACTIVE VESSEL PROFILE",
-        "Use this information to personalise every answer. Do not give generic maritime answers when vessel-specific guidance is possible.",
+        "═══════════════════════════════════════════",
+        "ACTIVE VESSEL PROFILE — MANDATORY PERSONALISATION",
+        "═══════════════════════════════════════════",
         "",
+        "HOW YOU MUST USE THIS PROFILE (non-negotiable):",
+        "",
+        `1. ADDRESS BY RANK — Always address this user as "${vp.rank}" directly in your response. Example: "${vp.rank}, the requirement here is..." or "For your vessel, ${vp.rank}...". Never use generic openers when the rank is known.`,
+        "",
+        vp.flag
+          ? `2. FLAG STATE — This vessel is registered under ${vp.flag} flag. For ANY question touching compliance, certificates, surveys, or circulars, you MUST search ${flagDomain ? `site:${flagDomain}` : `the ${vp.flag} maritime authority`} for the current applicable marine notice or circular. Do NOT give a generic IMO answer when a ${vp.flag}-specific answer exists.`
+          : "2. FLAG STATE — Flag not specified. Apply general international requirements.",
+        "",
+        vp.classification
+          ? `3. CLASSIFICATION SOCIETY — This vessel is classed by ${vp.classification}. For ANY question involving class surveys, technical rules, or equipment standards, search ${classDomain ? `site:${classDomain}` : `the ${vp.classification} website`} for the current applicable rule. ${vp.classification} rules are mandatory — do not substitute with generic IACS guidance.`
+          : "3. CLASS — Not specified. Apply general IACS standards.",
+        "",
+        vesselTypeCode ? `4. VESSEL TYPE CODE — ${vesselTypeCode}` : `4. VESSEL TYPE — Apply ${vp.vesselType} specific requirements only.`,
+        "",
+        "5. NEVER REPEAT THE PROFILE — Do not summarise or repeat these vessel details back to the user. They know their own ship. Use this data silently to give a more precise, vessel-specific answer.",
+        "",
+        "6. SOURCES — When web search is used, always include the direct link to the official flag state or class society source. Links must appear as clickable markdown: [Source Name](URL).",
+        "",
+        "═══════════════════════════════════════════",
+        "VESSEL DATA:",
+        "═══════════════════════════════════════════",
         line("Rank", vp.rank),
         line("Vessel Type", vp.vesselType),
         line("LPG Type", vp.lpgType),
@@ -138,6 +221,7 @@ export async function POST(req) {
         line("Cargo Compressors", vp.engCargoCompressor),
         line("Deck Notes", vp.specialNotes),
         line("Engine Notes", vp.engNotes),
+        "═══════════════════════════════════════════",
       ].filter(Boolean);
       return rows.join("\n");
     }
@@ -218,7 +302,7 @@ const assembledSystemPrompt = [
             },
           ];
 
-          const useWebSearch = needsWebSearch(question);
+          const useWebSearch = needsWebSearch(question, vesselProfile);
 
           const completion = await openai.responses.create({
             model: "gpt-4.1",
