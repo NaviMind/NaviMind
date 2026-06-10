@@ -106,7 +106,6 @@ useEffect(() => {
               transition-all duration-200 group max-w-[170px]"
             style={{ boxShadow: "0 0 10px rgba(59,130,246,0.10)" }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
             <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
             <span className="text-white/25">·</span>
             <span className="text-gray-400 truncate">{vesselProfileData.vesselType}</span>
