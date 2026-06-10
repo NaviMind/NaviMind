@@ -6,7 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
-import { renameChatInFirestore, deleteChatFromFirestore } from "@/firebase/chatStore";
+import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
 export default function DynamicProjectPage() {
@@ -281,6 +281,18 @@ export default function DynamicProjectPage() {
                         targetRef={anchorRef}
                         isOpen={isDropdownOpen}
                         initialIsPinned={!!c.isPinned}
+                        onPin={async () => {
+                          const user = auth.currentUser;
+                          if (!user) return !!c.isPinned;
+                          const newState = await togglePinChat(user.uid, c.chatId, project);
+                          setProjectChatSessions((prev) => ({
+                            ...prev,
+                            [project]: (prev[project] || []).map((chat) =>
+                              chat.chatId === c.chatId ? { ...chat, isPinned: newState } : chat
+                            ),
+                          }));
+                          return newState;
+                        }}
                         onEnterSelectMode={() => enterSelectMode(c.chatId)}
                         onShare={() => setOpenMenu(null)}
                         onRename={() => {
