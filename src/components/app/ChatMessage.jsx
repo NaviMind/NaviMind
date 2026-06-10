@@ -2,7 +2,7 @@
 
 import { useContext, useState, useEffect, useRef } from "react";
 import { UIContext } from "@/context/UIContext";
-import { Check, Copy, Link, Share2 } from "lucide-react";
+import { Check, Copy, Share2 } from "lucide-react";
 import MessageAttachments from "./MessageAttachments";
 import MarkdownRenderer from "@/components/app/chat/MarkdownRenderer";
 
@@ -118,7 +118,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after typing is done
-function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions, sources = [] }) {
+function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions }) {
   const text = String(displayText ?? content ?? "");
 
   const isSyncing =
@@ -155,31 +155,12 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
           </div>
         )}
 
-        {/* Sources + Copy + Share — only after typing finishes */}
+        {/* Copy + Share — only after typing finishes */}
         {showActions && (
-          <>
-            {sources.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {sources.map((s, i) => {
-                  let domain = "";
-                  try { domain = new URL(s.url).hostname.replace("www.", ""); }
-                  catch { domain = "source"; }
-                  return (
-                    <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white/[0.04] border border-white/[0.08] text-white/70 hover:bg-white/[0.08] hover:text-white transition-all duration-200"
-                    >
-                      <Link size={9} className="opacity-60 shrink-0" />
-                      <span className="truncate max-w-[120px]">{domain}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex items-center gap-4 pt-1">
-              <CopyButton copied={copied} onCopy={onCopy} />
-              <ShareButton onShare={onShare} />
-            </div>
-          </>
+          <div className="flex items-center gap-4 pt-1">
+            <CopyButton copied={copied} onCopy={onCopy} />
+            <ShareButton onShare={onShare} />
+          </div>
         )}
       </div>
     </div>
@@ -318,7 +299,6 @@ export default function ChatMessage({ message }) {
         onCopy={handleCopy}
         onShare={handleShare}
         showActions={typingDone}
-        sources={sources}
       />
     );
   }
