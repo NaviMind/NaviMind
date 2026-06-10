@@ -10,8 +10,9 @@ import SidebarSectionTitle from "./SidebarSectionTitle";
 import MyTopicsSection from "./MyTopicsSection";
 import NewChatButton from "./NewChatButton";
 import ChatListSection from "./ChatListSection";
-import UserProfileButton from "./UserProfileButton"; 
+import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
+import Icon from "@/components/common/Icon";
 
 
 export default function SidebarContainer({
@@ -21,7 +22,7 @@ export default function SidebarContainer({
 }) {
   const router = useRouter();
   const ui = useContext(UIContext);
-  const { isVesselProfileOpen, setVesselProfileOpen } = ui;
+  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData } = ui;
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [topicName, setTopicName] = useState("");
@@ -93,6 +94,25 @@ useEffect(() => {
         {showNewChatButton && (
           <NewChatButton onSidebarItemClick={onSidebarItemClick} />
         )}
+
+        {/* Vessel profile pill — mobile sidebar center, shown when profile saved */}
+        {mobileMode && vesselProfileData && (
+          <button
+            onClick={() => { setVesselProfileOpen(true); onSidebarItemClick?.(); }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
+              border border-blue-500/35 bg-blue-500/[0.07]
+              hover:border-blue-400/60 hover:bg-blue-500/[0.13]
+              focus:outline-none focus:ring-2 focus:ring-blue-500/50
+              transition-all duration-200 group max-w-[170px]"
+            style={{ boxShadow: "0 0 10px rgba(59,130,246,0.10)" }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+            <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
+            <span className="text-white/25">·</span>
+            <span className="text-gray-400 truncate">{vesselProfileData.vesselType}</span>
+          </button>
+        )}
+
         {showCloseButton && (
           <div className="relative group flex flex-col items-center">
             <button
@@ -102,7 +122,7 @@ useEffect(() => {
             >
               {/* Крестик/гамбургер */}
               {mobileMode ? (
-                <img src="/Close_Small.svg" alt="Close" className="w-6 h-6" />
+                <Icon name="close" size={24} />
               ) : (
                 <svg
                   className="h-6 w-6 text-gray-800 dark:text-gray-200"
@@ -137,12 +157,7 @@ useEffect(() => {
   transition-colors duration-200 min-h-[38px] 
 "
 >
-  <img
-    src="/Vessel Profile.svg"
-    alt="Vessel Profile"
-    className="w-5 h-5"
-    draggable="false"
-  />
+  <Icon name="vessel-profile" size={20} />
   <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
     Vessel Profile
   </span>
@@ -162,12 +177,7 @@ useEffect(() => {
   transition-colors duration-200 min-h-[38px] 
 "
 >
-  <img
-    src="/create_new.svg"
-    alt="Create Topic"
-    className="w-5 h-5"
-    draggable="false"
-  />
+  <Icon name="create-new" size={20} />
   <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
     Create Topic
   </span>
@@ -179,12 +189,7 @@ useEffect(() => {
  (!projectChatSessions?.global || !projectChatSessions.global.length) && (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="flex items-center text-[#9CA3AF] pointer-events-auto">
-      <img
-        src="/chat_bubble.svg"
-        alt=""
-        className="w-8 h-8 mr-3 opacity-80"
-        draggable="false"
-      />
+      <Icon name="chat-bubble" size={32} className="mr-3 opacity-80" />
       <div className="flex flex-col leading-tight text-left">
         <span className="text-[15px] font-medium">No chats yet.</span>
         <span className="text-[15px]">Just start typing.</span>
@@ -220,7 +225,7 @@ useEffect(() => {
   <aside
     className={[
       "fixed left-0 top-0 z-50 h-full w-4/5 max-w-xs",
-      "bg-[#0b1220] backdrop-blur-sm text-gray-200",
+      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
       "flex flex-col",
       "transition-transform duration-300 sm:hidden",
       isSidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none",
@@ -240,8 +245,7 @@ useEffect(() => {
     className={[
       ui.isSidebarOpen ? "sm:flex" : "sm:hidden",
       "hidden flex-col h-full",
-      "bg-gray-900/80 backdrop-blur-sm",
-      "text-gray-800 dark:text-gray-200",
+      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
       "flex flex-col",
       "transition-[width] duration-300 ease-in-out",
     ].join(" ")}

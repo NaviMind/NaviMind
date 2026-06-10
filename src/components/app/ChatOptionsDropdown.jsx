@@ -7,8 +7,7 @@ import { auth } from "@/firebase/config";
 import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import Icon from "@/components/common/Icon";
 
 
 // Мобайл‑детектор
@@ -28,40 +27,41 @@ export default function ChatOptionsDropdown({
   onClose,
   targetRef,
   chatId,
+  topicId = null,
   currentTitle = "",
+  initialIsPinned = false,
+  onPin,
   onShare,
   onRename,
   onDelete,
+  onEnterSelectMode,
 }) {
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [coords, setCoords] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useState(initialIsPinned);
 
   useEffect(() => {
-    if (!isOpen || !targetRef?.current) return;
+    if (!isOpen) { setCoords(null); return; }
+    if (!targetRef?.current) return;
 
     const rect = targetRef.current.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
-
     const menuHeight = 160;
     const menuWidth = isMobile ? 220 : 180;
 
-    let top = rect.bottom + scrollY + 8;
+    let top = rect.bottom + 8;
     let left = isMobile
       ? Math.max((window.innerWidth - menuWidth) / 2, 8)
-      : rect.left + scrollX + 8;
+      : rect.left + 8;
 
-    const willOverflowBottom = top + menuHeight > window.innerHeight + scrollY;
-    if (willOverflowBottom) {
-      top = rect.top + scrollY - menuHeight - 2;
-      if (top < scrollY + 8) top = scrollY + 8;
+    if (top + menuHeight > window.innerHeight) {
+      top = rect.top - menuHeight - 2;
+      if (top < 8) top = 8;
     }
 
-    if (!isMobile && left + menuWidth > window.innerWidth + scrollX) {
-      left = window.innerWidth + scrollX - menuWidth - 4;
+    if (!isMobile && left + menuWidth > window.innerWidth) {
+      left = window.innerWidth - menuWidth - 4;
       left = Math.max(left, 8);
     }
 
@@ -99,7 +99,7 @@ export default function ChatOptionsDropdown({
   const handleDelete = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    await deleteChatFromFirestore(user.uid, chatId);
+    await deleteChatFromFirestore(user.uid, chatId, topicId);
     onDelete(chatId);
   };
 
@@ -111,35 +111,21 @@ export default function ChatOptionsDropdown({
   };
 
   useEffect(() => {
-  const fetchPinState = async () => {
-    const user = auth.currentUser;
-    if (!user || !chatId) return;
-    try {
-      const chatRef = doc(db, "users", user.uid, "chats", chatId);
-      const snap = await getDoc(chatRef);
-      if (snap.exists()) {
-        setIsPinned(!!snap.data().isPinned);
-      }
-    } catch (err) {
-      console.error("Failed to load pin state:", err);
-    }
-  };
-
-  if (isOpen) fetchPinState();
-}, [isOpen, chatId]);
+    setIsPinned(initialIsPinned);
+  }, [initialIsPinned]);
 
   return (
     <>
-      {isOpen && !confirmOpen &&
+      {isOpen && !confirmOpen && coords &&
         createPortal(
           <div
             ref={menuRef}
             style={{
-              position: "absolute",
+              position: "fixed",
               top: coords.top,
               left: coords.left,
               minWidth: isMobile ? 220 : 180,
-              zIndex: 50,
+              zIndex: 9999,
             }}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg ring-1 ring-slate-700 p-1 text-sm transition"
           >
@@ -148,17 +134,15 @@ export default function ChatOptionsDropdown({
   onClick={async () => {
     const user = auth.currentUser;
     if (!user) return;
-    const newState = await togglePinChat(user.uid, chatId);
+    const newState = onPin
+      ? await onPin()
+      : await togglePinChat(user.uid, chatId, topicId);
     setIsPinned(newState);
     onClose();
   }}
   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
 >
-  <img
-    src={isPinned ? "/Unpin.svg" : "/Pin.svg"}
-    alt={isPinned ? "Unpin" : "Pin"}
-    className="w-5 h-5 opacity-80"
-  />
+  <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
 </button>
 
@@ -167,13 +151,13 @@ export default function ChatOptionsDropdown({
     const user = auth.currentUser;
     if (!user) return;
 
-    const messages = await getChatMessages(user.uid, chatId); 
-    await exportChatAsTxt(messages); 
+    const messages = await getChatMessages(user.uid, chatId, topicId);
+    await exportChatAsTxt(messages, currentTitle);
     onClose();
   }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
             >
-              <img src="/Share.svg" alt="Share" className="w-5 h-5 opacity-80" />
+              <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
             </button>
 
@@ -184,9 +168,22 @@ export default function ChatOptionsDropdown({
               }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
             >
-              <img src="/Edit.svg" alt="Rename" className="w-5 h-5 opacity-80" />
+              <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
             </button>
+
+            {onEnterSelectMode && (
+              <button
+                onClick={() => {
+                  onEnterSelectMode();
+                  onClose();
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+              >
+                <Icon name="select" size={20} className="opacity-80" />
+                <span>Select</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -195,7 +192,7 @@ export default function ChatOptionsDropdown({
               }}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-red-400 dark:text-red-350 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition"
             >
-              <img src="/Delete.svg" alt="Delete" className="w-5 h-5 opacity-80" />
+              <Icon name="delete" size={20} className="opacity-80" />
               <span className="text-inherit">Delete</span>
             </button>
           </div>,
@@ -232,7 +229,7 @@ export default function ChatOptionsDropdown({
       <button
         type="button"
         className="px-4 py-[6px] text-sm rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600"
-        onClick={onClose}
+        onClick={() => { setConfirmOpen(false); onClose(); }}
       >
         Cancel
       </button>

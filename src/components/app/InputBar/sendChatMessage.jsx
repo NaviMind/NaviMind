@@ -8,6 +8,8 @@ import {
   updateChatSummary,
 } from "@/firebase/chatStore";
 import { fetchChatSummary } from "@/ai/chatSummary";
+import { fetchChatTitle } from "@/ai/chatTitle";
+import { updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
@@ -40,6 +42,15 @@ async function uploadAttachments({ uid, chatId, topicId, files }) {
   return uploaded;
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
   const ref = topicId
     ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
@@ -57,7 +68,7 @@ const getMessagesRef = (uid, chatId, topicId) =>
 async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
   const q = query(
     getMessagesRef(uid, chatId, topicId),
-    orderBy("createdAt", "desc"),
+    orderBy("timestamp", "desc"),
     limit(limitCount)
   );
 
@@ -78,6 +89,7 @@ export async function sendChatMessage({
   setProjectChatSessions,
   setActiveProject,
   setActiveChatId,
+  vesselProfile = null,
 }) {
   if (!message?.trim()) return;
   if (!currentUser?.uid) return;
@@ -86,6 +98,8 @@ export async function sendChatMessage({
     topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;
   const inTopic = Boolean(topicId);
   let chatId = activeChatId;
+  const isNewChat = !chatId;
+  let aiMessageId;
 
   const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}`;
 
@@ -94,6 +108,8 @@ if (sendLocks.has(sendKey)) {
 }
 
 sendLocks.add(sendKey);
+
+  try {
 
   // ───────── CREATE CHAT IF NEEDED ─────────
   if (!chatId) {
@@ -155,18 +171,48 @@ sendLocks.add(sendKey);
     }
   }
 
-  // ───────── SAVE USER MESSAGE ─────────
-
-let uploadedAttachments = [];
-
-if (attachments.length > 0) {
-  uploadedAttachments = await uploadAttachments({
+  // ───────── CONTEXT BUILD (before saving new messages) ─────────
+  const previousMessages = await fetchLastMessages({
     uid: currentUser.uid,
     chatId,
     topicId: inTopic ? topicId : null,
-    files: attachments,
+  });
+
+  const summary = await fetchChatSummaryFromStore({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+  });
+
+  const chatHistory = previousMessages;
+
+  // ───────── SAVE USER MESSAGE ─────────
+
+const imageFiles = attachments.filter((f) => f.type.startsWith("image/"));
+const documentFiles = attachments.filter((f) => !f.type.startsWith("image/"));
+
+let uploadedImages = [];
+if (imageFiles.length > 0) {
+  uploadedImages = await uploadAttachments({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+    files: imageFiles,
   });
 }
+
+const documentPayloads = await Promise.all(
+  documentFiles.map(async (file) => ({
+    name: file.name,
+    type: file.type,
+    data: await fileToBase64(file),
+  }))
+);
+
+const uploadedAttachments = [
+  ...uploadedImages,
+  ...documentFiles.map((f) => ({ name: f.name, type: f.type })),
+];
 
 const userMessagePayload = {
   role: "user",
@@ -181,7 +227,6 @@ if (inTopic) {
 }
 
   // ───────── AI PLACEHOLDER ─────────
-  let aiMessageId;
   if (inTopic) {
     aiMessageId = (
       await addMessageToTopicChat(topicId, chatId, "NaviMind syncing…", "assistant")
@@ -192,24 +237,6 @@ if (inTopic) {
     )?.messageId;
   }
 
- // ───────── CONTEXT BUILD (SAFE) ─────────
-const previousMessages = await fetchLastMessages({
-  uid: currentUser.uid,
-  chatId,
-  topicId: inTopic ? topicId : null,
-});
-
-const chatHistory = [
-  ...previousMessages,
-  { role: "user", content: message },
-];
-
-const summary = await fetchChatSummaryFromStore({
-  uid: currentUser.uid,
-  chatId,
-  topicId: inTopic ? topicId : null,
-});
-
   // ───────── AI REQUEST ─────────
   const res = await fetch("/api/rag", {
     method: "POST",
@@ -218,11 +245,13 @@ const summary = await fetchChatSummaryFromStore({
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
-  question: message,
-  chatHistory,
-  summary,
-  imageUrls: uploadedAttachments.map(a => a.url),
-}),
+      question: message,
+      chatHistory,
+      summary,
+      imageUrls: uploadedImages.map((a) => a.url),
+      documentFiles: documentPayloads,
+      vesselProfile,
+    }),
   });
 
   const contentType = res.headers.get("content-type") || "";
@@ -267,12 +296,12 @@ if (res.body && contentType.includes("text/event-stream")) {
         finalText += data.replace(/\\n/g, "\n");
       }
 
-      if (event === "source") {
+      if (event === "sources") {
   try {
     const parsed = JSON.parse(data);
-    streamedSources.push(parsed);
+    if (Array.isArray(parsed)) streamedSources.push(...parsed);
   } catch (e) {
-    console.error("Failed to parse source:", data);
+    console.error("Failed to parse sources:", data);
   }
 }
 
@@ -295,6 +324,19 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 }
+
+  // ───────── AI TITLE (new chats only, fire & forget) ─────────
+  if (isNewChat) {
+    fetchChatTitle(message).then(async (aiTitle) => {
+      if (!aiTitle) return;
+      try {
+        const chatDocRef = inTopic
+          ? doc(db, "users", currentUser.uid, "topics", topicId, "chats", chatId)
+          : doc(db, "users", currentUser.uid, "chats", chatId);
+        await updateDoc(chatDocRef, { title: aiTitle });
+      } catch { /* silent */ }
+    }).catch(() => {});
+  }
 
   // ───────── SUMMARY UPDATE ─────────
   const summaryKey = `${currentUser.uid}:${inTopic ? topicId : "global"}:${chatId}`;
@@ -322,5 +364,20 @@ if (!summaryLocks.has(summaryKey)) {
     summaryLocks.delete(summaryKey);
   }
 }
-sendLocks.delete(sendKey);
+  } catch (err) {
+    console.error("❌ sendChatMessage error:", err);
+    // Replace the stuck placeholder so the user isn't left with an infinite spinner
+    if (aiMessageId && chatId) {
+      try {
+        const errPayload = { content: `⚠️ Error: ${err?.message || "Something went wrong. Please try again."}` };
+        if (inTopic && topicId) {
+          await updateTopicChatMessage(topicId, chatId, aiMessageId, errPayload);
+        } else {
+          await updateGlobalChatMessage(chatId, aiMessageId, errPayload);
+        }
+      } catch { /* silent */ }
+    }
+  } finally {
+    sendLocks.delete(sendKey);
+  }
 }

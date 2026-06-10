@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy }) {
   const [checked, setChecked] = useState(false);
@@ -102,11 +103,16 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
 function FeatureItem({ icon, title, text }) {
   return (
    <div className="bg-white/25 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-white/10 rounded-lg p-4 flex items-start gap-3 shadow-md">
-      <img
-  src={icon}
-  alt=""
-  className="w-10 h-10 sm:w-6 sm:h-6 mt-1 opacity-90 transition-all"
- />
+      <div className="w-10 h-10 shrink-0 mt-1 relative">
+        <Image
+          src={icon}
+          alt=""
+          width={40}
+          height={40}
+          className="opacity-90 object-contain"
+          priority
+        />
+      </div>
       <div>
         <h3 className="font-semibold text-sm mb-1">{title}</h3>
         <p className="text-sm text-gray-600 dark:text-gray-300">{text}</p>

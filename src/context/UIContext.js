@@ -1,5 +1,8 @@
 "use client";
 import { createContext, useState, useEffect } from "react";
+import { auth } from "@/firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { getVesselProfile } from "@/firebase/userRepo";
 
 export const UIContext = createContext();
 
@@ -12,8 +15,40 @@ export function UIProvider({ children }) {
   const [advancedTouched, setAdvancedTouched] = useState(false);
   const [advancedCompleted, setAdvancedCompleted] = useState(false);
   const [vesselProfileSaved, setVesselProfileSaved] = useState(false);
+  const [vesselProfileData, setVesselProfileData] = useState(null);
   const [isVesselProfileOpen, setVesselProfileOpen] = useState(false);
   const [openAdvancedDirectly, setOpenAdvancedDirectly] = useState(false);
+
+  // Step 1: immediately hydrate from localStorage (no network delay)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("navimind_vessel_profile");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.rank && parsed.vesselType) {
+          setVesselProfileSaved(true);
+          setVesselProfileData(parsed); // full profile as cache
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Step 2: sync with Firestore once auth resolves (authoritative source)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user?.uid) return;
+      try {
+        const profile = await getVesselProfile(user.uid);
+        if (profile?.rank && profile?.vesselType) {
+          setVesselProfileSaved(true);
+          setVesselProfileData(profile);
+          // Keep localStorage in sync as cache
+          localStorage.setItem("navimind_vessel_profile", JSON.stringify(profile));
+        }
+      } catch {}
+    });
+    return () => unsubscribe();
+  }, []);
   
   const [isSidebarOpen, setSidebarOpen] = useState(() => {
   if (typeof window !== "undefined") {
@@ -103,6 +138,8 @@ export function UIProvider({ children }) {
         setAdvancedCompleted,
         vesselProfileSaved,
         setVesselProfileSaved,
+        vesselProfileData,
+        setVesselProfileData,
         isVesselProfileOpen,
         setVesselProfileOpen,
         openAdvancedDirectly,

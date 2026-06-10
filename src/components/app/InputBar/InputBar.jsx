@@ -10,6 +10,7 @@ import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
+import Icon from "@/components/common/Icon";
 
 const FILES_LIMIT = 5;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -18,7 +19,7 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
 
 
 export default function InputBar() {
-  const { isSidebarOpen, inputText, setInputText } = useContext(UIContext);
+  const { isSidebarOpen, inputText, setInputText, vesselProfileData } = useContext(UIContext);
   const pathname = usePathname();
 const topicIdFromURL =
   pathname && pathname.startsWith("/app/projects/")
@@ -110,6 +111,7 @@ const topicIdFromURL =
     setProjectChatSessions,
     setActiveProject,
     setActiveChatId,
+    vesselProfile: vesselProfileData || null,
   });
 };
 
@@ -190,16 +192,15 @@ const removeFile = (filename) => {
   backdrop-blur-sm
   ${isActive ? "border-blue-500 animate-glow" : ""}`}
 >
+            {/* Uploaded Files Preview */}
+            <FilePreview files={uploadedFiles} onRemove={removeFile} />
+
             {/* INPUT ROW — single line */}
 <div className="flex items-end w-full gap-1 px-1">
   {/* 📎 Attach File */}
   <Tooltip content="Add photos & files" position="top">
     <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
-      <img
-        src="/Attach_File.svg"
-        alt="Attach"
-        className="h-5 w-5"
-      />
+      <Icon name="attach-file" size={20} />
       <input
         type="file"
         multiple
@@ -236,16 +237,11 @@ const removeFile = (filename) => {
       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center"
       disabled={!inputValue.trim()}
     >
-      <img
-        src="/Arrow_Send.svg"
-        alt="Send"
-        className="h-5 w-5"
-      />
+      <Icon name="arrow-send" size={20} />
     </button>
   </Tooltip>
 </div>
 
-            {/* Uploaded Files Preview */}
             {fileAlert && (
               <div className="mx-auto my-2 px-4 py-2 rounded-lg flex items-center gap-2 bg-red-600 text-white shadow font-medium w-fit min-w-[160px] max-w-full animate-fade-in">
                 <svg
@@ -285,7 +281,6 @@ const removeFile = (filename) => {
               </div>
             )}
 
-            <FilePreview files={uploadedFiles} onRemove={removeFile} />
           </div>
         </div>
       </div>

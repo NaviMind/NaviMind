@@ -5,44 +5,59 @@ import DeckDepartment from "./departments/Deck";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
+import { auth } from "@/firebase/config";
+import { saveVesselProfile } from "@/firebase/userRepo";
+
+const VESSEL_STORAGE_KEY = "navimind_vessel_profile";
+const VESSEL_DEPT_KEY = "navimind_vessel_department";
+
+const emptyForm = {
+  rank: "", vesselType: "", lpgType: "", offshoreType: "", dpClass: "",
+  capacity: "", capacityUnit: "DWT", flag: "", classification: "",
+  ballastSystem: "", iceClass: "", specialNotes: "",
+  lngContainment: "", lngTankPressure: "", lngBor: "", lngReliq: "",
+  lngFuelSystem: "", lngGcu: "", lngSloshing: "", lngMaxFilling: "",
+  // Engine department
+  engMainEngine: "", engAuxEngines: "", engEdg: "", engPropulsion: "",
+  engThrusters: "", engShaftGen: "", engFuelSystem: "", engScrubber: "",
+  engBoiler: "", engIncinerator: "", engInertSystem: "", engCargoCompressor: "",
+  engNotes: "",
+};
 
 export default function VesselProfileModal({ open, onClose, onSave }) {
   const firstInputRef = useRef(null);
 
   const {
-  advancedTouched,
-  setAdvancedTouched,
-  advancedCompleted,
-  setAdvancedCompleted,
-  setVesselProfileSaved,
-  openAdvancedDirectly,
-  setOpenAdvancedDirectly,
-} = useContext(UIContext);
+    advancedTouched, setAdvancedTouched,
+    advancedCompleted, setAdvancedCompleted,
+    setVesselProfileSaved,
+    setVesselProfileData,
+    openAdvancedDirectly, setOpenAdvancedDirectly,
+  } = useContext(UIContext);
 
-  const [form, setForm] = useState({
-    rank: "",
-    vesselType: "",
-    lpgType: "",
-    offshoreType: "",
-    dpClass: "",
-    capacity: "",
-    capacityUnit: "DWT",
-    flag: "",
-    classification: "",
-    ballastSystem: "",
-    iceClass: "",
-    specialNotes: "",
+  const [form, setForm] = useState(emptyForm);
+  const [savedForm, setSavedForm] = useState(null); // what was last saved
 
-    // LNG Advanced
-lngContainment: "",
-lngTankPressure: "",
-lngBor: "",
-lngReliq: "",
-lngFuelSystem: "",
-lngGcu: "",
-lngSloshing: "",
-lngMaxFilling: "",
-  });
+  // Load saved profile and department on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setForm({ ...emptyForm, ...parsed });
+        setSavedForm({ ...emptyForm, ...parsed });
+      }
+      const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
+      if (savedDept === "engine" || savedDept === "deck") {
+        setDepartment(savedDept);
+      }
+    } catch {}
+  }, []);
+
+  const isSaved = Boolean(savedForm);
+  const isDirty = isSaved
+    ? Object.keys(emptyForm).some((k) => form[k] !== savedForm[k])
+    : true;
 
 const advancedSupportedTypes = ["LNG"]; 
 
@@ -76,12 +91,31 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
   }
 }, [openAdvancedDirectly]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const [showSuccess, setShowSuccess] = useState(false);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
+
+    // Save locally first (instant feedback)
+    localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
+    localStorage.setItem(VESSEL_DEPT_KEY, department);
+    setSavedForm({ ...form });
     setVesselProfileSaved(true);
-    onSave(form);
+    setVesselProfileData({ ...form }); // full profile in context
+
+    // Persist to Firestore (fire and forget — don't block the UI)
+    const user = auth.currentUser;
+    if (user?.uid) {
+      saveVesselProfile(user.uid, form).catch(() => {});
+    }
+
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      onSave(form);
+      onClose();
+    }, 2500);
   };
 
   if (!open) return null;
@@ -114,6 +148,9 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
       setShowAdvancedOverlay={setShowAdvancedOverlay}
       setStep={setStep}
       slideVariants={slideVariants}
+      isSaved={isSaved}
+      isDirty={isDirty}
+      showSuccess={showSuccess}
     />
   )}
 

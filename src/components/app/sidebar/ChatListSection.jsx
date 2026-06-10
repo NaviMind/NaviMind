@@ -1,22 +1,26 @@
 "use client";
 
-import { useContext } from "react";
-import { useRouter } from "next/navigation";
+import { useContext, useState, useCallback } from "react";
 import { ChatContext } from "@/context/ChatContext";
+import { deleteChatFromFirestore } from "@/firebase/chatStore";
+import { auth } from "@/firebase/config";
 import ChatItem from "./ChatItem";
 
 export default function ChatListSection({ onSidebarItemClick }) {
-  const router = useRouter();
   const {
     projectChatSessions,
     activeChatId,
     setActiveChatId,
     setActiveProject,
+    setProjectChatSessions,
   } = useContext(ChatContext);
+
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const globalRaw = (projectChatSessions && projectChatSessions["global"]) || [];
 
-  // ✅ Дедуп по chatId
   const seen = new Set();
   const unique = globalRaw.filter((c) => {
     const id = c?.chatId;
@@ -25,43 +29,123 @@ export default function ChatListSection({ onSidebarItemClick }) {
     return true;
   });
 
-  // ✅ Сортировка по createdAt
   const toMillis = (v) =>
-    typeof v === "number"
-      ? v
-      : v?.toMillis?.() ?? v?.seconds * 1000 ?? 0;
+    typeof v === "number" ? v : v?.toMillis?.() ?? v?.seconds * 1000 ?? 0;
 
-  // ✅ Сортировка: сначала pinned, потом по дате создания
-const globalChats = unique.sort((a, b) => {
-  if (a.isPinned === b.isPinned) {
-    return toMillis(b.createdAt) - toMillis(a.createdAt);
-  }
-  return a.isPinned ? -1 : 1; // pinned чаты вверх
-});
+  const globalChats = unique.sort((a, b) => {
+    if (a.isPinned === b.isPinned) return toMillis(b.createdAt) - toMillis(a.createdAt);
+    return a.isPinned ? -1 : 1;
+  });
+
+  const handleEnterSelectMode = useCallback((chatId) => {
+    setIsSelectMode(true);
+    setSelectedIds(chatId ? new Set([chatId]) : new Set());
+  }, []);
+
+  const handleToggleSelect = useCallback((chatId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(chatId)) next.delete(chatId);
+      else next.add(chatId);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(globalChats.map((c) => c.chatId)));
+  }, [globalChats]);
+
+  const handleCancelSelect = useCallback(() => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0 || isDeleting) return;
+    setIsDeleting(true);
+
+    const user = auth.currentUser;
+    if (user) {
+      await Promise.all(
+        [...selectedIds].map((chatId) =>
+          deleteChatFromFirestore(user.uid, chatId, null).catch(() => {})
+        )
+      );
+    }
+
+    setProjectChatSessions((prev) => {
+      const next = { ...prev };
+      next.global = (next.global || []).filter((c) => !selectedIds.has(c.chatId));
+      return next;
+    });
+
+    if (selectedIds.has(activeChatId)) setActiveChatId(null);
+
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+    setIsDeleting(false);
+  }, [selectedIds, isDeleting, activeChatId]);
 
   if (!globalChats.length) return null;
 
+  const allSelected = selectedIds.size === globalChats.length;
+
   return (
     <div>
-      <div className="px-[12px] py-2 mt-3 text-gray-400 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
-        Chats
-      </div>
+      {/* Section header */}
+      {isSelectMode ? (
+        <div className="px-3 py-2 mt-3 flex items-center gap-2 text-[13px]">
+          <span className="text-gray-300 font-medium min-w-[70px]">
+            {selectedIds.size} selected
+          </span>
+
+          <button
+            onClick={allSelected ? () => setSelectedIds(new Set()) : handleSelectAll}
+            className="text-blue-400 hover:text-blue-300 transition ml-auto"
+          >
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+
+          <button
+            onClick={handleCancelSelect}
+            className="text-gray-400 hover:text-gray-200 transition px-1"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedIds.size === 0 || isDeleting}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+              selectedIds.size > 0 && !isDeleting
+                ? "bg-red-600 hover:bg-red-500 text-white"
+                : "bg-red-900/30 text-red-400/50 cursor-not-allowed"
+            }`}
+          >
+            {isDeleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      ) : (
+        <div className="px-[12px] py-2 mt-3 text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
+          Chats
+        </div>
+      )}
 
       {globalChats.map((c, idx) => (
         <ChatItem
           key={`global:${c.chatId || idx}`}
           chat={c}
           projId="global"
-          isActive={c.chatId === activeChatId}
+          isSelectMode={isSelectMode}
+          isSelected={selectedIds.has(c.chatId)}
+          onToggleSelect={handleToggleSelect}
+          onEnterSelectMode={handleEnterSelectMode}
           onSidebarItemClick={onSidebarItemClick}
           onSelect={() => {
-  // 💥 Сброс проекта, чтобы выйти из топика
-  setActiveProject(null);
-  setActiveChatId(c.chatId);
-
-  // 💥 Не надо router.push("/app")
-  if (typeof onSidebarItemClick === "function") onSidebarItemClick();
-}}
+            setActiveProject(null);
+            setActiveChatId(c.chatId);
+            if (typeof onSidebarItemClick === "function") onSidebarItemClick();
+          }}
         />
       ))}
     </div>

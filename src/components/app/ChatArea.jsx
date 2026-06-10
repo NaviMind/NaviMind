@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import ChatMessage from "@/components/app/ChatMessage";
+import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
   const messagesEndRef = useRef(null);
@@ -71,7 +72,7 @@ export default function ChatArea({ messages, children }) {
               onClick={scrollToBottom}
               className="p-2 bg-white/10 text-white hover:bg-white/20 transition rounded-full backdrop-blur"
             >
-              <img src="/Scroll To Bottom.svg" alt="Scroll to bottom" className="w-5 h-5" />
+              <Icon name="scroll-bottom" size={20} />
             </button>
             </div>
           {/* Mobile */}
@@ -80,7 +81,7 @@ export default function ChatArea({ messages, children }) {
               onClick={scrollToBottom}
               className="p-2 bg-white/10 text-white hover:bg-white/20 transition rounded-full backdrop-blur"
             >
-              <img src="/Scroll to Bottom Mobile.svg" alt="Scroll to bottom" className="w-4 h-4" />
+              <Icon name="scroll-bottom-mobile" size={16} />
             </button>
           </div>
         </div>

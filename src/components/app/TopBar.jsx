@@ -28,6 +28,8 @@ export default function TopBar() {
   const {
     isSidebarOpen,
     toggleSidebar,
+    vesselProfileData,
+    setVesselProfileOpen,
   } = useContext(UIContext);
 
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function TopBar() {
   const handleNewChat = () => router.push("/");
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[#0b1220] shadow px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] shadow px-4 z-30" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
       {/* Левый блок: New Chat (desktop) + Open Sidebar (гамбургер) */}
       {!isSidebarOpen && (
         <div className="flex items-center space-x-2">
@@ -71,8 +73,27 @@ export default function TopBar() {
         <img src="/logo-navi.png" alt="NaviMind AI" className="w-[170px] md:w-[220px] h-auto object-contain" />
       </div>
 
-      {/* Правый блок: UserAvatar (desktop) + NewChat (mobile) */}
-      <div className="flex items-center space-x-4 ml-auto">
+      {/* Правый блок: vessel pill (desktop) + NewChat (mobile) */}
+      <div className="flex items-center gap-3 ml-auto">
+        {/* Vessel profile pill — desktop only */}
+        {vesselProfileData && (
+          <button
+            onClick={() => setVesselProfileOpen(true)}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
+              border border-blue-500/35 bg-blue-500/[0.07]
+              hover:border-blue-400/60 hover:bg-blue-500/[0.13]
+              focus:outline-none focus:ring-2 focus:ring-blue-500/50
+              transition-all duration-200 group"
+            style={{ boxShadow: "0 0 14px rgba(59,130,246,0.10)" }}
+            aria-label="Open Vessel Profile"
+          >
+            <span className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors shrink-0" />
+            <span className="text-white/80 font-normal">{vesselProfileData.rank}</span>
+            <span className="text-white/25 mx-0.5">·</span>
+            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">{vesselProfileData.vesselType}</span>
+          </button>
+        )}
+
         {/* NewChatButton только на мобилке */}
         <div className="flex sm:hidden">
           <NewChatButton />
