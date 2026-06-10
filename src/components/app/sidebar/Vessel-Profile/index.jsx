@@ -91,12 +91,13 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
-    onSave(form);
     setShowSuccess(true);
+    // onSave and onClose must fire AFTER the animation — calling them early
+    // unmounts the modal immediately via open=false in the parent
     setTimeout(() => {
-      setShowSuccess(false);
+      onSave(form);
       onClose();
-    }, 2200);
+    }, 2500);
   };
 
   if (!open) return null;
