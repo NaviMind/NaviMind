@@ -39,9 +39,9 @@ function StopBtn({ onClick, className = "" }) {
       onClick={onClick}
       type="button"
       aria-label="Stop recording"
-      className={`p-2 rounded flex items-center justify-center text-blue-400 hover:text-blue-300 transition ${className}`}
+      className={`p-2 rounded flex items-center justify-center text-gray-400 hover:text-white dark:hover:bg-gray-700 hover:bg-gray-100 transition ${className}`}
     >
-      <Icon name="stop-circle" size={26} />
+      <Icon name="stop-circle" size={20} />
     </button>
   );
 }
@@ -309,7 +309,7 @@ export default function InputBar() {
                     aria-label="Start voice input"
                     className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white transition"
                   >
-                    <Icon name="mic" size={26} />
+                    <Icon name="mic" size={20} />
                   </button>
                 )
               )}
@@ -420,7 +420,7 @@ export default function InputBar() {
                         aria-label="Start voice input"
                         className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                       >
-                        <Icon name="mic" size={26} />
+                        <Icon name="mic" size={20} />
                       </button>
                     </Tooltip>
                   )}
