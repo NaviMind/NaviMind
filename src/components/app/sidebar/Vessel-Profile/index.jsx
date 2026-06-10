@@ -92,9 +92,8 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
     setShowSuccess(true);
-    // onSave and onClose must fire AFTER the animation — calling them early
-    // unmounts the modal immediately via open=false in the parent
     setTimeout(() => {
+      setShowSuccess(false);
       onSave(form);
       onClose();
     }, 2500);

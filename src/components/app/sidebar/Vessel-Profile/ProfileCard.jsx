@@ -179,15 +179,10 @@ export default function ProfileCard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md"
+            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md overflow-hidden"
           >
-            {/* Faint compass watermark */}
-            <img
-              src="/compass.png"
-              alt=""
-              className="absolute w-48 h-48 opacity-[0.04] select-none pointer-events-none"
-              aria-hidden="true"
-            />
+            {/* Subtle radial glow */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 50% 45%, rgba(59,130,246,0.10) 0%, transparent 65%)" }} />
 
             {/* Ring + checkmark */}
             <motion.div
