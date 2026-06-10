@@ -254,12 +254,14 @@ export default function ChatMessage({ message }) {
 
   const handleCopy = () => {
     if (typeof window === "undefined") return;
-    if (typeof content === "string" && navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(content)
+    // User messages copy as-is; assistant messages strip markdown symbols
+    const text = isUser ? String(content || "") : stripMarkdown(String(content || ""));
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text)
         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
-        .catch(() => fallbackCopy(content));
+        .catch(() => fallbackCopy(text));
     } else {
-      fallbackCopy(content);
+      fallbackCopy(text);
     }
   };
 
