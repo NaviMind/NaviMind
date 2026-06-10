@@ -4,6 +4,8 @@ import { useContext, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { UIContext } from "@/context/UIContext";
 import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/firebase/config";
 
 export default function LogoutModal() {
   const { isLogoutOpen, toggleLogout } = useContext(UIContext);
@@ -38,10 +40,12 @@ export default function LogoutModal() {
     };
   }, [isLogoutOpen, toggleLogout]);
 
-  const handleConfirmLogout = () => {
-    // 👉 если юзаешь Firebase, тут вставь signOut(auth)
-    router.push("/");
+  const handleConfirmLogout = async () => {
+    localStorage.removeItem("navimind_vessel_profile");
+    localStorage.removeItem("navimind_vessel_department");
     toggleLogout(false);
+    await signOut(auth);
+    router.push("/");
   };
 
   if (!isLogoutOpen) return null;

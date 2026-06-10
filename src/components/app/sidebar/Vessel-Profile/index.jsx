@@ -34,6 +34,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     advancedTouched, setAdvancedTouched,
     advancedCompleted, setAdvancedCompleted,
     setVesselProfileSaved,
+    vesselProfileData,
     setVesselProfileData,
     openAdvancedDirectly, setOpenAdvancedDirectly,
   } = useContext(UIContext);
@@ -44,28 +45,40 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAdvancedSuccess, setShowAdvancedSuccess] = useState(false);
 
-  // Load saved profile on mount
+  // Track whether the authoritative Firestore data has been applied once
+  const syncedRef = useRef(false);
+
+  const applyProfile = (data) => {
+    setForm({ ...emptyForm, ...data });
+    setSavedForm({ ...emptyForm, ...data });
+    const hasAdvanced = ADVANCED_KEYS.some((k) => data[k]);
+    if (hasAdvanced) {
+      setAdvancedSavedForm(
+        Object.fromEntries(ADVANCED_KEYS.map((k) => [k, data[k] || ""]))
+      );
+    }
+  };
+
+  // On mount: use localStorage for instant display while Firestore loads
   useEffect(() => {
     try {
       const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setForm({ ...emptyForm, ...parsed });
-        setSavedForm({ ...emptyForm, ...parsed });
-
-        const hasAdvanced = ADVANCED_KEYS.some((k) => parsed[k]);
-        if (hasAdvanced) {
-          setAdvancedSavedForm(
-            Object.fromEntries(ADVANCED_KEYS.map((k) => [k, parsed[k] || ""]))
-          );
-        }
-      }
+      if (raw) applyProfile(JSON.parse(raw));
       const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
-      if (savedDept === "engine" || savedDept === "deck") {
-        setDepartment(savedDept);
-      }
+      if (savedDept === "engine" || savedDept === "deck") setDepartment(savedDept);
     } catch {}
   }, []);
+
+  // When UIContext receives Firestore data, overwrite stale localStorage cache once
+  useEffect(() => {
+    if (!vesselProfileData || syncedRef.current) return;
+    syncedRef.current = true;
+    applyProfile(vesselProfileData);
+    try {
+      const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
+      if (savedDept === "engine" || savedDept === "deck") setDepartment(savedDept);
+    } catch {}
+  }, [vesselProfileData]);
 
   const isSaved = Boolean(savedForm);
   const isDirty = isSaved
