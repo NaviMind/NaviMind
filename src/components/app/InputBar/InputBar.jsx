@@ -71,6 +71,7 @@ export default function InputBar() {
   const [showExpandBtn, setShowExpandBtn] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
@@ -133,6 +134,14 @@ export default function InputBar() {
       typeof window !== "undefined" &&
       !!(window.SpeechRecognition || window.webkitSpeechRecognition)
     );
+  }, []);
+
+  /* ───────── RESPONSIVE PLACEHOLDER ───────── */
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 850);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   /* ───────── SPEECH TOGGLE ───────── */
@@ -331,7 +340,7 @@ export default function InputBar() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask in any language..."
+            placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
             className="flex-1 bg-transparent outline-none text-base text-white placeholder-gray-500 p-4 resize-none overflow-y-auto custom-scroll leading-relaxed"
           />
 
@@ -359,19 +368,13 @@ export default function InputBar() {
 
             {/* INPUT ROW */}
             <div className="flex items-end w-full gap-1 px-1">
-              {/* 📎 Attach File — replaced by stop button while recording */}
-              {speechSupported && isListening ? (
-                <Tooltip content="Stop recording" position="top">
-                  <StopBtn onClick={toggleListening} className="min-w-[40px] min-h-[40px]" />
-                </Tooltip>
-              ) : (
-                <Tooltip content="Add photos & files" position="top">
-                  <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
-                    <Icon name="attach-file" size={20} />
-                    <input type="file" multiple onChange={handleFileChange} className="sr-only" />
-                  </label>
-                </Tooltip>
-              )}
+              {/* 📎 Attach File */}
+              <Tooltip content="Add photos & files" position="top">
+                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
+                  <Icon name="attach-file" size={20} />
+                  <input type="file" multiple onChange={handleFileChange} className="sr-only" />
+                </label>
+              </Tooltip>
 
               {/* ✍️ Textarea */}
               <textarea
@@ -386,7 +389,7 @@ export default function InputBar() {
                 onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
                 onKeyDown={handleKeyDown}
                 className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
-                placeholder="Ask in any language..."
+                placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
                 style={{ minWidth: 0 }}
               />
 
@@ -410,19 +413,23 @@ export default function InputBar() {
                   <div />
                 )}
 
-                {/* Bottom row: mic (hidden while recording) + send */}
+                {/* Bottom row: mic↔stop toggle + send */}
                 <div className="flex items-center">
-                  {speechSupported && !isListening && (
-                    <Tooltip content="Voice input" position="top">
-                      <button
-                        onClick={toggleListening}
-                        type="button"
-                        aria-label="Start voice input"
-                        className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                      >
-                        <Icon name="mic" size={20} />
-                      </button>
-                    </Tooltip>
+                  {speechSupported && (
+                    isListening ? (
+                      <StopBtn onClick={toggleListening} />
+                    ) : (
+                      <Tooltip content="Voice input" position="top">
+                        <button
+                          onClick={toggleListening}
+                          type="button"
+                          aria-label="Start voice input"
+                          className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                          <Icon name="mic" size={20} />
+                        </button>
+                      </Tooltip>
+                    )
                   )}
                   <Tooltip content="Send" position="top">
                     <button
