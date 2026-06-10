@@ -155,30 +155,31 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
           </div>
         )}
 
-        {sources.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            {sources.map((s, i) => {
-              let domain = "";
-              try { domain = new URL(s.url).hostname.replace("www.", ""); }
-              catch { domain = "source"; }
-              return (
-                <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white/[0.04] border border-white/[0.08] text-white/70 hover:bg-white/[0.08] hover:text-white transition-all duration-200"
-                >
-                  <Link size={9} className="opacity-60 shrink-0" />
-                  <span className="truncate max-w-[120px]">{domain}</span>
-                </a>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Copy + Share — only after typing finishes */}
+        {/* Sources + Copy + Share — only after typing finishes */}
         {showActions && (
-          <div className="flex items-center gap-4 pt-1">
-            <CopyButton copied={copied} onCopy={onCopy} />
-            <ShareButton onShare={onShare} />
-          </div>
+          <>
+            {sources.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {sources.map((s, i) => {
+                  let domain = "";
+                  try { domain = new URL(s.url).hostname.replace("www.", ""); }
+                  catch { domain = "source"; }
+                  return (
+                    <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-white/[0.04] border border-white/[0.08] text-white/70 hover:bg-white/[0.08] hover:text-white transition-all duration-200"
+                    >
+                      <Link size={9} className="opacity-60 shrink-0" />
+                      <span className="truncate max-w-[120px]">{domain}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex items-center gap-4 pt-1">
+              <CopyButton copied={copied} onCopy={onCopy} />
+              <ShareButton onShare={onShare} />
+            </div>
+          </>
         )}
       </div>
     </div>

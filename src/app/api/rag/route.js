@@ -24,6 +24,36 @@ function isOperationalScenario(question) {
   );
 }
 
+const TRUSTED_SOURCE_DOMAINS = new Set([
+  // IMO & UN
+  "imo.org", "un.org", "ilo.org", "who.int",
+  // Flag states
+  "amp.gob.pa", "liscr.com", "register-iri.com", "bahamasmaritime.com",
+  "transport.gov.mt", "mpac.gov.sg", "mardep.gov.hk", "dms.gov.cy",
+  "sdir.no", "gov.uk", "hcg.gr", "gov.im", "cishipping.com", "abregistry.ag",
+  "emsa.europa.eu",
+  // Classification societies
+  "classnk.or.jp", "dnv.com", "lr.org", "eagle.org",
+  "bureauveritas.com", "rina.org", "ccs.org.cn", "krs.co.kr",
+  // PSC & coast guards
+  "paris-mou.org", "tokyo-mou.org", "uscg.mil", "amsa.gov.au",
+  "iomou.org", "bsmou.org",
+  // Industry bodies
+  "ocimf.org", "intertanko.com", "sigtto.org", "intercargo.org",
+  "bimco.org", "itfglobal.org", "iicl.org",
+  // Casualty / investigation
+  "maib.gov.uk", "ntsb.gov", "atsb.gov.au",
+]);
+
+function isTrustedSource(url) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    return [...TRUSTED_SOURCE_DOMAINS].some((d) => hostname === d || hostname.endsWith("." + d));
+  } catch {
+    return false;
+  }
+}
+
 const FLAG_DOMAINS = {
   "Panama": "amp.gob.pa",
   "Liberia": "liscr.com",
@@ -326,7 +356,11 @@ const assembledSystemPrompt = [
               for (const outputItem of (event.response?.output || [])) {
                 for (const contentPart of (outputItem?.content || [])) {
                   for (const annotation of (contentPart?.annotations || [])) {
-                    if (annotation.type === "url_citation") {
+                    if (
+                      annotation.type === "url_citation" &&
+                      annotation.url &&
+                      isTrustedSource(annotation.url)
+                    ) {
                       collectedSources.push({ title: annotation.title, url: annotation.url });
                     }
                   }
