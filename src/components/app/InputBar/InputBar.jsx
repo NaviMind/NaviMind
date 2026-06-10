@@ -33,15 +33,15 @@ function Waveform() {
   );
 }
 
-function StopBtn({ onClick }) {
+function StopBtn({ onClick, className = "" }) {
   return (
     <button
       onClick={onClick}
       type="button"
       aria-label="Stop recording"
-      className="p-2 rounded flex items-center justify-center text-red-400 hover:text-red-300 transition"
+      className={`p-2 rounded flex items-center justify-center text-blue-400 hover:text-blue-300 transition ${className}`}
     >
-      <Icon name="stop-circle" size={20} />
+      <Icon name="stop-circle" size={22} />
     </button>
   );
 }
@@ -309,7 +309,7 @@ export default function InputBar() {
                     aria-label="Start voice input"
                     className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white transition"
                   >
-                    <Icon name="mic" size={20} />
+                    <Icon name="mic" size={22} />
                   </button>
                 )
               )}
@@ -359,13 +359,19 @@ export default function InputBar() {
 
             {/* INPUT ROW */}
             <div className="flex items-end w-full gap-1 px-1">
-              {/* 📎 Attach File */}
-              <Tooltip content="Add photos & files" position="top">
-                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
-                  <Icon name="attach-file" size={20} />
-                  <input type="file" multiple onChange={handleFileChange} className="sr-only" />
-                </label>
-              </Tooltip>
+              {/* 📎 Attach File — replaced by stop button while recording */}
+              {speechSupported && isListening ? (
+                <Tooltip content="Stop recording" position="top">
+                  <StopBtn onClick={toggleListening} className="min-w-[40px] min-h-[40px]" />
+                </Tooltip>
+              ) : (
+                <Tooltip content="Add photos & files" position="top">
+                  <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
+                    <Icon name="attach-file" size={20} />
+                    <input type="file" multiple onChange={handleFileChange} className="sr-only" />
+                  </label>
+                </Tooltip>
+              )}
 
               {/* ✍️ Textarea */}
               <textarea
@@ -404,23 +410,19 @@ export default function InputBar() {
                   <div />
                 )}
 
-                {/* Bottom row: mic/stop + send */}
+                {/* Bottom row: mic (hidden while recording) + send */}
                 <div className="flex items-center">
-                  {speechSupported && (
-                    isListening ? (
-                      <StopBtn onClick={toggleListening} />
-                    ) : (
-                      <Tooltip content="Voice input" position="top">
-                        <button
-                          onClick={toggleListening}
-                          type="button"
-                          aria-label="Start voice input"
-                          className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                        >
-                          <Icon name="mic" size={20} />
-                        </button>
-                      </Tooltip>
-                    )
+                  {speechSupported && !isListening && (
+                    <Tooltip content="Voice input" position="top">
+                      <button
+                        onClick={toggleListening}
+                        type="button"
+                        aria-label="Start voice input"
+                        className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                      >
+                        <Icon name="mic" size={22} />
+                      </button>
+                    </Tooltip>
                   )}
                   <Tooltip content="Send" position="top">
                     <button
