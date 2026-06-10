@@ -41,9 +41,7 @@ function StopBtn({ onClick }) {
       aria-label="Stop recording"
       className="p-2 rounded flex items-center justify-center text-red-400 hover:text-red-300 transition"
     >
-      <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full border-2 border-current">
-        <span className="w-[7px] h-[7px] rounded-[1.5px] bg-current" />
-      </span>
+      <Icon name="stop-circle" size={20} />
     </button>
   );
 }
@@ -333,7 +331,7 @@ export default function InputBar() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything in your language..."
+            placeholder="Ask in any language..."
             className="flex-1 bg-transparent outline-none text-base text-white placeholder-gray-500 p-4 resize-none overflow-y-auto custom-scroll leading-relaxed"
           />
 
@@ -382,7 +380,7 @@ export default function InputBar() {
                 onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
                 onKeyDown={handleKeyDown}
                 className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
-                placeholder="Ask anything in your language..."
+                placeholder="Ask in any language..."
                 style={{ minWidth: 0 }}
               />
 
