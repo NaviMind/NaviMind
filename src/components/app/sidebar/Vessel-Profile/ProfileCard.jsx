@@ -24,68 +24,127 @@ export default function ProfileCard({
 }) {
   const isEditMode = isSaved && !isDirty;
   const canSave = form.rank && form.vesselType && form.capacity.trim();
+
   return (
-    <motion.form
-      key="profile"
-      onSubmit={onSubmit}
-      className="
-        relative
-        bg-white/40 dark:bg-gray-800/40
-        backdrop-blur-xl
-        rounded-2xl
-        shadow-2xl
-        ring-1 ring-white/10
-        w-full
-        max-w-sm
-        sm:max-w-lg
-        flex flex-col
-        min-h-0
-        max-h-[75vh]
-        sm:max-h-[95vh]
-        overflow-y-auto
-        p-5
-        sm:p-6
-      "
+    // Wrapper carries the slide animation and is the containing block for overlays
+    <motion.div
+      className="relative w-full max-w-sm sm:max-w-lg"
       variants={slideVariants}
       initial="initial"
       animate="animate"
       exit="exit"
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="w-6" />
+      {/* Form — has overflow-y-auto; overlays must live OUTSIDE this element */}
+      <form
+        onSubmit={onSubmit}
+        className="
+          relative
+          bg-white/40 dark:bg-gray-800/40
+          backdrop-blur-xl
+          rounded-2xl
+          shadow-2xl
+          ring-1 ring-white/10
+          w-full
+          flex flex-col
+          min-h-0
+          max-h-[75vh]
+          sm:max-h-[95vh]
+          overflow-y-auto
+          p-5
+          sm:p-6
+        "
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div className="w-6" />
 
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-bold">
-            Vessel Profile
-          </h2>
+          <div className="text-center mb-4">
+            <h2 className="text-xl font-bold">Vessel Profile</h2>
+            <p className="text-xs text-gray-400 mt-1 px-6">
+              This helps NaviMind give vessel-specific answers and compliance guidance.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
 
-          <p className="text-xs text-gray-400 mt-1 px-6">
-            This helps NaviMind give vessel-specific answers and compliance guidance.
-          </p>
-
+        {/* Department toggle */}
+        <div className="relative flex bg-gray-700/40 rounded-xl p-1 mb-4 shrink-0">
+          <div
+            className={`
+              absolute top-1 bottom-1 w-[calc(50%-4px)]
+              rounded-lg
+              bg-gradient-to-br from-blue-500 to-blue-600
+              shadow-lg shadow-blue-900/40
+              transition-transform duration-300 ease-in-out
+              ${department === "deck" ? "translate-x-0 left-1" : "translate-x-full left-1"}
+            `}
+          />
           <button
             type="button"
-            onClick={onClose}
-            className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+            onClick={() => setDepartment("deck")}
+            className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
+              ${department === "deck" ? "text-white" : "text-gray-300 hover:text-white"}`}
           >
-            ✕
+            Deck
+          </button>
+          <button
+            type="button"
+            onClick={() => setDepartment("engine")}
+            className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
+              ${department === "engine" ? "text-white" : "text-gray-300 hover:text-white"}`}
+          >
+            Engine
           </button>
         </div>
-      </div>
 
+        {/* Scrollable department fields */}
+        <div className="flex-1 overflow-y-auto custom-scroll px-2 mt-4 space-y-4">
+          {department === "deck" && (
+            <DeckDepartment
+              form={form}
+              setForm={setForm}
+              supportsAdvanced={supportsAdvanced}
+              advancedCompleted={advancedCompleted}
+              setStep={setStep}
+            />
+          )}
+          {department === "engine" && (
+            <EngineDepartment form={form} setForm={setForm} />
+          )}
+        </div>
+
+        <button
+          type={isEditMode ? "button" : "submit"}
+          disabled={!isEditMode && !canSave}
+          onClick={isEditMode ? onClose : undefined}
+          className={`
+            mt-4 shrink-0 px-4 py-2 rounded-xl font-medium transition
+            ${isEditMode
+              ? "bg-gray-600 hover:bg-gray-500 text-white"
+              : canSave
+                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                : "bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
+          `}
+        >
+          {isEditMode ? "Edit" : "Save & Activate"}
+        </button>
+      </form>
+
+      {/* Advanced overlay — outside the form so overflow-y-auto doesn't clip it */}
       {showAdvancedOverlay && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-6">
           <div className="bg-gray-900/90 rounded-2xl p-6 w-full max-w-sm text-center shadow-xl ring-1 ring-white/10">
-            <h3 className="text-lg font-semibold mb-3">
-              Advanced Vessel Data
-            </h3>
-
+            <h3 className="text-lg font-semibold mb-3">Advanced Vessel Data</h3>
             <p className="text-sm text-gray-400 mb-6">
               This vessel type supports Advanced Vessel Data.
               Recommended for accurate operational reasoning.
             </p>
-
             <div className="flex flex-col gap-3">
               <button
                 type="button"
@@ -97,13 +156,12 @@ export default function ProfileCard({
               >
                 Add Details
               </button>
-
               <button
-  type="button"
-  onClick={() => {
-    setShowAdvancedOverlay(false);
-    setAdvancedTouched(true);
-  }}
+                type="button"
+                onClick={() => {
+                  setShowAdvancedOverlay(false);
+                  setAdvancedTouched(true);
+                }}
                 className="text-gray-400 hover:text-white transition text-sm"
               >
                 Not now
@@ -113,72 +171,7 @@ export default function ProfileCard({
         </div>
       )}
 
-      <div className="relative flex bg-gray-700/40 rounded-xl p-1 mb-4 shrink-0">
-        <div
-          className={`
-            absolute top-1 bottom-1 w-[calc(50%-4px)]
-            rounded-lg
-            bg-gradient-to-br from-blue-500 to-blue-600
-            shadow-lg shadow-blue-900/40
-            transition-transform duration-300 ease-in-out
-            ${department === "deck"
-              ? "translate-x-0 left-1"
-              : "translate-x-full left-1"}
-          `}
-        />
-
-        <button
-          type="button"
-          onClick={() => setDepartment("deck")}
-          className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
-            ${department === "deck" ? "text-white" : "text-gray-300 hover:text-white"}`}
-        >
-          Deck
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setDepartment("engine")}
-          className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
-            ${department === "engine" ? "text-white" : "text-gray-300 hover:text-white"}`}
-        >
-          Engine
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto custom-scroll px-2 mt-4 space-y-4">
-        {department === "deck" && (
-          <DeckDepartment 
-  form={form} 
-  setForm={setForm}
-  supportsAdvanced={supportsAdvanced}
-  advancedCompleted={advancedCompleted}
-  setStep={setStep}
-/>
-        )}
-
-        {department === "engine" && (
-          <EngineDepartment form={form} setForm={setForm} />
-        )}
-      </div>
-
-      <button
-        type={isEditMode ? "button" : "submit"}
-        disabled={!isEditMode && !canSave}
-        onClick={isEditMode ? onClose : undefined}
-        className={`
-          mt-4 shrink-0 px-4 py-2 rounded-xl font-medium transition
-          ${isEditMode
-            ? "bg-gray-600 hover:bg-gray-500 text-white"
-            : canSave
-              ? "bg-blue-600 hover:bg-blue-700 text-white"
-              : "bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
-        `}
-      >
-        {isEditMode ? "Edit" : "Save & Activate"}
-      </button>
-
-      {/* Success overlay */}
+      {/* Success overlay — outside the form, always covers the full card */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div
@@ -186,7 +179,7 @@ export default function ProfileCard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md"
+            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md"
           >
             {/* Faint compass watermark */}
             <img
@@ -196,16 +189,14 @@ export default function ProfileCard({
               aria-hidden="true"
             />
 
-            {/* Animated ring + checkmark */}
+            {/* Ring + checkmark */}
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 22 }}
               className="relative mb-6"
             >
-              {/* Glow */}
               <div className="absolute inset-0 rounded-full bg-blue-500/30 blur-2xl scale-150 pointer-events-none" />
-              {/* Ring */}
               <div className="relative w-24 h-24 rounded-full border-2 border-blue-500/70 bg-blue-600/15 flex items-center justify-center shadow-lg shadow-blue-900/40">
                 <motion.svg
                   viewBox="0 0 24 24"
@@ -247,6 +238,6 @@ export default function ProfileCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.form>
+    </motion.div>
   );
 }
