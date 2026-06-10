@@ -135,7 +135,7 @@ sendLocks.add(sendKey);
             chatId,
             createdAt: snap.data()?.createdAt?.toMillis?.() ?? Date.now(),
             messages: [],
-            title: message.slice(0, 30),
+            title: message.slice(0, 60),
           },
           ...(updated[topicId] || []),
         ];
@@ -162,7 +162,7 @@ sendLocks.add(sendKey);
             chatId,
             createdAt: snap.data()?.createdAt?.toMillis?.() ?? Date.now(),
             messages: [],
-            title: message.slice(0, 30),
+            title: message.slice(0, 60),
           },
           ...(updated.global || []),
         ];

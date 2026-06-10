@@ -128,7 +128,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
       </div>
 
       {/* Glass card */}
-      <div className="w-full max-w-2xl
+      <div className="w-full max-w-3xl
                       bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
                       rounded-2xl ring-1 ring-white/10 shadow-2xl
                       flex flex-col overflow-hidden">
@@ -136,7 +136,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
         {/* Header */}
         <div className="p-8 pb-6 text-center flex-shrink-0">
           <h2 className="text-3xl font-bold mb-3">Welcome to NaviMind</h2>
-          <p className="text-gray-700 dark:text-gray-300 text-base max-w-2xl mx-auto leading-relaxed">
+          <p className="text-gray-700 dark:text-gray-300 text-base max-w-3xl mx-auto leading-relaxed">
             NaviMind is built to make maritime work easier, helping seafarers find answers faster
             and stay compliant while cutting down paperwork, so you can focus on real operations.
           </p>

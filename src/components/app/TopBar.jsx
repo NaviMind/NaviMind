@@ -87,10 +87,13 @@ export default function TopBar() {
             style={{ boxShadow: "0 0 14px rgba(59,130,246,0.10)" }}
             aria-label="Open Vessel Profile"
           >
-            <span className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-300 transition-colors shrink-0" />
             <span className="text-white/80 font-normal">{vesselProfileData.rank}</span>
             <span className="text-white/25 mx-0.5">·</span>
-            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">{vesselProfileData.vesselType}</span>
+            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">
+              {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
+                ? vesselProfileData.offshoreType
+                : vesselProfileData.vesselType}
+            </span>
           </button>
         )}
 
