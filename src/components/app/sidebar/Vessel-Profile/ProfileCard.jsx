@@ -11,11 +11,8 @@ export default function ProfileCard({
   setDepartment,
   supportsAdvanced,
   advancedCompleted,
-  setAdvancedTouched,
   onSubmit,
   onClose,
-  showAdvancedOverlay,
-  setShowAdvancedOverlay,
   setStep,
   slideVariants,
   isSaved,
@@ -135,41 +132,6 @@ export default function ProfileCard({
           {isEditMode ? "Edit" : "Save & Activate"}
         </button>
       </form>
-
-      {/* Advanced overlay — outside the form so overflow-y-auto doesn't clip it */}
-      {showAdvancedOverlay && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl p-6">
-          <div className="bg-gray-900/90 rounded-2xl p-6 w-full max-w-sm text-center shadow-xl ring-1 ring-white/10">
-            <h3 className="text-lg font-semibold mb-3">Advanced Vessel Data</h3>
-            <p className="text-sm text-gray-400 mb-6">
-              This vessel type supports Advanced Vessel Data.
-              Recommended for accurate operational reasoning.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAdvancedOverlay(false);
-                  setStep("advanced");
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-medium transition"
-              >
-                Add Details
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAdvancedOverlay(false);
-                  setAdvancedTouched(true);
-                }}
-                className="text-gray-400 hover:text-white transition text-sm"
-              >
-                Not now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Success overlay — outside the form, always covers the full card */}
       <AnimatePresence>

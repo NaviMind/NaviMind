@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useContext } from "react";
 import { UIContext } from "@/context/UIContext";
-import DeckDepartment from "./departments/Deck";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
@@ -11,13 +10,17 @@ import { saveVesselProfile } from "@/firebase/userRepo";
 const VESSEL_STORAGE_KEY = "navimind_vessel_profile";
 const VESSEL_DEPT_KEY = "navimind_vessel_department";
 
+const ADVANCED_KEYS = [
+  "lngContainment", "lngTankPressure", "lngBor", "lngReliq",
+  "lngFuelSystem", "lngGcu", "lngSloshing", "lngMaxFilling",
+];
+
 const emptyForm = {
   rank: "", vesselType: "", lpgType: "", offshoreType: "", dpClass: "",
   capacity: "", capacityUnit: "DWT", flag: "", classification: "",
   ballastSystem: "", iceClass: "", specialNotes: "",
   lngContainment: "", lngTankPressure: "", lngBor: "", lngReliq: "",
   lngFuelSystem: "", lngGcu: "", lngSloshing: "", lngMaxFilling: "",
-  // Engine department
   engMainEngine: "", engAuxEngines: "", engEdg: "", engPropulsion: "",
   engThrusters: "", engShaftGen: "", engFuelSystem: "", engScrubber: "",
   engBoiler: "", engIncinerator: "", engInertSystem: "", engCargoCompressor: "",
@@ -36,9 +39,12 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   } = useContext(UIContext);
 
   const [form, setForm] = useState(emptyForm);
-  const [savedForm, setSavedForm] = useState(null); // what was last saved
+  const [savedForm, setSavedForm] = useState(null);
+  const [advancedSavedForm, setAdvancedSavedForm] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showAdvancedSuccess, setShowAdvancedSuccess] = useState(false);
 
-  // Load saved profile and department on mount
+  // Load saved profile on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
@@ -46,6 +52,13 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
         const parsed = JSON.parse(raw);
         setForm({ ...emptyForm, ...parsed });
         setSavedForm({ ...emptyForm, ...parsed });
+
+        const hasAdvanced = ADVANCED_KEYS.some((k) => parsed[k]);
+        if (hasAdvanced) {
+          setAdvancedSavedForm(
+            Object.fromEntries(ADVANCED_KEYS.map((k) => [k, parsed[k] || ""]))
+          );
+        }
       }
       const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
       if (savedDept === "engine" || savedDept === "deck") {
@@ -59,18 +72,16 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     ? Object.keys(emptyForm).some((k) => form[k] !== savedForm[k])
     : true;
 
-const advancedSupportedTypes = ["LNG"]; 
+  const advancedIsSaved = Boolean(advancedSavedForm);
+  const advancedIsDirty = advancedIsSaved
+    ? ADVANCED_KEYS.some((k) => form[k] !== (advancedSavedForm[k] ?? ""))
+    : true;
+  const advancedIsEditMode = advancedIsSaved && !advancedIsDirty;
 
-const supportsAdvanced = advancedSupportedTypes.includes(form.vesselType);
-const [department, setDepartment] = useState("deck");
-const [step, setStep] = useState("profile"); 
-const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
-
-  useEffect(() => {
-  if (form.vesselType === "LNG") {
-    setShowAdvancedOverlay(true);
-  }
-}, [form.vesselType]);
+  const advancedSupportedTypes = ["LNG"];
+  const supportsAdvanced = advancedSupportedTypes.includes(form.vesselType);
+  const [department, setDepartment] = useState("deck");
+  const [step, setStep] = useState("profile");
 
   useEffect(() => {
     if (open && firstInputRef.current) {
@@ -83,28 +94,24 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
       onClose();
     }
   };
-   
-  useEffect(() => {
-  if (openAdvancedDirectly) {
-    setStep("advanced");
-    setOpenAdvancedDirectly(false);
-  }
-}, [openAdvancedDirectly]);
 
-  const [showSuccess, setShowSuccess] = useState(false);
+  useEffect(() => {
+    if (openAdvancedDirectly) {
+      setStep("advanced");
+      setOpenAdvancedDirectly(false);
+    }
+  }, [openAdvancedDirectly]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
 
-    // Save locally first (instant feedback)
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     localStorage.setItem(VESSEL_DEPT_KEY, department);
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
-    setVesselProfileData({ ...form }); // full profile in context
+    setVesselProfileData({ ...form });
 
-    // Persist to Firestore (fire and forget — don't block the UI)
     const user = auth.currentUser;
     if (user?.uid) {
       saveVesselProfile(user.uid, form).catch(() => {});
@@ -118,56 +125,76 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     }, 2500);
   };
 
+  const handleAdvancedSave = async () => {
+    localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
+    localStorage.setItem(VESSEL_DEPT_KEY, department);
+    setSavedForm({ ...form });
+
+    const snap = Object.fromEntries(ADVANCED_KEYS.map((k) => [k, form[k] || ""]));
+    setAdvancedSavedForm(snap);
+
+    setVesselProfileData({ ...form });
+    setAdvancedCompleted(true);
+    setAdvancedTouched(true);
+
+    const user = auth.currentUser;
+    if (user?.uid) {
+      saveVesselProfile(user.uid, form).catch(() => {});
+    }
+
+    setShowAdvancedSuccess(true);
+    setTimeout(() => {
+      setShowAdvancedSuccess(false);
+      setStep("profile");
+    }, 2000);
+  };
+
   if (!open) return null;
 
   const slideVariants = {
-  initial: { y: "100%", opacity: 0 },
-  animate: { y: 0, opacity: 1 },
-  exit: { y: "100%", opacity: 0 },
-};
+    initial: { y: "100%", opacity: 0 },
+    animate: { y: 0, opacity: 1 },
+    exit: { y: "100%", opacity: 0 },
+  };
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={handleBackdropClick}
     >
-        <AnimatePresence mode="wait">
-  {step === "profile" && (
-    <ProfileCard
-      key="profile"
-      form={form}
-      setForm={setForm}
-      department={department}
-      setDepartment={setDepartment}
-      supportsAdvanced={supportsAdvanced}
-      advancedCompleted={advancedCompleted}
-      setAdvancedTouched={setAdvancedTouched}
-      onSubmit={handleSubmit}
-      onClose={onClose}
-      showAdvancedOverlay={showAdvancedOverlay}
-      setShowAdvancedOverlay={setShowAdvancedOverlay}
-      setStep={setStep}
-      slideVariants={slideVariants}
-      isSaved={isSaved}
-      isDirty={isDirty}
-      showSuccess={showSuccess}
-    />
-  )}
+      <AnimatePresence mode="wait">
+        {step === "profile" && (
+          <ProfileCard
+            key="profile"
+            form={form}
+            setForm={setForm}
+            department={department}
+            setDepartment={setDepartment}
+            supportsAdvanced={supportsAdvanced}
+            advancedCompleted={advancedCompleted}
+            onSubmit={handleSubmit}
+            onClose={onClose}
+            setStep={setStep}
+            slideVariants={slideVariants}
+            isSaved={isSaved}
+            isDirty={isDirty}
+            showSuccess={showSuccess}
+          />
+        )}
 
-  {step === "advanced" && (
-  <AdvancedCard
-  slideVariants={slideVariants}
-  form={form}
-  setForm={setForm}
-  onBack={() => setStep("profile")}
-  onSave={() => {
-    setAdvancedCompleted(true);
-    setAdvancedTouched(true);
-    setStep("profile");
-  }}
-/>
-)}
-</AnimatePresence>
+        {step === "advanced" && (
+          <AdvancedCard
+            key="advanced"
+            slideVariants={slideVariants}
+            form={form}
+            setForm={setForm}
+            onBack={() => setStep("profile")}
+            onSave={handleAdvancedSave}
+            showSuccess={showAdvancedSuccess}
+            isEditMode={advancedIsEditMode}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
