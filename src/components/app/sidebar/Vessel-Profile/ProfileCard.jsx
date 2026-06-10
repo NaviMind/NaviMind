@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import DeckDepartment from "./departments/Deck";
 import EngineDepartment from "./departments/Engine";
 
@@ -20,6 +20,7 @@ export default function ProfileCard({
   slideVariants,
   isSaved,
   isDirty,
+  showSuccess,
 }) {
   const isEditMode = isSaved && !isDirty;
   const canSave = form.rank && form.vesselType && form.capacity.trim();
@@ -176,6 +177,76 @@ export default function ProfileCard({
       >
         {isEditMode ? "Edit" : "Save & Activate"}
       </button>
+
+      {/* Success overlay */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md"
+          >
+            {/* Faint compass watermark */}
+            <img
+              src="/compass.png"
+              alt=""
+              className="absolute w-48 h-48 opacity-[0.04] select-none pointer-events-none"
+              aria-hidden="true"
+            />
+
+            {/* Animated ring + checkmark */}
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 22 }}
+              className="relative mb-6"
+            >
+              {/* Glow */}
+              <div className="absolute inset-0 rounded-full bg-blue-500/30 blur-2xl scale-150 pointer-events-none" />
+              {/* Ring */}
+              <div className="relative w-24 h-24 rounded-full border-2 border-blue-500/70 bg-blue-600/15 flex items-center justify-center shadow-lg shadow-blue-900/40">
+                <motion.svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-11 h-11 text-blue-400"
+                >
+                  <motion.path
+                    d="M5 13l4 4L19 7"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ delay: 0.35, duration: 0.45, ease: "easeOut" }}
+                  />
+                </motion.svg>
+              </div>
+            </motion.div>
+
+            {/* Text */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.35 }}
+              className="text-center px-6"
+            >
+              <p className="text-xl font-semibold text-white tracking-wide mb-2">
+                Profile Activated
+              </p>
+              {form.rank && form.vesselType && (
+                <p className="text-sm text-gray-400 tracking-wide">
+                  {form.rank}
+                  <span className="mx-2 text-gray-600">·</span>
+                  {form.vesselType}
+                </p>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.form>
   );
 }

@@ -83,6 +83,8 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
   }
 }, [openAdvancedDirectly]);
 
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
@@ -90,6 +92,11 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
     onSave(form);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      onClose();
+    }, 2200);
   };
 
   if (!open) return null;
@@ -124,6 +131,7 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
       slideVariants={slideVariants}
       isSaved={isSaved}
       isDirty={isDirty}
+      showSuccess={showSuccess}
     />
   )}
 
