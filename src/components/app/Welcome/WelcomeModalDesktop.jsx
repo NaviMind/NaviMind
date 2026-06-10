@@ -104,8 +104,7 @@ const cards = [
   },
 ];
 
-export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivacy }) {
-  const [currentCard, setCurrentCard] = useState(0);
+export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivacy, currentCard, setCurrentCard }) {
   const [accepted, setAccepted] = useState(false);
 
   const isLast = currentCard === cards.length - 1;
@@ -166,9 +165,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
                       priority
                     />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-bold
-                      bg-gradient-to-r from-white via-blue-200 to-white
-                      bg-[length:200%_100%] bg-clip-text text-transparent animate-shine">
+                  <h3 className="text-2xl md:text-3xl font-bold text-white">
                     {cards[currentCard].title}
                   </h3>
                 </div>

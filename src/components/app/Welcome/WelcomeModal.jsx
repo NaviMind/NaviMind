@@ -14,6 +14,7 @@ export default function WelcomeModal() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState("welcome"); // "welcome" | "terms" | "privacy"
   const [isClosing, setIsClosing] = useState(false);
+  const [currentCard, setCurrentCard] = useState(0); // lifted up so Terms/Privacy don't reset it
 
   useEffect(() => {
     // TODO: uncomment before launch to show welcome only once
@@ -74,6 +75,8 @@ export default function WelcomeModal() {
                     onClose={handleClose}
                     onShowTerms={() => setStep("terms")}
                     onShowPrivacy={() => setStep("privacy")}
+                    currentCard={currentCard}
+                    setCurrentCard={setCurrentCard}
                   />
                 )}
               </motion.div>
