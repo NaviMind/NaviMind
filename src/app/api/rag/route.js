@@ -307,7 +307,10 @@ const assembledSystemPrompt = [
           const completion = await openai.responses.create({
             model: "gpt-4.1",
             stream: true,
-            ...(useWebSearch ? { tools: [{ type: "web_search_preview" }] } : {}),
+            ...(useWebSearch ? {
+              tools: [{ type: "web_search_preview" }],
+              tool_choice: "required",
+            } : {}),
             input: messages,
           });
 
@@ -319,13 +322,16 @@ const assembledSystemPrompt = [
             }
 
             if (event.type === "response.completed") {
-              const annotations =
-                event.response?.output?.[1]?.content?.[0]?.annotations || [];
-              annotations
-                .filter((a) => a.type === "url_citation")
-                .forEach((a) =>
-                  collectedSources.push({ title: a.title, url: a.url })
-                );
+              // Search all output items and all content parts for url_citation annotations
+              for (const outputItem of (event.response?.output || [])) {
+                for (const contentPart of (outputItem?.content || [])) {
+                  for (const annotation of (contentPart?.annotations || [])) {
+                    if (annotation.type === "url_citation") {
+                      collectedSources.push({ title: annotation.title, url: annotation.url });
+                    }
+                  }
+                }
+              }
             }
 
             if (event.type === "response.error") {
