@@ -11,14 +11,42 @@ import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
 import Icon from "@/components/common/Icon";
-import { Maximize2, Minimize2, Mic, MicOff } from "lucide-react";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 const FILES_LIMIT = 5;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
 const MAX_DOCUMENT_SIZE = 30 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024;
-// Show expand button after ~3 lines
 const EXPAND_SCROLL_THRESHOLD = 100;
+
+function Waveform() {
+  return (
+    <div className="flex items-center gap-[3px] px-1">
+      {[0, 0.12, 0.24, 0.36].map((delay, i) => (
+        <span
+          key={i}
+          className="block w-[3px] rounded-full bg-blue-400"
+          style={{ animation: `waveform 0.7s ease-in-out ${delay}s infinite`, height: "3px" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function StopBtn({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      aria-label="Stop recording"
+      className="p-2 rounded flex items-center justify-center text-red-400 hover:text-red-300 transition"
+    >
+      <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full border-2 border-current">
+        <span className="w-[7px] h-[7px] rounded-[1.5px] bg-current" />
+      </span>
+    </button>
+  );
+}
 
 export default function InputBar() {
   const { isSidebarOpen, inputText, setInputText, vesselProfileData } = useContext(UIContext);
@@ -124,7 +152,6 @@ export default function InputBar() {
     recognition.interimResults = true;
     recognition.lang = navigator.language || "en-US";
 
-    // Save whatever was already typed
     speechBaseRef.current = inputValue;
 
     recognition.onresult = (event) => {
@@ -261,19 +288,43 @@ export default function InputBar() {
               <Minimize2 size={18} />
             </button>
 
-            <span className="text-xs text-gray-500 select-none">
-              {inputValue.length > 0 ? `${inputValue.length} chars` : ""}
-            </span>
+            {/* Center: waveform while recording, else char count */}
+            <div className="flex items-center justify-center min-w-[60px]">
+              {isListening ? (
+                <Waveform />
+              ) : (
+                <span className="text-xs text-gray-500 select-none">
+                  {inputValue.length > 0 ? `${inputValue.length} chars` : ""}
+                </span>
+              )}
+            </div>
 
-            <button
-              onClick={handleSend}
-              disabled={!inputValue.trim()}
-              className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white transition"
-              type="button"
-              aria-label="Send"
-            >
-              <Icon name="arrow-send" size={20} />
-            </button>
+            {/* Right: mic/stop + send */}
+            <div className="flex items-center gap-1">
+              {speechSupported && (
+                isListening ? (
+                  <StopBtn onClick={toggleListening} />
+                ) : (
+                  <button
+                    onClick={toggleListening}
+                    type="button"
+                    aria-label="Start voice input"
+                    className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white transition"
+                  >
+                    <Icon name="mic" size={20} />
+                  </button>
+                )
+              )}
+              <button
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+                className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white transition"
+                type="button"
+                aria-label="Send"
+              >
+                <Icon name="arrow-send" size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Full textarea */}
@@ -318,24 +369,6 @@ export default function InputBar() {
                 </label>
               </Tooltip>
 
-              {/* 🎙 Mic Button */}
-              {speechSupported && (
-                <Tooltip content={isListening ? "Stop recording" : "Voice input"} position="top">
-                  <button
-                    onClick={toggleListening}
-                    type="button"
-                    className={`p-2 rounded min-w-[40px] min-h-[40px] flex items-center justify-center transition
-                      ${isListening
-                        ? "text-red-400 animate-mic-pulse"
-                        : "text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    aria-label={isListening ? "Stop recording" : "Start voice input"}
-                  >
-                    {isListening ? <MicOff size={19} /> : <Mic size={19} />}
-                  </button>
-                </Tooltip>
-              )}
-
               {/* ✍️ Textarea */}
               <textarea
                 ref={inputRef}
@@ -353,10 +386,14 @@ export default function InputBar() {
                 style={{ minWidth: 0 }}
               />
 
-              {/* Right column: expand (top) + send (bottom) */}
+              {/* Right column: top slot + bottom row */}
               <div className="flex flex-col items-center justify-between self-stretch py-0.5">
-                {/* Expand — mobile only, top of column */}
-                {showExpandBtn ? (
+                {/* Top slot: waveform (recording) → expand btn (long text) → spacer */}
+                {isListening ? (
+                  <div className="flex items-center justify-center min-h-[24px]">
+                    <Waveform />
+                  </div>
+                ) : showExpandBtn ? (
                   <button
                     onClick={() => setIsExpanded(true)}
                     className="md:hidden p-1.5 rounded text-gray-400 hover:text-white transition flex items-center justify-center"
@@ -369,16 +406,34 @@ export default function InputBar() {
                   <div />
                 )}
 
-                {/* Send — bottom of column */}
-                <Tooltip content="Send" position="top">
-                  <button
-                    onClick={handleSend}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
-                    disabled={!inputValue.trim()}
-                  >
-                    <Icon name="arrow-send" size={20} />
-                  </button>
-                </Tooltip>
+                {/* Bottom row: mic/stop + send */}
+                <div className="flex items-center">
+                  {speechSupported && (
+                    isListening ? (
+                      <StopBtn onClick={toggleListening} />
+                    ) : (
+                      <Tooltip content="Voice input" position="top">
+                        <button
+                          onClick={toggleListening}
+                          type="button"
+                          aria-label="Start voice input"
+                          className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                          <Icon name="mic" size={20} />
+                        </button>
+                      </Tooltip>
+                    )
+                  )}
+                  <Tooltip content="Send" position="top">
+                    <button
+                      onClick={handleSend}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      disabled={!inputValue.trim()}
+                    >
+                      <Icon name="arrow-send" size={20} />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
             </div>
 
