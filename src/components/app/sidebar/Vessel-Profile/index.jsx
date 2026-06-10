@@ -7,6 +7,7 @@ import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
 
 const VESSEL_STORAGE_KEY = "navimind_vessel_profile";
+const VESSEL_DEPT_KEY = "navimind_vessel_department";
 
 const emptyForm = {
   rank: "", vesselType: "", lpgType: "", offshoreType: "", dpClass: "",
@@ -34,7 +35,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const [form, setForm] = useState(emptyForm);
   const [savedForm, setSavedForm] = useState(null); // what was last saved
 
-  // Load saved profile on mount
+  // Load saved profile and department on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
@@ -42,6 +43,10 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
         const parsed = JSON.parse(raw);
         setForm({ ...emptyForm, ...parsed });
         setSavedForm({ ...emptyForm, ...parsed });
+      }
+      const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
+      if (savedDept === "engine" || savedDept === "deck") {
+        setDepartment(savedDept);
       }
     } catch {}
   }, []);
@@ -91,6 +96,7 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
+    localStorage.setItem(VESSEL_DEPT_KEY, department);
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
