@@ -12,8 +12,23 @@ export function UIProvider({ children }) {
   const [advancedTouched, setAdvancedTouched] = useState(false);
   const [advancedCompleted, setAdvancedCompleted] = useState(false);
   const [vesselProfileSaved, setVesselProfileSaved] = useState(false);
+  const [vesselProfileData, setVesselProfileData] = useState(null);
   const [isVesselProfileOpen, setVesselProfileOpen] = useState(false);
   const [openAdvancedDirectly, setOpenAdvancedDirectly] = useState(false);
+
+  // Restore vessel profile from localStorage on app start
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("navimind_vessel_profile");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.rank && parsed.vesselType) {
+          setVesselProfileSaved(true);
+          setVesselProfileData({ rank: parsed.rank, vesselType: parsed.vesselType });
+        }
+      }
+    } catch {}
+  }, []);
   
   const [isSidebarOpen, setSidebarOpen] = useState(() => {
   if (typeof window !== "undefined") {
@@ -103,6 +118,8 @@ export function UIProvider({ children }) {
         setAdvancedCompleted,
         vesselProfileSaved,
         setVesselProfileSaved,
+        vesselProfileData,
+        setVesselProfileData,
         isVesselProfileOpen,
         setVesselProfileOpen,
         openAdvancedDirectly,

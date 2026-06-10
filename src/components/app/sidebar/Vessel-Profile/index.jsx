@@ -29,6 +29,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     advancedTouched, setAdvancedTouched,
     advancedCompleted, setAdvancedCompleted,
     setVesselProfileSaved,
+    setVesselProfileData,
     openAdvancedDirectly, setOpenAdvancedDirectly,
   } = useContext(UIContext);
 
@@ -94,9 +95,10 @@ const [showAdvancedOverlay, setShowAdvancedOverlay] = useState(false);
     e.preventDefault();
     if (!form.rank || !form.vesselType || !form.capacity.trim()) return;
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
+    localStorage.setItem(VESSEL_DEPT_KEY, department);
     setSavedForm({ ...form });
     setVesselProfileSaved(true);
-    localStorage.setItem(VESSEL_DEPT_KEY, department);
+    setVesselProfileData({ rank: form.rank, vesselType: form.vesselType });
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);

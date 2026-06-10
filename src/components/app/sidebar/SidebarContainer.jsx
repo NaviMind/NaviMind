@@ -22,7 +22,7 @@ export default function SidebarContainer({
 }) {
   const router = useRouter();
   const ui = useContext(UIContext);
-  const { isVesselProfileOpen, setVesselProfileOpen } = ui;
+  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData } = ui;
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [topicName, setTopicName] = useState("");
@@ -94,6 +94,25 @@ useEffect(() => {
         {showNewChatButton && (
           <NewChatButton onSidebarItemClick={onSidebarItemClick} />
         )}
+
+        {/* Vessel profile pill — mobile sidebar center, shown when profile saved */}
+        {mobileMode && vesselProfileData && (
+          <button
+            onClick={() => { setVesselProfileOpen(true); onSidebarItemClick?.(); }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
+              border border-blue-500/35 bg-blue-500/[0.07]
+              hover:border-blue-400/60 hover:bg-blue-500/[0.13]
+              focus:outline-none focus:ring-2 focus:ring-blue-500/50
+              transition-all duration-200 group max-w-[170px]"
+            style={{ boxShadow: "0 0 10px rgba(59,130,246,0.10)" }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+            <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
+            <span className="text-white/25">·</span>
+            <span className="text-gray-400 truncate">{vesselProfileData.vesselType}</span>
+          </button>
+        )}
+
         {showCloseButton && (
           <div className="relative group flex flex-col items-center">
             <button
