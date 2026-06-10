@@ -108,13 +108,6 @@ export default function CustomSelect({ value, onChange, options, placeholder }) 
         autoComplete="off"
       />
 
-      {/* Selected value label when closed */}
-      {!open && value && (
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white pointer-events-none truncate pr-8">
-          {value}
-        </span>
-      )}
-
       {/* Arrow */}
       <button
         type="button"
