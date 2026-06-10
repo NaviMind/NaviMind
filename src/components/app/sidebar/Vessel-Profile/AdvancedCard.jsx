@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import LNGAdvancedContent from "./Advanced/LNGAdvancedContent";
 
 export default function AdvancedCard({
-  slideVariants,
   onBack,
   onSave,
   form,
@@ -13,14 +12,7 @@ export default function AdvancedCard({
   isEditMode,
 }) {
   return (
-    <motion.div
-      className="relative w-full max-w-sm sm:max-w-lg"
-      variants={slideVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div className="relative w-full">
       {/* Card */}
       <div className="
         relative
@@ -130,6 +122,6 @@ export default function AdvancedCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

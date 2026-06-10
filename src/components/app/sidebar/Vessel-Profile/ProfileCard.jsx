@@ -14,7 +14,6 @@ export default function ProfileCard({
   onSubmit,
   onClose,
   setStep,
-  slideVariants,
   isSaved,
   isDirty,
   showSuccess,
@@ -23,15 +22,7 @@ export default function ProfileCard({
   const canSave = form.rank && form.vesselType && form.capacity.trim();
 
   return (
-    // Wrapper carries the slide animation and is the containing block for overlays
-    <motion.div
-      className="relative w-full max-w-sm sm:max-w-lg"
-      variants={slideVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div className="relative w-full">
       {/* Form — has overflow-y-auto; overlays must live OUTSIDE this element */}
       <form
         onSubmit={onSubmit}
@@ -194,6 +185,6 @@ export default function ProfileCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

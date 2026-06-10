@@ -157,42 +157,60 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     exit: { y: "100%", opacity: 0 },
   };
 
+  const slideTransition = { duration: 0.5, ease: [0.16, 1, 0.3, 1] };
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 overflow-hidden z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={handleBackdropClick}
     >
       <AnimatePresence mode="wait">
         {step === "profile" && (
-          <ProfileCard
+          <motion.div
             key="profile"
-            form={form}
-            setForm={setForm}
-            department={department}
-            setDepartment={setDepartment}
-            supportsAdvanced={supportsAdvanced}
-            advancedCompleted={advancedCompleted}
-            onSubmit={handleSubmit}
-            onClose={onClose}
-            setStep={setStep}
-            slideVariants={slideVariants}
-            isSaved={isSaved}
-            isDirty={isDirty}
-            showSuccess={showSuccess}
-          />
+            className="relative w-full max-w-sm sm:max-w-lg"
+            variants={slideVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={slideTransition}
+          >
+            <ProfileCard
+              form={form}
+              setForm={setForm}
+              department={department}
+              setDepartment={setDepartment}
+              supportsAdvanced={supportsAdvanced}
+              advancedCompleted={advancedCompleted}
+              onSubmit={handleSubmit}
+              onClose={onClose}
+              setStep={setStep}
+              isSaved={isSaved}
+              isDirty={isDirty}
+              showSuccess={showSuccess}
+            />
+          </motion.div>
         )}
 
         {step === "advanced" && (
-          <AdvancedCard
+          <motion.div
             key="advanced"
-            slideVariants={slideVariants}
-            form={form}
-            setForm={setForm}
-            onBack={() => setStep("profile")}
-            onSave={handleAdvancedSave}
-            showSuccess={showAdvancedSuccess}
-            isEditMode={advancedIsEditMode}
-          />
+            className="relative w-full max-w-sm sm:max-w-lg"
+            variants={slideVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={slideTransition}
+          >
+            <AdvancedCard
+              form={form}
+              setForm={setForm}
+              onBack={() => setStep("profile")}
+              onSave={handleAdvancedSave}
+              showSuccess={showAdvancedSuccess}
+              isEditMode={advancedIsEditMode}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
