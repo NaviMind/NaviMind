@@ -11,7 +11,7 @@ import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
 import Icon from "@/components/common/Icon";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Mic, MicOff } from "lucide-react";
 
 const FILES_LIMIT = 5;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
@@ -43,9 +43,13 @@ export default function InputBar() {
   const [isActive, setIsActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showExpandBtn, setShowExpandBtn] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
 
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const speechBaseRef = useRef("");
 
   const { isFullscreen } = useContext(UIContext);
 
@@ -97,6 +101,58 @@ export default function InputBar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  /* ───────── SPEECH RECOGNITION SUPPORT CHECK ───────── */
+  useEffect(() => {
+    setSpeechSupported(
+      typeof window !== "undefined" &&
+      !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+    );
+  }, []);
+
+  /* ───────── SPEECH TOGGLE ───────── */
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = navigator.language || "en-US";
+
+    // Save whatever was already typed
+    speechBaseRef.current = inputValue;
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      const base = speechBaseRef.current;
+      const sep = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
+      setInputValue(base + sep + transcript);
+      setIsActive(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error !== "aborted") setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
   /* ───────── HANDLERS ───────── */
   const handleSend = async () => {
     if (!inputValue.trim()) return;
@@ -107,6 +163,11 @@ export default function InputBar() {
     setIsActive(false);
     setIsExpanded(false);
     setShowExpandBtn(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
 
     const preparedAttachments = uploadedFiles;
     setUploadedFiles([]);
@@ -256,6 +317,24 @@ export default function InputBar() {
                   <input type="file" multiple onChange={handleFileChange} className="sr-only" />
                 </label>
               </Tooltip>
+
+              {/* 🎙 Mic Button */}
+              {speechSupported && (
+                <Tooltip content={isListening ? "Stop recording" : "Voice input"} position="top">
+                  <button
+                    onClick={toggleListening}
+                    type="button"
+                    className={`p-2 rounded min-w-[40px] min-h-[40px] flex items-center justify-center transition
+                      ${isListening
+                        ? "text-red-400 animate-mic-pulse"
+                        : "text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    aria-label={isListening ? "Stop recording" : "Start voice input"}
+                  >
+                    {isListening ? <MicOff size={19} /> : <Mic size={19} />}
+                  </button>
+                </Tooltip>
+              )}
 
               {/* ✍️ Textarea */}
               <textarea
