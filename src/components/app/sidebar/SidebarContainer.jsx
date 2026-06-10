@@ -108,7 +108,11 @@ useEffect(() => {
           >
             <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
             <span className="text-white/25">·</span>
-            <span className="text-gray-400 truncate">{vesselProfileData.vesselType}</span>
+            <span className="text-gray-400 truncate">
+              {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
+                ? vesselProfileData.offshoreType
+                : vesselProfileData.vesselType}
+            </span>
           </button>
         )}
 

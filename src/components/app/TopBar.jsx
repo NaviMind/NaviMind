@@ -89,7 +89,11 @@ export default function TopBar() {
           >
             <span className="text-white/80 font-normal">{vesselProfileData.rank}</span>
             <span className="text-white/25 mx-0.5">·</span>
-            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">{vesselProfileData.vesselType}</span>
+            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">
+              {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
+                ? vesselProfileData.offshoreType
+                : vesselProfileData.vesselType}
+            </span>
           </button>
         )}
 
