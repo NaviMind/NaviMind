@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UIContext } from "@/context/UIContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import Icon from "@/components/common/Icon";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function SubScreen({ title, onBack }) {
 
 // ─── Main list ───────────────────────────────────────────────────────────────
 
-function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose }) {
+function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, onLogout }) {
   const displayName =
     userDoc?.displayName ||
     [userDoc?.firstName, userDoc?.lastName].filter(Boolean).join(" ") ||
@@ -247,6 +248,21 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose }
             last
           />
         </SectionGroup>
+
+        {/* Logout */}
+        <div className="mt-1 mb-1">
+          <div className="rounded-2xl overflow-hidden bg-white/[0.05] ring-1 ring-white/[0.06]">
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-red-500/10 active:bg-red-500/15"
+            >
+              <div className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 bg-red-600/80">
+                <Icon name="logout" size={16} className="text-white" />
+              </div>
+              <span className="flex-1 text-[14px] text-red-400">Log Out</span>
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -276,7 +292,7 @@ const crossFadeIn  = { initial: { opacity: 0, x: 18 }, animate: { opacity: 1, x:
 const crossFadeOut = { initial: { opacity: 0, x: -18 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -18 } };
 
 export default function SettingsModal() {
-  const { isSettingsOpen, toggleSettings, theme, language } = useContext(UIContext);
+  const { isSettingsOpen, toggleSettings, toggleLogout, theme, language } = useContext(UIContext);
   const { data: userDoc, loading } = useCurrentUserDoc();
   const [step, setStep] = useState("main");
   const [mounted, setMounted] = useState(false);
@@ -347,6 +363,7 @@ export default function SettingsModal() {
                       language={language}
                       onNavigate={setStep}
                       onClose={() => toggleSettings(false)}
+                      onLogout={() => { toggleSettings(false); toggleLogout(true); }}
                     />
                   </motion.div>
                 ) : (
