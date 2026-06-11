@@ -282,11 +282,11 @@ const SUB_TITLES = {
 };
 
 const slideUp = {
-  initial: { y: "60%", opacity: 0 },
+  initial: { y: "100%", opacity: 0 },
   animate: { y: 0, opacity: 1 },
-  exit:    { y: "60%", opacity: 0 },
+  exit:    { y: "100%", opacity: 0 },
 };
-const slideTransition = { duration: 0.45, ease: [0.16, 1, 0.3, 1] };
+const slideTransition = { duration: 0.8, ease: [0.16, 1, 0.3, 1] };
 
 const crossFadeIn  = { initial: { opacity: 0, x: 18 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: 18 } };
 const crossFadeOut = { initial: { opacity: 0, x: -18 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -18 } };
@@ -363,7 +363,7 @@ export default function SettingsModal() {
                       language={language}
                       onNavigate={setStep}
                       onClose={() => toggleSettings(false)}
-                      onLogout={() => { toggleSettings(false); toggleLogout(true); }}
+                      onLogout={() => toggleLogout(true)}
                     />
                   </motion.div>
                 ) : (

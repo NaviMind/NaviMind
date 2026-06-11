@@ -16,7 +16,7 @@ export default function UserAvatar() {
     photoURL: "",
   });
 
-  const { toggleSettings, toggleSidebar, isSidebarOpen } = useContext(UIContext);
+  const { toggleSettings } = useContext(UIContext);
   const { data: userDoc } = useCurrentUserDoc();
 
   useEffect(() => {
@@ -42,12 +42,7 @@ export default function UserAvatar() {
       .join("") || "U";
 
   const handleClick = () => {
-    if (window.innerWidth <= MOBILE_BREAKPOINT && isSidebarOpen) {
-      toggleSidebar();
-      setTimeout(() => toggleSettings(true), 220);
-    } else {
-      toggleSettings(true);
-    }
+    toggleSettings(true);
   };
 
   return (
