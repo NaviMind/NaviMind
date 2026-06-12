@@ -160,7 +160,7 @@ export default function DynamicProjectPage() {
         <div className="flex items-center w-full group relative">
           <Icon name="folder-open" size={28} className="mr-2 flex-shrink-0" />
           <span
-            className="block font-semibold text-white whitespace-normal break-words"
+            className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words"
             style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
           >
             {currentProjectName}
@@ -172,7 +172,7 @@ export default function DynamicProjectPage() {
             }}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium
               border border-transparent text-gray-500 dark:text-gray-400
-              hover:border-blue-500/50 hover:text-gray-200 hover:bg-white/5
+              hover:border-blue-500/50 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
               focus:outline-none focus:ring-2 focus:ring-blue-500/50
               transition-colors duration-200 flex-shrink-0"
           >
@@ -205,7 +205,7 @@ export default function DynamicProjectPage() {
             {/* Select mode bar */}
             {isSelectMode && (
               <div className="flex items-center gap-2 text-[13px] mb-3 px-2">
-                <span className="text-gray-300 font-medium min-w-[70px]">
+                <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
                   {selectedIds.size} selected
                 </span>
                 <button
@@ -214,13 +214,13 @@ export default function DynamicProjectPage() {
                       ? setSelectedIds(new Set())
                       : setSelectedIds(new Set(chats.map((c) => c.chatId)))
                   }
-                  className="text-blue-400 hover:text-blue-300 transition ml-auto"
+                  className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition ml-auto"
                 >
                   {allSelected ? "Deselect all" : "Select all"}
                 </button>
                 <button
                   onClick={cancelSelect}
-                  className="text-gray-400 hover:text-gray-200 transition px-1"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition px-1"
                 >
                   Cancel
                 </button>

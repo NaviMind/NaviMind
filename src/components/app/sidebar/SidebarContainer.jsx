@@ -108,9 +108,9 @@ useEffect(() => {
               transition-all duration-200 group max-w-[170px]"
             style={{ boxShadow: "0 0 10px rgba(59,130,246,0.10)" }}
           >
-            <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
-            <span className="text-white/25">·</span>
-            <span className="text-gray-400 truncate">
+            <span className="text-gray-700 dark:text-white/75 truncate">{vesselProfileData.rank}</span>
+            <span className="text-gray-400 dark:text-white/25">·</span>
+            <span className="text-gray-500 dark:text-gray-400 truncate">
               {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
                 ? vesselProfileData.offshoreType
                 : vesselProfileData.vesselType}
@@ -228,7 +228,7 @@ useEffect(() => {
   // Sidebar не двигается — main area съезжает вправо, открывая его
   const MobileAside = (
   <aside
-    className="fixed left-0 top-0 h-full flex flex-col sm:hidden bg-[var(--bg-sidebar)]"
+    className="fixed left-0 top-0 h-full flex flex-col sm:hidden bg-[var(--bg-sidebar)] text-gray-900 dark:text-white"
     style={{
       width: "calc(100vw - 3rem)",
       zIndex: 20,
@@ -246,7 +246,7 @@ useEffect(() => {
   // Десктоп-версия как переменная
   const DesktopAside = (
   <aside
-    className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out"
+    className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
     style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
   >
     <div
