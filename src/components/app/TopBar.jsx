@@ -126,8 +126,8 @@ export default function TopBar() {
 
       {/* ── Правый блок ── */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Topic pill — только десктоп */}
-        {activeProjectName && (
+        {/* Topic pill — только десктоп, только внутри чата топика */}
+        {activeProjectName && activeChatId && (
           <button
             onClick={() => {
               setActiveChatId(null);
