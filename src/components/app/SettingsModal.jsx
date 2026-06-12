@@ -56,9 +56,15 @@ const IcDoc = () => (
     <polyline points="14 2 14 8 20 8"/>
   </svg>
 );
-const IcChevron = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-[13px] h-[13px] text-gray-600 flex-shrink-0">
+const IcChevron = ({ open }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+    className={`w-[13px] h-[13px] text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}>
     <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+const IcCheck = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px] text-blue-500 flex-shrink-0">
+    <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
 const IcBack = () => (
@@ -82,7 +88,7 @@ function SettingIcon({ bg, children }) {
   );
 }
 
-function SettingRow({ icon, label, value, badge, onPress, last = false }) {
+function SettingRow({ icon, label, value, badge, onPress, last = false, open = false, noChevron = false }) {
   return (
     <button
       onClick={onPress}
@@ -100,7 +106,7 @@ function SettingRow({ icon, label, value, badge, onPress, last = false }) {
       {value && (
         <span className="text-[13px] text-gray-400 mr-1 flex-shrink-0">{value}</span>
       )}
-      <IcChevron />
+      {!noChevron && <IcChevron open={open} />}
     </button>
   );
 }
@@ -145,6 +151,9 @@ function SubScreen({ title, onBack }) {
 // ─── Main list ───────────────────────────────────────────────────────────────
 
 function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, onLogout }) {
+  const { setTheme } = useContext(UIContext);
+  const [showThemePicker, setShowThemePicker] = useState(false);
+
   const displayName =
     userDoc?.displayName ||
     [userDoc?.firstName, userDoc?.lastName].filter(Boolean).join(" ") ||
@@ -217,10 +226,28 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
         <SectionGroup label="App">
           <SettingRow
             icon={<SettingIcon bg="bg-gray-600"><IcAppearance /></SettingIcon>}
-            label="Appearance"
+            label="Theme"
             value={theme === "dark" ? "Dark" : "Light"}
-            onPress={() => onNavigate("appearance")}
+            onPress={() => setShowThemePicker(v => !v)}
+            open={showThemePicker}
           />
+          {showThemePicker && (
+            <div>
+              {[{ id: "light", label: "Light" }, { id: "dark", label: "Dark" }].map(({ id, label }, i, arr) => (
+                <button
+                  key={id}
+                  onClick={() => { setTheme(id); setShowThemePicker(false); }}
+                  className={`w-full flex items-center justify-between pl-[58px] pr-4 py-[11px] text-[14px] transition-colors border-t border-gray-100 dark:border-white/[0.06]
+                    ${theme === id
+                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.04]"}`}
+                >
+                  {label}
+                  {theme === id && <IcCheck />}
+                </button>
+              ))}
+            </div>
+          )}
           <SettingRow
             icon={<SettingIcon bg="bg-teal-600"><IcGlobe /></SettingIcon>}
             label="Language"
@@ -284,7 +311,6 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
 const SUB_TITLES = {
   account: "Account",
   subscription: "Subscription",
-  appearance: "Appearance",
   language: "Language",
   privacy: "Privacy & Data",
   support: "Support",
