@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UIContext } from "@/context/UIContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -157,22 +158,32 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
     .join("");
 
   const plan = userDoc?.plan || "free";
+  const photoURL = userDoc?.photoURL || auth.currentUser?.photoURL || null;
 
   return (
     <>
-      {/* User header */}
+      {/* User header — fixed, does not scroll */}
       <div className="relative flex flex-col items-center px-5 pt-7 pb-5 border-b border-white/[0.06] flex-shrink-0">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-[28px] h-[28px] rounded-full bg-white/[0.08] hover:bg-white/[0.14] transition-colors flex items-center justify-center text-gray-400"
+          className="absolute top-3 right-3 text-gray-400 hover:text-white transition p-2 rounded-lg"
           aria-label="Close"
         >
           <IcX />
         </button>
 
-        <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-white/10">
-          {loading ? "" : initials}
-        </div>
+        {photoURL ? (
+          <img
+            src={photoURL}
+            alt={displayName || "User"}
+            referrerPolicy="no-referrer"
+            className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-white/10"
+          />
+        ) : (
+          <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-white/10">
+            {loading ? "" : initials}
+          </div>
+        )}
 
         <p className="text-[16px] font-semibold text-white leading-tight">
           {loading ? "Loading…" : (displayName || "—")}
@@ -337,7 +348,7 @@ export default function SettingsModal() {
             animate="animate"
             exit="exit"
             transition={slideTransition}
-            className="w-full max-w-[360px] sm:max-w-[400px]"
+            className="w-full max-w-[360px] sm:max-w-lg"
           >
             {/* Modal card */}
             <div
