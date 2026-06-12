@@ -27,8 +27,8 @@
 
 /* ─── Цветовые переменные темы — LIGHT (default) ─── */
 :root {
-  --bg-app: #f0f4f8;
-  --bg-sidebar: rgba(255, 255, 255, 0.95);
+  --bg-app: #ffffff;
+  --bg-sidebar: rgba(248, 249, 252, 0.98);
   --bg-topbar: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #374151;

@@ -81,7 +81,7 @@ function AppShell({ children }) {
       <SidebarContainer />
 
       <div
-          className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] text-gray-900 dark:text-white"
+          className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] border-l border-gray-200 dark:border-transparent text-gray-900 dark:text-white"
           style={{
             zIndex: 30,
             transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 420ms cubic-bezier(0.32, 0.72, 0, 1)",

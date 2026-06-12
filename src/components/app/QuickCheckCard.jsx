@@ -12,18 +12,18 @@ export default function QuickCheckCard({ question, onNext }) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-10 px-4 py-6 rounded-2xl shadow-md">
+    <div className="w-full max-w-2xl mx-auto mt-10 px-4 py-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-transparent dark:shadow-md">
       {/* Заголовок с лампочкой */}
       <div className="flex items-center gap-2 mb-4">
         <Icon name="lightbulb" size={28} className="sm:hidden" />
         <Icon name="lightbulb" size={32} className="hidden sm:block" />
-        <span className="text-white/70 text-sm sm:text-base tracking-wide">
+        <span className="text-gray-500 dark:text-white/70 text-sm sm:text-base tracking-wide">
           Quick Check:
         </span>
       </div>
 
       {/* Вопрос */}
-      <p className="text-base sm:text-xl font-semibold text-white mb-2 leading-snug sm:leading-normal">
+      <p className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mb-2 leading-snug sm:leading-normal">
         {question.text}
       </p>
 
@@ -39,8 +39,7 @@ export default function QuickCheckCard({ question, onNext }) {
   <div className="relative group flex items-center">
   <button
     onClick={onNext}
-    className="flex items-center justify-center w-9 h-9 rounded-md text-white/70 hover:text-white hover:bg-white/5 transition-colors focus:outline-none focus:outline-none focus:ring-2 focus:ring-blue-500/50
-"
+    className="flex items-center justify-center w-9 h-9 rounded-md text-gray-500 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
     aria-label="Next question"
   >
     <Icon name="arrow-right" size={16} />
@@ -55,7 +54,7 @@ export default function QuickCheckCard({ question, onNext }) {
   {/* Right: Ask this */}
   <button
     onClick={handleClick}
-    className="inline-flex items-center gap-2 px-3.5 h-9 rounded-md text-white/70 hover:text-white hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+    className="inline-flex items-center gap-2 px-3.5 h-9 rounded-md text-gray-500 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
     aria-label="Ask this"
   >
     <Icon name="chat" size={16} className="opacity-80" />
