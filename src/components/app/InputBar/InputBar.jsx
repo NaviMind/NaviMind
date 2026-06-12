@@ -351,7 +351,7 @@ export default function InputBar() {
 
       {/* ── Normal Input Bar ── */}
       <div
-        className={`w-full bg-transparent transition-all ${
+        className={`w-full bg-[var(--bg-app)] transition-all ${
           isFullscreen ? "px-4 sm:px-6 mb-9" : "px-1 sm:px-4 pb-1"
         }`}
       >
