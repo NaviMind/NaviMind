@@ -40,6 +40,19 @@ export default function DynamicProjectPage() {
 
   const [instrModalOpen, setInstrModalOpen] = useState(false);
   const [instrText, setInstrText] = useState("");
+  const [kbOffset, setKbOffset] = useState(0);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbOffset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // ── Multi-select state ──
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -330,11 +343,12 @@ export default function DynamicProjectPage() {
       {/* Instruction modal */}
       {instrModalOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 px-3 pt-3"
+          style={{ paddingBottom: kbOffset > 10 ? kbOffset + 12 : 12 }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
           <div
-            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
+            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch mb-0"
             onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
           >
             <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
