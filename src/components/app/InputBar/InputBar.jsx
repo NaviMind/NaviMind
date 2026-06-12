@@ -39,7 +39,7 @@ function StopBtn({ onClick, className = "" }) {
       onClick={onClick}
       type="button"
       aria-label="Stop recording"
-      className={`p-2 rounded flex items-center justify-center text-gray-400 hover:text-white dark:hover:bg-gray-700 hover:bg-gray-100 transition ${className}`}
+      className={`p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white dark:hover:bg-gray-700 hover:bg-gray-100 transition ${className}`}
     >
       <Icon name="stop-circle" size={20} />
     </button>
@@ -288,7 +288,7 @@ export default function InputBar() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
             <button
               onClick={() => setIsExpanded(false)}
-              className="flex items-center gap-1.5 text-gray-400 hover:text-white transition py-1 px-2 rounded-lg hover:bg-white/5"
+              className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition py-1 px-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
               type="button"
               aria-label="Collapse editor"
             >
@@ -316,7 +316,7 @@ export default function InputBar() {
                     onClick={toggleListening}
                     type="button"
                     aria-label="Start voice input"
-                    className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white transition"
+                    className="p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
                   >
                     <Icon name="mic" size={20} />
                   </button>
@@ -341,7 +341,7 @@ export default function InputBar() {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
-            className="flex-1 bg-transparent outline-none text-base text-white placeholder-gray-500 p-4 resize-none overflow-y-auto custom-scroll leading-relaxed"
+            className="flex-1 bg-transparent outline-none text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-4 resize-none overflow-y-auto custom-scroll leading-relaxed"
           />
 
           {/* Bottom safe-area spacer */}
@@ -405,7 +405,7 @@ export default function InputBar() {
                   ) : showExpandBtn ? (
                     <button
                       onClick={() => setIsExpanded(true)}
-                      className="md:hidden p-1.5 rounded text-gray-400 hover:text-white transition flex items-center justify-center"
+                      className="md:hidden p-1.5 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
                       type="button"
                       aria-label="Expand editor"
                     >
@@ -425,7 +425,7 @@ export default function InputBar() {
                           onClick={toggleListening}
                           type="button"
                           aria-label="Start voice input"
-                          className="p-2 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                          className="p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                         >
                           <Icon name="mic" size={20} />
                         </button>
