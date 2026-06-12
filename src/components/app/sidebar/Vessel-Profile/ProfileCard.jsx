@@ -33,6 +33,7 @@ export default function ProfileCard({
           rounded-2xl
           shadow-2xl
           ring-1 ring-black/5 dark:ring-white/10
+          text-gray-900 dark:text-white
           w-full
           flex flex-col
           min-h-0
@@ -62,7 +63,7 @@ export default function ProfileCard({
         </div>
 
         {/* Department toggle */}
-        <div className="relative flex bg-gray-200 dark:bg-gray-700/40 rounded-xl p-1 mb-4 shrink-0">
+        <div className="relative flex bg-gray-100 dark:bg-gray-700/40 border border-gray-300 dark:border-transparent rounded-xl p-1 mb-4 shrink-0">
           <div
             className={`
               absolute top-1 bottom-1 w-[calc(50%-4px)]

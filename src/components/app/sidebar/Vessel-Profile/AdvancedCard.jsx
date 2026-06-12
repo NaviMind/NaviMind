@@ -21,6 +21,7 @@ export default function AdvancedCard({
         rounded-2xl
         shadow-2xl
         ring-1 ring-black/5 dark:ring-white/10
+        text-gray-900 dark:text-white
         w-full
         flex flex-col
         min-h-0
