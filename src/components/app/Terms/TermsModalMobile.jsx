@@ -15,8 +15,8 @@ export default function TermsModalMobile({ onClose }) {
 
   return (
     // Только карточка. Фон и fixed — снаружи, в WelcomeModal.
-    <div className="bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl 
-                w-full max-w-sm max-h-[75vh] overflow-y-auto flex flex-col mt-16 mb-6">
+    <div className="bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl
+                w-full max-w-sm max-h-[75vh] overflow-y-auto flex flex-col mt-16 mb-6 text-gray-900 dark:text-white">
       {/* Скролл ТОЛЬКО на контенте */}
       <div
         ref={scrollRef}
@@ -115,7 +115,7 @@ export default function TermsModalMobile({ onClose }) {
           className={`w-full py-3 rounded-lg text-sm font-medium transition ${
             scrolledToEnd
               ? "bg-blue-600 hover:bg-blue-500 text-white"
-              : "bg-blue-900/50 text-gray-400 cursor-not-allowed"
+              : "bg-gray-200 dark:bg-blue-900/50 text-gray-400 cursor-not-allowed"
           }`}
         >
           Close

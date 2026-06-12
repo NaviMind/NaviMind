@@ -21,7 +21,7 @@ export default function TermsModalDesktop({ onClose }) {
   }, []);
 
   return (
-    <div className="bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
+    <div className="bg-white/95 dark:bg-gray-800/95 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh] text-gray-900 dark:text-white">
       {/* Header */}
       <div className="p-6 text-center">
         <h2 className="text-2xl font-bold mb-2">Terms of Service</h2>
@@ -121,7 +121,7 @@ export default function TermsModalDesktop({ onClose }) {
     ${
       scrolledToEnd
         ? "bg-blue-600 hover:bg-blue-500 text-white"
-        : "bg-blue-900/40 text-gray-400 cursor-not-allowed"
+        : "bg-gray-200 dark:bg-blue-900/40 text-gray-400 cursor-not-allowed"
     }`}
 >
   Close
