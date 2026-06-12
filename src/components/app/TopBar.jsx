@@ -76,7 +76,7 @@ export default function TopBar() {
     <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] px-4 z-30">
 
       {/* ── Левый блок ── */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         {/* New Chat — только десктоп */}
         {!isSidebarOpen && (
           <div className="hidden md:block">
