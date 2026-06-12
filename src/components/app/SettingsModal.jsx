@@ -338,7 +338,7 @@ export default function SettingsModal() {
       {isSettingsOpen && (
         <div
           ref={backdropRef}
-          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className={`fixed inset-0 z-[2000] flex items-center justify-center backdrop-blur-sm p-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
           onClick={handleBackdrop}
         >
           <motion.div

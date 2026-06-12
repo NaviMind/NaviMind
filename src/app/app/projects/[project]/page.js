@@ -4,6 +4,7 @@ import { useContext, useRef, useState, useEffect, useCallback, createRef } from 
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
+import { UIContext } from "@/context/UIContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
@@ -25,6 +26,7 @@ export default function DynamicProjectPage() {
     customProjects,
     messages,
   } = useContext(ChatContext);
+  const { theme } = useContext(UIContext);
 
   const hasChat = Boolean(activeChatId) && messages && messages.length > 0;
   const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
@@ -368,7 +370,7 @@ export default function DynamicProjectPage() {
       </div>
       {instrModalOpen && createPortal(
         <div
-          className="fixed left-0 top-0 right-0 z-[200] flex items-center justify-center bg-black/60 px-3 py-4"
+          className={`fixed left-0 top-0 right-0 z-[200] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
           style={{ bottom: kbHeight, transition: "bottom 200ms" }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >

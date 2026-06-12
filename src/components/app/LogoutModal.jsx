@@ -8,7 +8,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/config";
 
 export default function LogoutModal() {
-  const { isLogoutOpen, toggleLogout } = useContext(UIContext);
+  const { isLogoutOpen, toggleLogout, theme } = useContext(UIContext);
   const router = useRouter();
   const modalRef = useRef(null);
 
@@ -52,7 +52,7 @@ export default function LogoutModal() {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-2"
+      className={`fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm p-2 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
       role="dialog"
       aria-modal="true"
     >

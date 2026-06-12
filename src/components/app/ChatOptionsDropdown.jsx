@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useContext } from "react";
 import { createPortal } from "react-dom";
+import { UIContext } from "@/context/UIContext";
 import { deleteChatFromFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
@@ -36,6 +37,7 @@ export default function ChatOptionsDropdown({
   onDelete,
   onEnterSelectMode,
 }) {
+  const { theme } = useContext(UIContext);
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
   const [coords, setCoords] = useState(null);
@@ -203,7 +205,7 @@ export default function ChatOptionsDropdown({
         createPortal(
           <>
             <div
-  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2"
+  className={`fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm p-2 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
   onClick={handleBackdropClick}
 >
   <form
