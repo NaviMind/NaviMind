@@ -115,10 +115,10 @@ export default function ProfileCard({
           className={`
             mt-4 shrink-0 px-4 py-2 rounded-xl font-medium transition
             ${isEditMode
-              ? "bg-gray-600 hover:bg-gray-500 text-white"
+              ? "bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-700 dark:text-white border border-gray-300 dark:border-transparent"
               : canSave
                 ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
+                : "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"}
           `}
         >
           {isEditMode ? "Edit" : "Save & Activate"}
@@ -133,7 +133,7 @@ export default function ProfileCard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md overflow-hidden"
+            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-white/95 dark:bg-gray-900/90 backdrop-blur-md overflow-hidden"
           >
             {/* Ring + checkmark */}
             <motion.div
@@ -172,13 +172,13 @@ export default function ProfileCard({
               transition={{ delay: 0.55, duration: 0.35 }}
               className="text-center px-6"
             >
-              <p className="text-xl font-semibold text-white tracking-wide mb-2">
+              <p className="text-xl font-semibold text-gray-900 dark:text-white tracking-wide mb-2">
                 Profile Activated
               </p>
               {form.rank && form.vesselType && (
-                <p className="text-sm text-gray-400 tracking-wide">
+                <p className="text-sm text-gray-500 dark:text-gray-400 tracking-wide">
                   {form.rank}
-                  <span className="mx-2 text-gray-600">·</span>
+                  <span className="mx-2 text-gray-300 dark:text-gray-600">·</span>
                   {form.vesselType}
                 </p>
               )}

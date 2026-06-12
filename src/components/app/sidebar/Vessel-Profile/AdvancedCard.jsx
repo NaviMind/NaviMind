@@ -60,7 +60,7 @@ export default function AdvancedCard({
           onClick={isEditMode ? onBack : onSave}
           className={`mt-4 shrink-0 px-4 py-2 rounded-xl font-medium transition ${
             isEditMode
-              ? "bg-gray-600 hover:bg-gray-500 text-white"
+              ? "bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-700 dark:text-white border border-gray-300 dark:border-transparent"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
         >
@@ -76,7 +76,7 @@ export default function AdvancedCard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-md overflow-hidden"
+            className="absolute inset-0 z-[60] flex flex-col items-center justify-center rounded-2xl bg-white/95 dark:bg-gray-900/90 backdrop-blur-md overflow-hidden"
           >
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
@@ -113,10 +113,10 @@ export default function AdvancedCard({
               transition={{ delay: 0.55, duration: 0.35 }}
               className="text-center px-6"
             >
-              <p className="text-xl font-semibold text-white tracking-wide mb-2">
+              <p className="text-xl font-semibold text-gray-900 dark:text-white tracking-wide mb-2">
                 Advanced Data Saved
               </p>
-              <p className="text-sm text-gray-400 tracking-wide">
+              <p className="text-sm text-gray-500 dark:text-gray-400 tracking-wide">
                 LNG parameters activated
               </p>
             </motion.div>
