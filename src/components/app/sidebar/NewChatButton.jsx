@@ -29,7 +29,7 @@ export default function NewChatButton({ onSidebarItemClick }) {
         className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
       >
         <svg
-          className="h-5 w-5 text-white"
+          className="h-5 w-5 text-gray-800 dark:text-white"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
