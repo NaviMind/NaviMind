@@ -227,12 +227,13 @@ useEffect(() => {
   const MobileAside = (
   <aside
     className={[
-      "fixed left-0 top-0 z-50 h-full w-4/5 max-w-xs",
+      "fixed left-0 top-0 z-50 h-full",
       "bg-[var(--bg-sidebar)] backdrop-blur-sm",
       "flex flex-col",
-      "transition-transform duration-300 sm:hidden",
+      "transition-transform duration-300 ease-in-out sm:hidden",
       isSidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none",
     ].join(" ")}
+    style={{ width: "calc(100vw - 3rem)" }}
   >
     <SidebarContent
       showNewChatButton={true}

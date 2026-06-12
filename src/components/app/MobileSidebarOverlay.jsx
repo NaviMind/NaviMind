@@ -11,9 +11,8 @@ export default function MobileSidebarOverlay() {
     <>
       {/* Dim/blur-подложка */}
       <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200
-          ${isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}
-          sm:hidden`}
+        className={`fixed inset-0 z-40 transition-opacity duration-300 sm:hidden
+          ${isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         onClick={toggleSidebar}
       />
       {/* Сам Sidebar — рендерим SidebarContainer (он у тебя основной) */}
