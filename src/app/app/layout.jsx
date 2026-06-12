@@ -17,7 +17,6 @@ import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 
 function AppShell({ children }) {
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const {
     advancedTouched,
@@ -28,13 +27,6 @@ function AppShell({ children }) {
     theme,
     isSidebarOpen,
   } = useContext(UIContext);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 850);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -81,8 +73,8 @@ function AppShell({ children }) {
       <SidebarContainer />
 
       <div
-          className="flex flex-col flex-1 min-w-0 overflow-x-hidden transition-transform duration-300 ease-in-out"
-          style={isMobile && isSidebarOpen ? { transform: "translateX(calc(100vw - 3rem))" } : undefined}
+          className={`flex flex-col flex-1 min-w-0 overflow-x-hidden transition-transform duration-300 ease-in-out
+            ${isSidebarOpen ? "translate-x-[calc(100vw_-_3rem)] sm:translate-x-0" : "translate-x-0"}`}
         >
         <div className="relative isolate sm:z-50 z-0 w-full max-w-full">
           <TopBar />
