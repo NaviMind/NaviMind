@@ -17,6 +17,7 @@ import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 
 function AppShell({ children }) {
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const {
     advancedTouched,
@@ -27,6 +28,13 @@ function AppShell({ children }) {
     theme,
     isSidebarOpen,
   } = useContext(UIContext);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 850);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -73,11 +81,13 @@ function AppShell({ children }) {
       <SidebarContainer />
 
       <div
-          className={`flex flex-col flex-1 min-w-0 overflow-x-hidden
-            ${isSidebarOpen
-              ? "translate-x-[calc(100vw_-_3rem)] rounded-tl-[22px] rounded-bl-[22px] sm:translate-x-0 sm:rounded-none"
-              : "translate-x-0"}`}
-          style={{ transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1)" }}
+          className="flex flex-col flex-1 min-w-0 overflow-x-hidden"
+          style={{
+            transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+            transform: isMobile && isSidebarOpen ? "translateX(calc(100vw - 3rem))" : "translateX(0)",
+            borderTopLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
+            borderBottomLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
+          }}
         >
         <div className="relative isolate sm:z-50 z-0 w-full max-w-full">
           <TopBar />
