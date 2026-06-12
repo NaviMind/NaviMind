@@ -73,50 +73,27 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-1 pr-4 md:px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] px-4 z-30">
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
-        {/* New Chat — только десктоп */}
+        {/* New Chat — только десктоп, только когда sidebar закрыт */}
         {!isSidebarOpen && (
           <div className="hidden md:block">
             <NewChatButton />
           </div>
         )}
 
-        {/* Кнопка sidebar:
-            • Мобилка: всегда видна, морфится hamburger ↔ X
-            • Десктоп: только когда sidebar закрыт (X внутри sidebar) */}
+        {/* Морфинг-кнопка hamburger ↔ X — мобилка и десктоп, всегда видна */}
         <Tooltip content={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"} position="bottom">
           <button
             onClick={toggleSidebar}
-            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
+            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
             aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
           >
             <MenuIcon isOpen={isSidebarOpen} />
           </button>
         </Tooltip>
-
-        {/* Десктоп — только когда sidebar закрыт */}
-        {!isSidebarOpen && (
-          <Tooltip content="Open Sidebar" position="bottom">
-            <button
-              onClick={toggleSidebar}
-              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hidden md:flex items-center justify-center"
-              aria-label="Open Sidebar"
-            >
-              <svg
-                className="h-6 w-6 text-gray-800 dark:text-gray-200"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </Tooltip>
-        )}
       </div>
 
       {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}
