@@ -64,90 +64,41 @@ export default function InstallPrompt() {
 
   const IOSModal = (
     <div
-      className="fixed inset-0 z-[300] flex items-end justify-center sm:items-center"
-      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-[300] flex items-center justify-center p-6"
+      style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) setShowIOSModal(false); }}
     >
-      <div
-        className="w-full max-w-sm mx-4 mb-6 sm:mb-0 rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
-        style={{ background: "linear-gradient(145deg, #0d1b3a 0%, #091428 100%)" }}
-      >
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 flex items-center gap-4 border-b border-white/[0.07]">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)" }}
-          >
-            <img src="/logo-navi.png" alt="NaviMind" className="w-10 h-10 object-contain" />
-          </div>
-          <div>
-            <p className="text-white font-semibold text-base">Add to Home Screen</p>
-            <p className="text-white/45 text-[13px] leading-snug mt-0.5">
-              Install NaviMind for faster access
-            </p>
-          </div>
+      <div className="w-full max-w-sm bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/10 p-6 flex flex-col gap-5">
+
+        {/* Title */}
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-2">Add to Home Screen</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+            Install NaviMind on your device for faster access and a better experience.
+          </p>
         </div>
 
         {/* Steps */}
-        <div className="px-6 py-5 space-y-4">
-          {/* Step 1 */}
-          <div className="flex items-start gap-3.5">
-            <StepBadge n={1} />
-            <div className="pt-0.5">
-              <p className="text-white/90 text-sm leading-relaxed">
-                Tap the{" "}
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 border border-white/15 text-xs font-medium align-middle">
-                  <ShareIcon />
-                  Share
-                </span>{" "}
-                icon at the bottom of Safari
-              </p>
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="flex items-start gap-3.5">
-            <StepBadge n={2} />
-            <p className="text-white/90 text-sm leading-relaxed pt-0.5">
-              Scroll down and tap{" "}
-              <span className="text-white font-medium">Add to Home Screen</span>
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div className="flex items-start gap-3.5">
-            <StepBadge n={3} />
-            <p className="text-white/90 text-sm leading-relaxed pt-0.5">
-              Tap <span className="text-white font-medium">Add</span> to confirm
-            </p>
-          </div>
-        </div>
-
-        {/* Arrow indicator */}
-        <div className="px-6 pb-5">
-          <div
-            className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-sm text-blue-300/80"
-            style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.18)" }}
-          >
-            <ShareIcon className="text-blue-400 shrink-0" size={18} />
-            <span className="text-[13px] leading-snug">
-              The Share icon looks like a box with an arrow pointing up
-            </span>
-          </div>
+        <div className="bg-white/25 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-white/10 rounded-xl p-4 space-y-3">
+          <p className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="font-semibold">1.</span> Tap the <span className="font-semibold">Share</span> icon at the bottom of Safari
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="font-semibold">2.</span> Scroll down and tap <span className="font-semibold">Add to Home Screen</span>
+          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-200">
+            <span className="font-semibold">3.</span> Tap <span className="font-semibold">Add</span> to confirm
+          </p>
         </div>
 
         {/* Button */}
-        <div className="px-6 pb-6">
-          <button
-            onClick={() => setShowIOSModal(false)}
-            className="w-full py-3 rounded-2xl text-sm font-semibold text-white
-              bg-blue-600 hover:bg-blue-500 active:scale-[0.98]
-              transition-all duration-200 shadow-lg"
-            style={{ boxShadow: "0 4px 24px rgba(59,130,246,0.35)" }}
-          >
-            Got it
-          </button>
-        </div>
+        <button
+          onClick={() => setShowIOSModal(false)}
+          className="w-full py-3 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 active:scale-[0.98] transition-all duration-200"
+        >
+          Got it
+        </button>
+
       </div>
     </div>
   );
@@ -203,33 +154,3 @@ export default function InstallPrompt() {
   );
 }
 
-function StepBadge({ n }) {
-  return (
-    <div
-      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold text-blue-300"
-      style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)" }}
-    >
-      {n}
-    </div>
-  );
-}
-
-function ShareIcon({ className = "text-white/70", size = 16 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <polyline points="16 6 12 2 8 6" />
-      <line x1="12" y1="2" x2="12" y2="15" />
-    </svg>
-  );
-}
