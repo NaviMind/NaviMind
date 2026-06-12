@@ -168,17 +168,6 @@ export default function DynamicProjectPage() {
             {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
           </button>
         </div>
-        {customProjects?.[project]?.description && (
-          <p
-            className="mt-1.5 ml-8 text-[12px] text-gray-500 dark:text-gray-500 leading-snug cursor-pointer hover:text-gray-400 transition-colors line-clamp-2"
-            onClick={() => {
-              setInstrText(customProjects?.[project]?.description || "");
-              setInstrModalOpen(true);
-            }}
-          >
-            {customProjects[project].description}
-          </p>
-        )}
       </div>
 
       {/* Chat list */}
@@ -360,7 +349,7 @@ export default function DynamicProjectPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
           <div
-            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
+            className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
             onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
           >
             <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
@@ -370,9 +359,8 @@ export default function DynamicProjectPage() {
               value={instrText}
               onChange={(e) => setInstrText(e.target.value)}
               placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
-              rows={4}
               autoFocus
-              className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
+              className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
             />
             <div className="flex gap-2">
               <button

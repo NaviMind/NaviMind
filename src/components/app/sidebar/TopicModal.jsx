@@ -47,7 +47,7 @@ export default function TopicModal({
       onClick={handleBackdropClick}
     >
       <form
-        className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
+        className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
         onSubmit={handleSubmit}
         autoComplete="off"
         onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
@@ -77,8 +77,7 @@ export default function TopicModal({
           placeholder="Topic instructions (optional)… e.g. PSC prep for Hamburg, Aug 2025. Focus on SOLAS II-2."
           value={topicInstruction}
           onChange={(e) => setTopicInstruction?.(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
+          className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[80px] sm:min-h-[160px]"
         />
 
         <button
