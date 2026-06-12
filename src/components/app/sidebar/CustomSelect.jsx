@@ -112,7 +112,7 @@ export default function CustomSelect({ value, onChange, options, placeholder }) 
       <button
         type="button"
         onClick={() => open ? closeDropdown(true) : openDropdown()}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white transition"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
       >
         <svg
           className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -136,7 +136,7 @@ export default function CustomSelect({ value, onChange, options, placeholder }) 
               zIndex: 9999,
               maxHeight: 240,
             }}
-            className="bg-gray-900/95 backdrop-blur-md border border-gray-600/60 rounded-xl shadow-2xl overflow-y-auto custom-scroll"
+            className="bg-white dark:bg-gray-900/95 backdrop-blur-md border border-gray-200 dark:border-gray-600/60 rounded-xl shadow-2xl overflow-y-auto custom-scroll"
           >
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option, index) => (
@@ -148,7 +148,7 @@ export default function CustomSelect({ value, onChange, options, placeholder }) 
                   className={`w-full text-left px-3 py-2 text-sm transition ${
                     index === highlightedIndex
                       ? "bg-blue-600 text-white"
-                      : "text-gray-100 hover:bg-gray-700"
+                      : "text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
                   {option}

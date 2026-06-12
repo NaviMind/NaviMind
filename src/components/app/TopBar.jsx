@@ -124,7 +124,7 @@ export default function TopBar() {
             aria-label={`Go to topic ${activeProjectName}`}
           >
             <Icon name="folder-open" size={14} className="text-emerald-400/70 flex-shrink-0" />
-            <span className="text-white/70 truncate">{activeProjectName}</span>
+            <span className="text-gray-700 dark:text-white/70 truncate">{activeProjectName}</span>
           </button>
         </div>
       )}
@@ -147,7 +147,7 @@ export default function TopBar() {
             aria-label={`Go to topic ${activeProjectName}`}
           >
             <Icon name="folder-open" size={14} className="text-emerald-400/70 flex-shrink-0" />
-            <span className="text-white/70 truncate">{activeProjectName}</span>
+            <span className="text-gray-700 dark:text-white/70 truncate">{activeProjectName}</span>
           </button>
         )}
 
@@ -163,9 +163,9 @@ export default function TopBar() {
             style={{ boxShadow: "0 0 14px rgba(59,130,246,0.10)" }}
             aria-label="Open Vessel Profile"
           >
-            <span className="text-white/80 font-normal">{vesselProfileData.rank}</span>
-            <span className="text-white/25 mx-0.5">·</span>
-            <span className="text-gray-400 group-hover:text-gray-300 transition-colors">
+            <span className="text-gray-700 dark:text-white/80 font-normal">{vesselProfileData.rank}</span>
+            <span className="text-gray-300 dark:text-white/25 mx-0.5">·</span>
+            <span className="text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
               {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
                 ? vesselProfileData.offshoreType
                 : vesselProfileData.vesselType}

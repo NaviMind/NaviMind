@@ -16,11 +16,11 @@ export default function AdvancedCard({
       {/* Card */}
       <div className="
         relative
-        bg-white/40 dark:bg-gray-800/40
+        bg-white/90 dark:bg-gray-800/40
         backdrop-blur-xl
         rounded-2xl
         shadow-2xl
-        ring-1 ring-white/10
+        ring-1 ring-black/5 dark:ring-white/10
         w-full
         flex flex-col
         min-h-0
@@ -34,14 +34,14 @@ export default function AdvancedCard({
           <div className="w-6" />
           <div className="text-center mb-4">
             <h2 className="text-xl font-bold">Advanced Vessel Data</h2>
-            <p className="text-xs text-gray-400 mt-1 px-6">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-6">
               Add vessel-specific technical parameters to improve
               operational reasoning and cargo system guidance.
             </p>
             <button
               type="button"
               onClick={onBack}
-              className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
               ✕
             </button>

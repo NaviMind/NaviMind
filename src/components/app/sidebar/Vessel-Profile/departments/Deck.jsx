@@ -177,7 +177,7 @@ const iceClassOptions = [
               handleChange("rank", "");
               setCustomRank("");
             }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>
@@ -200,7 +200,7 @@ const iceClassOptions = [
   <button
     type="button"
     onClick={() => setStep("advanced")}
-        className="px-3 rounded-xl border border-gray-600 text-sm text-gray-300 hover:bg-gray-700 transition whitespace-nowrap"
+        className="px-3 rounded-xl border border-gray-300 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition whitespace-nowrap"
       >
         {advancedCompleted ? "Edit Details" : "Add Details"}
       </button>
@@ -221,7 +221,7 @@ const iceClassOptions = [
               handleChange("vesselType", "");
               setCustomVesselType("");
             }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>
@@ -342,7 +342,7 @@ const iceClassOptions = [
               handleChange("classification", "");
               setCustomClassification("");
             }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>

@@ -115,7 +115,7 @@ export default function EngineDepartment({ form, setForm }) {
           <button
             type="button"
             onClick={() => { handleChange("rank", ""); setCustomRank(""); }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>
@@ -142,7 +142,7 @@ export default function EngineDepartment({ form, setForm }) {
           <button
             type="button"
             onClick={() => { handleChange("vesselType", ""); setCustomVesselType(""); }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>
@@ -216,7 +216,7 @@ export default function EngineDepartment({ form, setForm }) {
           <button
             type="button"
             onClick={() => { handleChange("flag", ""); setCustomFlag(""); }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>
@@ -243,7 +243,7 @@ export default function EngineDepartment({ form, setForm }) {
           <button
             type="button"
             onClick={() => { handleChange("classification", ""); setCustomClassification(""); }}
-            className="px-3 rounded-lg border border-gray-500 text-gray-300 hover:bg-gray-700 text-sm transition"
+            className="px-3 rounded-lg border border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition"
           >
             Back
           </button>

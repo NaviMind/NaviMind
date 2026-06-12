@@ -28,11 +28,11 @@ export default function ProfileCard({
         onSubmit={onSubmit}
         className="
           relative
-          bg-white/40 dark:bg-gray-800/40
+          bg-white/90 dark:bg-gray-800/40
           backdrop-blur-xl
           rounded-2xl
           shadow-2xl
-          ring-1 ring-white/10
+          ring-1 ring-black/5 dark:ring-white/10
           w-full
           flex flex-col
           min-h-0
@@ -48,13 +48,13 @@ export default function ProfileCard({
 
           <div className="text-center mb-4">
             <h2 className="text-xl font-bold">Vessel Profile</h2>
-            <p className="text-xs text-gray-400 mt-1 px-6">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-6">
               This helps NaviMind give vessel-specific answers and compliance guidance.
             </p>
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
               ✕
             </button>
@@ -62,7 +62,7 @@ export default function ProfileCard({
         </div>
 
         {/* Department toggle */}
-        <div className="relative flex bg-gray-700/40 rounded-xl p-1 mb-4 shrink-0">
+        <div className="relative flex bg-gray-200 dark:bg-gray-700/40 rounded-xl p-1 mb-4 shrink-0">
           <div
             className={`
               absolute top-1 bottom-1 w-[calc(50%-4px)]
@@ -77,7 +77,7 @@ export default function ProfileCard({
             type="button"
             onClick={() => setDepartment("deck")}
             className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
-              ${department === "deck" ? "text-white" : "text-gray-300 hover:text-white"}`}
+              ${department === "deck" ? "text-white" : "text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"}`}
           >
             Deck
           </button>
@@ -85,7 +85,7 @@ export default function ProfileCard({
             type="button"
             onClick={() => setDepartment("engine")}
             className={`relative flex-1 py-2 text-sm z-20 transition-colors duration-300
-              ${department === "engine" ? "text-white" : "text-gray-300 hover:text-white"}`}
+              ${department === "engine" ? "text-white" : "text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"}`}
           >
             Engine
           </button>
