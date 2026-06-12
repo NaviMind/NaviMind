@@ -358,10 +358,11 @@ export default function InputBar() {
         <div className="w-full md:max-w-[896px] mx-auto">
           <div
             className={`rounded-2xl p-1 md:p-2 flex flex-col transition duration-500
-              border border-white/10
-              shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.4)]
+              border border-gray-200 dark:border-white/10
+              shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.4)]
+              bg-white dark:bg-transparent
               backdrop-blur-sm
-              ${isActive ? "border-blue-500 animate-glow" : ""}`}
+              ${isActive ? "border-blue-400 dark:border-blue-500 animate-glow" : ""}`}
           >
             {/* Uploaded Files Preview */}
             <FilePreview files={uploadedFiles} onRemove={removeFile} />

@@ -95,20 +95,20 @@ export default function ChatListSection({ onSidebarItemClick }) {
       {/* Section header */}
       {isSelectMode ? (
         <div className="px-3 py-2 mt-3 flex items-center gap-2 text-[13px]">
-          <span className="text-gray-300 font-medium min-w-[70px]">
+          <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
             {selectedIds.size} selected
           </span>
 
           <button
             onClick={allSelected ? () => setSelectedIds(new Set()) : handleSelectAll}
-            className="text-blue-400 hover:text-blue-300 transition ml-auto"
+            className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition ml-auto"
           >
             {allSelected ? "Deselect all" : "Select all"}
           </button>
 
           <button
             onClick={handleCancelSelect}
-            className="text-gray-400 hover:text-gray-200 transition px-1"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition px-1"
           >
             Cancel
           </button>
@@ -126,7 +126,7 @@ export default function ChatListSection({ onSidebarItemClick }) {
           </button>
         </div>
       ) : (
-        <div className="px-[12px] py-2 mt-3 text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
+        <div className="px-[12px] py-2 mt-3 text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
           Chats
         </div>
       )}

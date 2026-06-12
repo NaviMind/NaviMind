@@ -15,12 +15,29 @@
   button:active,
   label:active,
   [role="button"]:active {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .dark button:active,
+  .dark label:active,
+  .dark [role="button"]:active {
     background-color: rgba(255, 255, 255, 0.08) !important;
   }
 }
 
-/* ─── Цветовые переменные темы ─── */
+/* ─── Цветовые переменные темы — LIGHT (default) ─── */
 :root {
+  --bg-app: #f0f4f8;
+  --bg-sidebar: rgba(255, 255, 255, 0.95);
+  --bg-topbar: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Цветовые переменные темы — DARK ─── */
+.dark {
   --bg-app: #0b1220;
   --bg-sidebar: rgba(17, 24, 39, 0.85);
   --bg-topbar: #0b1220;

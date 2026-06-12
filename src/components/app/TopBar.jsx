@@ -33,6 +33,7 @@ export default function TopBar() {
     toggleSidebar,
     vesselProfileData,
     setVesselProfileOpen,
+    theme,
   } = useContext(UIContext);
 
   const { activeProject, customProjects, setActiveChatId, activeChatId } = useContext(ChatContext);
@@ -98,7 +99,11 @@ export default function TopBar() {
       <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
         showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"
       }`}>
-        <img src="/logo-navi.png" alt="NaviMind AI" className="w-[170px] md:w-[220px] h-auto object-contain" />
+        <img
+          src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
+          alt="NaviMind AI"
+          className="w-[170px] md:w-[220px] h-auto object-contain"
+        />
       </div>
 
       {/* ── Центр: Таблетка топика — только мобилка, только внутри чата топика ── */}

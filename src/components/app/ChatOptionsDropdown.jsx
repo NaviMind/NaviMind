@@ -140,7 +140,7 @@ export default function ChatOptionsDropdown({
     setIsPinned(newState);
     onClose();
   }}
-  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
 >
   <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
@@ -155,7 +155,7 @@ export default function ChatOptionsDropdown({
     await exportChatAsTxt(messages, currentTitle);
     onClose();
   }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
             >
               <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
@@ -166,7 +166,7 @@ export default function ChatOptionsDropdown({
                 onRename(chatId);
                 onClose();
               }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
             >
               <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
@@ -178,7 +178,7 @@ export default function ChatOptionsDropdown({
                   onEnterSelectMode();
                   onClose();
                 }}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-slate-700/80 dark:hover:bg-slate-700 transition"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
               >
                 <Icon name="select" size={20} className="opacity-80" />
                 <span>Select</span>

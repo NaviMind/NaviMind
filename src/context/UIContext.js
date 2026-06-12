@@ -9,7 +9,7 @@ export const UIContext = createContext();
 export function UIProvider({ children }) {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isLogoutOpen, setLogoutOpen] = useState(false);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("EN");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [advancedTouched, setAdvancedTouched] = useState(false);
@@ -102,10 +102,6 @@ export function UIProvider({ children }) {
   useEffect(() => {
     localStorage.setItem("sidebarOpen", isSidebarOpen);
   }, [isSidebarOpen]);
-
-  useEffect(() => {
-    localStorage.setItem("theme", "dark");
-  }, []);
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
