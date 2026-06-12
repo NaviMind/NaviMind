@@ -394,24 +394,24 @@ export default function InputBar() {
               />
 
               {/* Right column: top slot + bottom row */}
-              <div className="flex flex-col items-center justify-between self-stretch py-0.5">
+              <div className="flex flex-col items-center self-stretch py-0.5">
                 {/* Top slot: waveform (recording) → expand btn (long text) → spacer */}
-                {isListening ? (
-                  <div className="flex items-center justify-center min-h-[24px]">
-                    <Waveform />
-                  </div>
-                ) : showExpandBtn ? (
-                  <button
-                    onClick={() => setIsExpanded(true)}
-                    className="md:hidden p-1.5 rounded text-gray-400 hover:text-white transition flex items-center justify-center"
-                    type="button"
-                    aria-label="Expand editor"
-                  >
-                    <Maximize2 size={15} />
-                  </button>
-                ) : (
-                  <div />
-                )}
+                <div className="flex-1 flex items-start justify-center pt-0.5">
+                  {isListening ? (
+                    <div className="flex items-center justify-center min-h-[24px]">
+                      <Waveform />
+                    </div>
+                  ) : showExpandBtn ? (
+                    <button
+                      onClick={() => setIsExpanded(true)}
+                      className="md:hidden p-1.5 rounded text-gray-400 hover:text-white transition flex items-center justify-center"
+                      type="button"
+                      aria-label="Expand editor"
+                    >
+                      <Maximize2 size={15} />
+                    </button>
+                  ) : null}
+                </div>
 
                 {/* Bottom row: mic↔stop toggle + send */}
                 <div className="flex items-center">
