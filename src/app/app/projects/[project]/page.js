@@ -144,13 +144,13 @@ export default function DynamicProjectPage() {
 
   const lastActiveLabel = (() => {
     if (!chats.length) return null;
-    const ts = chats[0]?.createdAt;
-    const ms = typeof ts === "number" ? ts : ts?.toMillis?.() ?? (ts?.seconds ?? 0) * 1000;
-    if (!ms) return null;
-    const days = Math.floor((Date.now() - ms) / 86400000);
-    if (days === 0) return "today";
-    if (days === 1) return "yesterday";
-    return `${days} days ago`;
+    let maxMs = 0;
+    for (const c of chats) {
+      const ms = typeof c.createdAt === "number" ? c.createdAt : c.createdAt?.toMillis?.() ?? (c.createdAt?.seconds ?? 0) * 1000;
+      if (ms > maxMs) maxMs = ms;
+    }
+    if (!maxMs) return null;
+    return new Date(maxMs).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   })();
 
   return (
