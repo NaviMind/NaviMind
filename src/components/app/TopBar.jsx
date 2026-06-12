@@ -73,7 +73,7 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-1 pr-4 md:px-4 z-30">
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
@@ -91,9 +91,6 @@ export default function TopBar() {
           <button
             onClick={toggleSidebar}
             className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
-            style={{
-              transform: "translateX(-6px)",
-            }}
             aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
           >
             <MenuIcon isOpen={isSidebarOpen} />
