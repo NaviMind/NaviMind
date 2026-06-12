@@ -9,7 +9,7 @@ export default function InstallPrompt() {
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { isSidebarOpen } = useContext(UIContext);
+  const { isSidebarOpen, theme } = useContext(UIContext);
 
   useEffect(() => {
     setMounted(true);
@@ -68,7 +68,7 @@ export default function InstallPrompt() {
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) setShowIOSModal(false); }}
     >
-      <div className="w-full max-w-sm bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/10 p-6 flex flex-col gap-5">
+      <div className="w-full max-w-sm bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 p-6 flex flex-col gap-5 text-gray-900 dark:text-white">
 
         {/* Title */}
         <div className="text-center">
@@ -79,7 +79,7 @@ export default function InstallPrompt() {
         </div>
 
         {/* Steps */}
-        <div className="bg-white/25 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-white/10 rounded-xl p-4 space-y-3">
+        <div className="bg-gray-50 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-black/5 dark:ring-white/10 rounded-xl p-4 space-y-3">
           <p className="text-sm text-gray-700 dark:text-gray-200">
             <span className="font-semibold">1.</span> Tap the <span className="font-semibold">Share</span> icon at the bottom of Safari
           </p>
@@ -112,16 +112,18 @@ export default function InstallPrompt() {
             ${showBanner ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3"}`}
         >
           <div
-            className="flex items-center justify-between w-full sm:w-[500px] px-4 py-3 rounded-2xl
-              backdrop-blur-xl shadow-lg border border-white/10 text-white
-              transition-all duration-500 ease-out"
-            style={{ background: "linear-gradient(90deg, rgba(11,18,32,0.7) 0%, rgba(13,27,58,0.6) 50%, rgba(18,63,124,0.7) 100%)" }}
+            className={`flex items-center justify-between w-full sm:w-[500px] px-4 py-3 rounded-2xl
+              backdrop-blur-xl shadow-lg border transition-all duration-500 ease-out
+              ${theme === "dark" ? "border-white/10 text-white" : "border-blue-200 text-gray-800"}`}
+            style={{ background: theme === "dark"
+              ? "linear-gradient(90deg, rgba(11,18,32,0.7) 0%, rgba(13,27,58,0.6) 50%, rgba(18,63,124,0.7) 100%)"
+              : "linear-gradient(90deg, rgba(239,246,255,1) 0%, rgba(219,234,254,0.95) 50%, rgba(191,219,254,0.85) 100%)" }}
           >
             <div className="flex flex-col text-sm sm:text-base pt-[2px]">
               <span className="font-medium tracking-wide text-[15px] sm:text-[16px]">
                 Add NaviMind to your device
               </span>
-              <span className="text-white/50 text-[11px] sm:text-[12px] font-light leading-relaxed tracking-wide">
+              <span className={`text-[11px] sm:text-[12px] font-light leading-relaxed tracking-wide ${theme === "dark" ? "text-white/50" : "text-blue-500"}`}>
                 Faster access. Smarter support.
               </span>
             </div>
@@ -129,17 +131,19 @@ export default function InstallPrompt() {
             <div className="flex items-center gap-2 sm:gap-3 mt-[2px]">
               <button
                 onClick={handleInstall}
-                className="px-3 py-[3px] sm:px-3.5 sm:py-[5px] text-xs sm:text-sm font-medium
-                  border border-white/25 rounded-lg hover:bg-white/10
-                  active:scale-[0.97] transition-all duration-200"
+                className={`px-3 py-[3px] sm:px-3.5 sm:py-[5px] text-xs sm:text-sm font-medium rounded-lg active:scale-[0.97] transition-all duration-200
+                  ${theme === "dark"
+                    ? "border border-white/25 hover:bg-white/10"
+                    : "border border-blue-400 text-blue-700 hover:bg-blue-100"}`}
               >
                 Add
               </button>
               <button
                 onClick={handleClose}
-                className="px-3 py-[3px] sm:px-3.5 sm:py-[5px] text-xs sm:text-sm font-medium
-                  border border-white/15 rounded-lg hover:bg-white/10
-                  text-white/70 active:scale-[0.97] transition-all duration-200"
+                className={`px-3 py-[3px] sm:px-3.5 sm:py-[5px] text-xs sm:text-sm font-medium rounded-lg active:scale-[0.97] transition-all duration-200
+                  ${theme === "dark"
+                    ? "border border-white/15 hover:bg-white/10 text-white/70"
+                    : "border border-gray-300 hover:bg-gray-100 text-gray-500"}`}
               >
                 Later
               </button>
