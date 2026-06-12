@@ -92,8 +92,7 @@ export default function TopBar() {
             onClick={toggleSidebar}
             className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
             style={{
-              transform: isSidebarOpen ? "translateX(-6px)" : "none",
-              transition: "transform 420ms cubic-bezier(0.32,0.72,0,1)",
+              transform: "translateX(-6px)",
             }}
             aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
           >
