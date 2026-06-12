@@ -6,6 +6,8 @@ import {
   updateGlobalChatMessage,
   updateTopicChatMessage,
   updateChatSummary,
+  getTopicData,
+  updateTopicMemory,
 } from "@/firebase/chatStore";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
@@ -186,6 +188,17 @@ sendLocks.add(sendKey);
 
   const chatHistory = previousMessages;
 
+  // Fetch topic-level context when inside a topic
+  let topicInstruction = "";
+  let topicMemory = "";
+  if (inTopic) {
+    try {
+      const topicData = await getTopicData(currentUser.uid, topicId);
+      topicInstruction = topicData?.description || "";
+      topicMemory = topicData?.topicMemory || "";
+    } catch { /* silent */ }
+  }
+
   // ───────── SAVE USER MESSAGE ─────────
 
 const imageFiles = attachments.filter((f) => f.type.startsWith("image/"));
@@ -251,6 +264,8 @@ if (inTopic) {
       imageUrls: uploadedImages.map((a) => a.url),
       documentFiles: documentPayloads,
       vesselProfile,
+      topicInstruction,
+      topicMemory,
     }),
   });
 
@@ -364,6 +379,30 @@ if (!summaryLocks.has(summaryKey)) {
     summaryLocks.delete(summaryKey);
   }
 }
+  // ───────── TOPIC MEMORY UPDATE (fire & forget) ─────────
+  if (inTopic) {
+    const topicMemoryKey = `${currentUser.uid}:${topicId}:topicMemory`;
+    if (!summaryLocks.has(topicMemoryKey)) {
+      summaryLocks.add(topicMemoryKey);
+      fetchChatSummary({
+        messages: [
+          ...chatHistory,
+          { role: "user", content: message },
+          { role: "assistant", content: finalText },
+        ],
+        previousSummary: topicMemory,
+        mode: "topic",
+      })
+        .then(async (newTopicMemory) => {
+          if (newTopicMemory) {
+            await updateTopicMemory(currentUser.uid, topicId, newTopicMemory);
+          }
+        })
+        .catch(() => {})
+        .finally(() => summaryLocks.delete(topicMemoryKey));
+    }
+  }
+
   } catch (err) {
     console.error("❌ sendChatMessage error:", err);
     // Replace the stuck placeholder so the user isn't left with an infinite spinner

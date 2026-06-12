@@ -2,6 +2,7 @@
 export async function fetchChatSummary({
   messages,
   previousSummary = "",
+  mode = "chat",
 }) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return previousSummary;
@@ -14,6 +15,7 @@ export async function fetchChatSummary({
       body: JSON.stringify({
         messages,
         previousSummary,
+        mode,
       }),
     });
 

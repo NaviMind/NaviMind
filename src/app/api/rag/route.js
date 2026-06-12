@@ -140,6 +140,8 @@ export async function POST(req) {
       imageUrls = [],
       documentFiles = [],
       vesselProfile = null,
+      topicInstruction = "",
+      topicMemory = "",
     } = body;
 
     // ── Extract text from uploaded documents ──
@@ -265,6 +267,23 @@ export async function POST(req) {
 
     const vesselBlock = buildVesselBlock(vesselProfile);
 
+    const topicInstructionBlock = topicInstruction
+      ? [
+          "═══════════════════════════════════════════",
+          "TOPIC INSTRUCTIONS — SET BY USER",
+          "═══════════════════════════════════════════",
+          "The user has defined the following context and instructions for this topic.",
+          "Apply them to all responses. They override general defaults but must comply with safety rules.",
+          "",
+          topicInstruction,
+          "═══════════════════════════════════════════",
+        ].join("\n")
+      : null;
+
+    const topicMemoryBlock = topicMemory
+      ? `TOPIC MEMORY — CROSS-CHAT CONTEXT\nThe following facts were discussed in other chats within this same topic. Use them to provide continuity, avoid repeating covered ground, and build on previous work.\n\n${topicMemory}`
+      : null;
+
     const basePrompt = [
   systemInstruction,
   assistantRoleAndValue,
@@ -319,6 +338,8 @@ const assembledSystemPrompt = [
 
           const messages = [
             { role: "system", content: assembledSystemPrompt },
+            ...(topicInstructionBlock ? [{ role: "system", content: topicInstructionBlock }] : []),
+            ...(topicMemoryBlock ? [{ role: "system", content: topicMemoryBlock }] : []),
             ...(summaryBlock ? [summaryBlock] : []),
             ...chatHistory.map((m) => ({
               role: m.role,

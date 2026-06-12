@@ -362,6 +362,25 @@ export const addMessageToGlobalChat = addMessageToChat;
 
 // ─────────── CHAT SUMMARY ───────────
 
+export async function updateTopicDescription(uid, topicId, description) {
+  const ref = doc(db, "users", uid, "topics", topicId);
+  await updateDoc(ref, { description: description ?? "" });
+}
+
+export async function updateTopicMemory(uid, topicId, memoryText) {
+  const ref = doc(db, "users", uid, "topics", topicId);
+  await updateDoc(ref, {
+    topicMemory: memoryText,
+    topicMemoryUpdatedAt: serverTimestamp(),
+  });
+}
+
+export async function getTopicData(uid, topicId) {
+  const ref = doc(db, "users", uid, "topics", topicId);
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : {};
+}
+
 export async function updateChatSummary({
   uid,
   chatId,

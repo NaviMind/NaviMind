@@ -6,7 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatItem from "./ChatItem";
 import Icon from "@/components/common/Icon";
-import { togglePinTopic, deleteChatFromFirestore } from "@/firebase/chatStore";
+import { togglePinTopic, deleteChatFromFirestore, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
 export default function MyTopicsSection({ onSidebarItemClick }) {
@@ -25,6 +25,8 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
+  const [editingDescId, setEditingDescId] = useState(null);
+  const [descText, setDescText] = useState("");
 
   // ── Topic-folder select mode ──
   const [topicSelectMode, setTopicSelectMode] = useState(false);
@@ -372,6 +374,61 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
                     </button>
                   </div>
                 )}
+
+                {/* ── Topic instructions editor ── */}
+                <div className="mb-1">
+                  {editingDescId === projId ? (
+                    <div className="px-2 py-1">
+                      <textarea
+                        value={descText}
+                        onChange={(e) => setDescText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Escape") setEditingDescId(null); }}
+                        placeholder="Topic instructions… e.g. PSC inspection prep, Hamburg Aug 2025"
+                        className="w-full text-[11px] bg-gray-800/60 border border-gray-600 rounded-lg px-2 py-1.5 text-gray-200 placeholder-gray-500 resize-none outline-none focus:border-blue-500 transition-colors"
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-1 justify-end">
+                        <button
+                          onClick={() => setEditingDescId(null)}
+                          className="text-[11px] text-gray-400 hover:text-gray-200 transition px-1"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const user = auth.currentUser;
+                            if (user) {
+                              await updateTopicDescription(user.uid, projId, descText.trim());
+                            }
+                            setEditingDescId(null);
+                          }}
+                          className="text-[11px] text-blue-400 hover:text-blue-200 font-medium transition px-1"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setDescText(proj.description || "");
+                        setEditingDescId(projId);
+                      }}
+                      className="w-full flex items-center gap-1.5 px-2 py-[3px] text-left rounded transition-colors hover:bg-white/5 group/desc"
+                    >
+                      {proj.description ? (
+                        <span className="text-[11px] text-gray-400 group-hover/desc:text-gray-200 transition-colors line-clamp-2 italic">
+                          {proj.description}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-gray-600 group-hover/desc:text-gray-400 transition-colors">
+                          + Add instructions
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
 
                 {limitedChats.map((chat) => (
                   <ChatItem

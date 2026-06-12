@@ -8,13 +8,34 @@ export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
-    const { messages, previousSummary } = await req.json();
+    const { messages, previousSummary, mode = "chat" } = await req.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ summary: null }), { status: 200 });
     }
 
-    const prompt = `
+    const prompt = mode === "topic"
+      ? `You are maintaining a cumulative knowledge base for a topic folder.
+
+This is NOT a single chat summary — it's a growing memory of everything discussed across multiple chats in this topic.
+
+Rules:
+- Write in plain text, NOT JSON.
+- Maximum 8–10 sentences.
+- Capture KEY FACTS, decisions, issues, findings, and vessel-specific details from all chats.
+- Include numbers, dates, rule references, and specific findings when mentioned.
+- Update with new information from the latest exchange.
+- Do NOT repeat facts already in the previous memory.
+- Do NOT include procedural steps or assistant explanations — only facts and decisions.
+
+Previous topic memory:
+${previousSummary || "(empty)"}
+
+Latest exchange:
+${messages.map(m => `${m.role}: ${m.content}`).join("\n")}
+
+Update the topic memory to incorporate new facts from this exchange.`
+      : `
 You are updating a conversation memory.
 
 Your task is NOT to create checklists, instructions, summaries of regulations, or recommendations.
