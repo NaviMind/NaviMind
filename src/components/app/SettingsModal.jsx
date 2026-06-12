@@ -163,13 +163,13 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
   return (
     <>
       {/* User header — fixed, does not scroll */}
-      <div className="relative flex flex-col items-center px-5 pt-7 pb-5 border-b border-white/[0.06] flex-shrink-0">
+      <div className="relative flex flex-col items-center px-5 pt-7 pb-5 flex-shrink-0">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-white transition p-2 rounded-lg"
+          className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
           aria-label="Close"
         >
-          <IcX />
+          ✕
         </button>
 
         {photoURL ? (
@@ -352,8 +352,7 @@ export default function SettingsModal() {
           >
             {/* Modal card */}
             <div
-              className="relative bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden"
-              style={{ maxHeight: "min(88vh, 660px)" }}
+              className="relative bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]"
             >
               <AnimatePresence mode="wait">
                 {step === "main" ? (
@@ -365,7 +364,6 @@ export default function SettingsModal() {
                     exit="exit"
                     transition={{ duration: 0.18 }}
                     className="flex flex-col min-h-0 flex-1"
-                    style={{ maxHeight: "min(88vh, 660px)" }}
                   >
                     <SettingsMain
                       userDoc={userDoc}
