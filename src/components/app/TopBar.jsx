@@ -84,16 +84,37 @@ export default function TopBar() {
           </div>
         )}
 
-        {/* Морфинг-кнопка hamburger ↔ X — мобилка и десктоп, всегда видна */}
+        {/* Морфинг-кнопка hamburger ↔ X — только мобилка */}
         <Tooltip content={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"} position="bottom">
           <button
             onClick={toggleSidebar}
-            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
             aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
           >
             <MenuIcon isOpen={isSidebarOpen} />
           </button>
         </Tooltip>
+
+        {/* Десктоп — только когда sidebar закрыт */}
+        {!isSidebarOpen && (
+          <Tooltip content="Open Sidebar" position="bottom">
+            <button
+              onClick={toggleSidebar}
+              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hidden md:flex items-center justify-center"
+              aria-label="Open Sidebar"
+            >
+              <svg
+                className="h-6 w-6 text-gray-800 dark:text-gray-200"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}
