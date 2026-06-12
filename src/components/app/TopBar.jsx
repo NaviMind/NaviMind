@@ -34,8 +34,11 @@ export default function TopBar() {
     setVesselProfileOpen,
   } = useContext(UIContext);
 
-  const { activeProject, customProjects, setActiveChatId } = useContext(ChatContext);
+  const { activeProject, customProjects, setActiveChatId, activeChatId } = useContext(ChatContext);
   const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
+
+  // Show topic pill on mobile only when inside a topic chat (not just the topic page)
+  const showMobileTopicPill = !!(activeProjectName && activeChatId);
 
   const router = useRouter();
 
@@ -73,10 +76,33 @@ export default function TopBar() {
         </div>
       )}
 
-      {/* Центр: Логотип */}
-      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+      {/* Центр: Логотип (скрыт на мобилке когда показывается таблетка топика) */}
+      <div className={`absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"}`}>
         <img src="/logo-navi.png" alt="NaviMind AI" className="w-[170px] md:w-[220px] h-auto object-contain" />
       </div>
+
+      {/* Центр: Таблетка топика (только мобилка, только внутри чата топика) */}
+      {showMobileTopicPill && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden">
+          <button
+            onClick={() => {
+              setActiveChatId(null);
+              router.push(`/app/projects/${activeProject}`);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs
+              border border-emerald-500/40 bg-emerald-500/[0.07]
+              hover:border-emerald-400/65 hover:bg-emerald-500/[0.13]
+              active:bg-emerald-500/20
+              focus:outline-none
+              transition-all duration-200 max-w-[180px]"
+            style={{ boxShadow: "0 0 10px rgba(16,185,129,0.12)" }}
+            aria-label={`Go to topic ${activeProjectName}`}
+          >
+            <Icon name="folder-open" size={14} className="text-emerald-400/70 flex-shrink-0" />
+            <span className="text-white/70 truncate">{activeProjectName}</span>
+          </button>
+        </div>
+      )}
 
       {/* Правый блок: topic pill + vessel pill (desktop) + NewChat (mobile) */}
       <div className="flex items-center gap-3 ml-auto">
