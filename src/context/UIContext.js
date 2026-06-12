@@ -9,7 +9,7 @@ export const UIContext = createContext();
 export function UIProvider({ children }) {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isLogoutOpen, setLogoutOpen] = useState(false);
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState("dark");
   const [language, setLanguage] = useState("EN");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [advancedTouched, setAdvancedTouched] = useState(false);
@@ -105,7 +105,7 @@ export function UIProvider({ children }) {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) setTheme(savedTheme);
+    setTheme(savedTheme || "dark");
   }, []);
 
   useEffect(() => {
