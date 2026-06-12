@@ -252,9 +252,9 @@ export default function DynamicProjectPage() {
                   <li
                     key={c.chatId}
                     className={`group relative flex items-center justify-between px-3 py-1 rounded-lg transition-all
-                      ${isSelectMode && isSelected ? "bg-gray-700/60" : ""}
-                      ${!isSelectMode && (isDropdownOpen || isBeingRenamed) ? "bg-gray-700/60" : ""}
-                      ${!isSelectMode && !isDropdownOpen && !isBeingRenamed ? "hover:bg-gray-700/40" : ""}
+                      ${isSelectMode && isSelected ? "bg-blue-50 dark:bg-gray-700/60" : ""}
+                      ${!isSelectMode && (isDropdownOpen || isBeingRenamed) ? "bg-gray-100 dark:bg-gray-700/60" : ""}
+                      ${!isSelectMode && !isDropdownOpen && !isBeingRenamed ? "hover:bg-gray-100 dark:hover:bg-white/5" : ""}
                       ${isSelectMode ? "cursor-pointer" : ""}
                     `}
                     style={{ minHeight: 36 }}
