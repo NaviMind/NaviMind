@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 export default function TopicModal({
   open,
@@ -10,10 +10,23 @@ export default function TopicModal({
   onClose,
 }) {
   const inputRef = useRef(null);
+  const [kbOffset, setKbOffset] = useState(0);
 
   useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
   }, [open]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbOffset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) onClose();
@@ -28,7 +41,8 @@ export default function TopicModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 px-3 pt-3"
+      style={{ paddingBottom: kbOffset > 10 ? kbOffset + 12 : 12 }}
       onClick={handleBackdropClick}
     >
       <form
