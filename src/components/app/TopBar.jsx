@@ -5,7 +5,8 @@ import { useContext } from "react";
 import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
-import NewChatButton from "@/components/app/sidebar/NewChatButton"; 
+import NewChatButton from "@/components/app/sidebar/NewChatButton";
+import Icon from "@/components/common/Icon"; 
 
 // Tooltip — показываем только на десктопе
 const Tooltip = ({ children, content, position = "bottom" }) => (
@@ -90,9 +91,7 @@ export default function TopBar() {
               transition-all duration-200 max-w-[200px]"
             aria-label={`Go to topic ${activeProjectName}`}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50 flex-shrink-0">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
+            <Icon name="folder-open" size={14} className="text-white/50 flex-shrink-0" />
             <span className="text-white/65 truncate">{activeProjectName}</span>
           </button>
         )}

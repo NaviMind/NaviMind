@@ -158,7 +158,7 @@ export default function DynamicProjectPage() {
       {/* Project header */}
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
-          <Icon name="folder-open" size={24} className="mr-2 flex-shrink-0 text-white/80" />
+          <Icon name="folder-open" size={28} className="mr-2 flex-shrink-0" />
           <span
             className="block font-semibold text-white whitespace-normal break-words"
             style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
