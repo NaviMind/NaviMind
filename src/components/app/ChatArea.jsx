@@ -70,7 +70,7 @@ export default function ChatArea({ messages, children }) {
           <div className="hidden sm:block relative group pointer-events-auto">
             <button
               onClick={scrollToBottom}
-              className="p-2 bg-white/10 text-white hover:bg-white/20 transition rounded-full backdrop-blur"
+              className="p-2 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 transition rounded-full backdrop-blur shadow-sm"
             >
               <Icon name="scroll-bottom" size={20} />
             </button>
@@ -79,7 +79,7 @@ export default function ChatArea({ messages, children }) {
           <div className="block sm:hidden pointer-events-auto">
             <button
               onClick={scrollToBottom}
-              className="p-2 bg-white/10 text-white hover:bg-white/20 transition rounded-full backdrop-blur"
+              className="p-2 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 transition rounded-full backdrop-blur shadow-sm"
             >
               <Icon name="scroll-bottom-mobile" size={16} />
             </button>

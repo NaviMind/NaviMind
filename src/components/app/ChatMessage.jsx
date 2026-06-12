@@ -28,7 +28,7 @@ function CopyButton({ copied, onCopy, className = "" }) {
     <div className={`flex relative w-fit ${className}`}>
       <button
         onClick={onCopy}
-        className="peer text-gray-400 hover:text-white transition"
+        className="peer text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
         aria-label={copied ? "Copied" : "Copy"}
         type="button"
       >
@@ -56,7 +56,7 @@ function ShareButton({ onShare, className = "" }) {
     <div className={`flex relative w-fit ${className}`}>
       <button
         onClick={handleClick}
-        className="peer text-gray-400 hover:text-white transition"
+        className="peer text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
         aria-label="Share"
         type="button"
       >
@@ -86,7 +86,7 @@ function UserMessage({ content, attachments = [], copied, onCopy }) {
               text-[17px] sm:text-base font-normal
               leading-relaxed whitespace-pre-wrap shadow-md break-words
               w-full
-              bg-gray-700/40 backdrop-blur-md border border-white/5 text-white
+              bg-gray-100 dark:bg-gray-700/40 backdrop-blur-md border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white
             `}
           >
             {content}
@@ -142,7 +142,7 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
     <div className="w-full flex justify-start mt-6">
       <div className="max-w-full space-y-4">
         <div className="max-w-[72ch]" />
-        <div className="text-[17px] sm:text-base font-normal leading-relaxed break-words text-gray-200">
+        <div className="text-[17px] sm:text-base font-normal leading-relaxed break-words text-gray-800 dark:text-gray-200">
           <MarkdownRenderer content={main} />
         </div>
 
@@ -150,7 +150,7 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
           <div className="relative bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 text-blue-400 select-none">💡</div>
-              <div className="text-[15px] sm:text-base leading-relaxed text-gray-100">{highlight}</div>
+              <div className="text-[15px] sm:text-base leading-relaxed text-gray-700 dark:text-gray-100">{highlight}</div>
             </div>
           </div>
         )}
