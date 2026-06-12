@@ -6,18 +6,18 @@ import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
-import Icon from "@/components/common/Icon"; 
+import Icon from "@/components/common/Icon";
 
-// Tooltip — показываем только на десктопе
+// Tooltip — только на десктопе
 const Tooltip = ({ children, content, position = "bottom" }) => (
-  <div className="relative group flex flex-col items-center">
+  <div className="relative inline-flex flex-col items-center">
     {children}
     <div className={`
       absolute z-50
       ${position === "top" ? "bottom-full mb-2" : "top-full mt-2"}
-      left-1/2 -translate-x-[18px]
+      left-1/2 -translate-x-1/2
       bg-blue-600 text-white text-xs px-3 py-1 rounded-md shadow-xl
-      opacity-0 group-hover:opacity-100 transition-opacity duration-300
+      opacity-0 peer-hover:opacity-100 transition-opacity duration-300
       pointer-events-none whitespace-nowrap
       hidden md:block
     `}>
@@ -25,6 +25,23 @@ const Tooltip = ({ children, content, position = "bottom" }) => (
     </div>
   </div>
 );
+
+// Морфинг иконка: три линии → X
+function MenuIcon({ isOpen }) {
+  return (
+    <div className="w-6 flex flex-col justify-center gap-[7px]">
+      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 origin-center ${
+        isOpen ? "rotate-45 translate-y-[9px]" : ""
+      }`} />
+      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 ${
+        isOpen ? "opacity-0 scale-x-0" : ""
+      }`} />
+      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 origin-center ${
+        isOpen ? "-rotate-45 -translate-y-[9px]" : ""
+      }`} />
+    </div>
+  );
+}
 
 export default function TopBar() {
   const {
@@ -37,51 +54,67 @@ export default function TopBar() {
   const { activeProject, customProjects, setActiveChatId, activeChatId } = useContext(ChatContext);
   const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
 
-  // Show topic pill on mobile only when inside a topic chat (not just the topic page)
+  // На мобилке показываем таблетку только когда открыт чат топика (не просто страница топика)
   const showMobileTopicPill = !!(activeProjectName && activeChatId);
 
   const router = useRouter();
 
-  const handleNewChat = () => router.push("/");
-
   return (
     <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] px-4 z-30">
-      {/* Левый блок: New Chat (desktop) + Open Sidebar (гамбургер) */}
-      {!isSidebarOpen && (
-        <div className="flex items-center space-x-2">
-          {/* New Chat — только на десктопе */}
-<div className="hidden md:block">
-  <NewChatButton />
-</div>
-          {/* Open Sidebar (гамбургер) — всегда */}
-          <div>
-            <Tooltip content="Open Sidebar" position="bottom">
-              <button
-                onClick={toggleSidebar}
-                className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Open Sidebar"
-              >
-                <svg
-                  className="h-6 w-6 text-gray-800 dark:text-gray-200"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-      )}
 
-      {/* Центр: Логотип (скрыт на мобилке когда показывается таблетка топика) */}
-      <div className={`absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"}`}>
+      {/* ── Левый блок ── */}
+      <div className="flex items-center space-x-2">
+        {/* New Chat — только десктоп */}
+        {!isSidebarOpen && (
+          <div className="hidden md:block">
+            <NewChatButton />
+          </div>
+        )}
+
+        {/* Кнопка sidebar:
+            • Мобилка: всегда видна, морфится hamburger ↔ X
+            • Десктоп: только когда sidebar закрыт (X внутри sidebar) */}
+        <Tooltip content={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"} position="bottom">
+          <button
+            onClick={toggleSidebar}
+            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200
+              md:hidden"
+            aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+          >
+            <MenuIcon isOpen={isSidebarOpen} />
+          </button>
+        </Tooltip>
+
+        {/* Десктоп — только когда sidebar закрыт */}
+        {!isSidebarOpen && (
+          <Tooltip content="Open Sidebar" position="bottom">
+            <button
+              onClick={toggleSidebar}
+              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hidden md:flex items-center justify-center"
+              aria-label="Open Sidebar"
+            >
+              <svg
+                className="h-6 w-6 text-gray-800 dark:text-gray-200"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}
+      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
+        showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"
+      }`}>
         <img src="/logo-navi.png" alt="NaviMind AI" className="w-[170px] md:w-[220px] h-auto object-contain" />
       </div>
 
-      {/* Центр: Таблетка топика (только мобилка, только внутри чата топика) */}
+      {/* ── Центр: Таблетка топика — только мобилка, только внутри чата топика ── */}
       {showMobileTopicPill && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden">
           <button
@@ -104,9 +137,9 @@ export default function TopBar() {
         </div>
       )}
 
-      {/* Правый блок: topic pill + vessel pill (desktop) + NewChat (mobile) */}
+      {/* ── Правый блок ── */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Topic pill — desktop only, when inside a topic */}
+        {/* Topic pill — только десктоп */}
         {activeProjectName && (
           <button
             onClick={() => {
@@ -126,7 +159,7 @@ export default function TopBar() {
           </button>
         )}
 
-        {/* Vessel profile pill — desktop only */}
+        {/* Vessel profile pill — только десктоп */}
         {vesselProfileData && (
           <button
             onClick={() => setVesselProfileOpen(true)}
@@ -148,11 +181,12 @@ export default function TopBar() {
           </button>
         )}
 
-        {/* NewChatButton только на мобилке */}
+        {/* NewChatButton — только мобилка */}
         <div className="flex sm:hidden">
           <NewChatButton />
         </div>
       </div>
+
       <AppModals />
     </header>
   );

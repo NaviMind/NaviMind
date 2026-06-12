@@ -237,7 +237,7 @@ useEffect(() => {
   >
     <SidebarContent
       showNewChatButton={true}
-      showCloseButton={true}
+      showCloseButton={false}
       onSidebarItemClick={handleCloseSidebar}
     />
   </aside>
