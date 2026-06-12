@@ -58,7 +58,7 @@ export default function LogoutModal() {
     >
       <div
         ref={modalRef}
-        className="bg-white/90 dark:bg-gray-800/90 rounded-2xl shadow-2xl p-6 w-full max-w-xs sm:max-w-md mx-4 text-center"
+        className="bg-white/90 dark:bg-gray-800/90 rounded-2xl shadow-2xl p-6 w-full max-w-xs sm:max-w-md mx-4 text-center text-gray-900 dark:text-white"
       >
         {/* Заголовок */}
         <h4 className="text-lg font-semibold mb-3">
@@ -74,7 +74,7 @@ export default function LogoutModal() {
         <div className="flex justify-center gap-3">
           <button
             onClick={() => toggleLogout(false)}
-            className="px-4 py-2 rounded-md bg-gray-500 hover:bg-gray-400 text-white text-sm transition"
+            className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-500 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm transition"
           >
             Cancel
           </button>
