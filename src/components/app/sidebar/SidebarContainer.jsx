@@ -119,13 +119,12 @@ useEffect(() => {
         )}
 
         {showCloseButton && (
-          <div className="relative group flex flex-col items-center">
+          <div className="relative inline-flex flex-col items-center">
             <button
               onClick={mobileMode ? onSidebarItemClick : onCloseButtonClick}
-              className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-label="Close sidebar"
             >
-              {/* Крестик/гамбургер */}
               {mobileMode ? (
                 <Icon name="close" size={24} />
               ) : (
@@ -141,7 +140,7 @@ useEffect(() => {
               )}
             </button>
             {!mobileMode && (
-              <div className="absolute top-full mt-2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 group-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap translate-x-6">
+              <div className="pointer-events-none absolute top-full mt-2 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
                 Close Sidebar
               </div>
             )}

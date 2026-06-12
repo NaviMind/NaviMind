@@ -23,10 +23,10 @@ export default function NewChatButton({ onSidebarItemClick }) {
   };
 
   return (
-    <div className="relative group flex flex-col items-center">
+    <div className="relative inline-flex flex-col items-center">
       <button
         onClick={handleNewChat}
-        className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+        className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
       >
         <svg
           className="h-5 w-5 text-white"
@@ -43,8 +43,7 @@ export default function NewChatButton({ onSidebarItemClick }) {
           />
         </svg>
       </button>
-
-      <div className="absolute top-full mt-2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 group-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap translate-x-4 hidden sm:block">
+      <div className="pointer-events-none absolute top-full mt-2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap hidden sm:block">
         New Chat
       </div>
     </div>
