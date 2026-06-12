@@ -92,20 +92,20 @@ useEffect(() => {
   }) => (
     <div className="flex flex-col h-full">
       {/* Верхняя панель */}
-     <div className="flex items-center justify-between px-3 py-2">
+     <div className="relative flex items-center justify-between px-3 py-2">
         {showNewChatButton && (
           <NewChatButton onSidebarItemClick={onSidebarItemClick} />
         )}
 
-        {/* Vessel profile pill — mobile sidebar, shown when profile saved */}
+        {/* Vessel profile pill — mobile sidebar, centered */}
         {mobileMode && vesselProfileData && (
           <button
             onClick={() => { setVesselProfileOpen(true); onSidebarItemClick?.(); }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
               border border-blue-500/35 bg-blue-500/[0.07]
               hover:border-blue-400/60 hover:bg-blue-500/[0.13]
               focus:outline-none focus:ring-2 focus:ring-blue-500/50
-              transition-all duration-200 group max-w-[170px] mr-10"
+              transition-all duration-200 group max-w-[170px]"
             style={{ boxShadow: "0 0 10px rgba(59,130,246,0.10)" }}
           >
             <span className="text-white/75 truncate">{vesselProfileData.rank}</span>
