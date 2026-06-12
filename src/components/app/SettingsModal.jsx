@@ -86,14 +86,14 @@ function SettingRow({ icon, label, value, badge, onPress, last = false }) {
   return (
     <button
       onClick={onPress}
-      className={`w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.07] ${
-        !last ? "border-b border-white/[0.06]" : ""
+      className={`w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.04] active:bg-gray-100 dark:active:bg-white/[0.07] ${
+        !last ? "border-b border-gray-100 dark:border-white/[0.06]" : ""
       }`}
     >
       {icon}
-      <span className="flex-1 text-[14px] text-white/90">{label}</span>
+      <span className="flex-1 text-[14px] text-gray-800 dark:text-white/90">{label}</span>
       {badge && (
-        <span className="text-[11px] px-2 py-[2px] rounded-full bg-white/[0.08] text-gray-400 mr-1 leading-none">
+        <span className="text-[11px] px-2 py-[2px] rounded-full bg-gray-100 dark:bg-white/[0.08] text-gray-500 dark:text-gray-400 mr-1 leading-none">
           {badge}
         </span>
       )}
@@ -109,11 +109,11 @@ function SectionGroup({ label, children }) {
   return (
     <div className="mb-3">
       {label && (
-        <p className="text-[11px] font-medium uppercase tracking-widest text-gray-500 px-1 mb-1.5">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-1.5">
           {label}
         </p>
       )}
-      <div className="rounded-2xl overflow-hidden bg-white/[0.05] ring-1 ring-white/[0.06]">
+      <div className="rounded-2xl overflow-hidden bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
         {children}
       </div>
     </div>
@@ -125,18 +125,18 @@ function SectionGroup({ label, children }) {
 function SubScreen({ title, onBack }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
         <button
           onClick={onBack}
-          className="p-2 rounded-xl hover:bg-white/10 transition-colors text-white/70 mr-1"
+          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1"
           aria-label="Back"
         >
           <IcBack />
         </button>
-        <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">{title}</h3>
       </div>
       <div className="flex-1 flex items-center justify-center px-6 py-10">
-        <p className="text-sm text-gray-500 text-center">Coming soon</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 text-center">Coming soon</p>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
       {/* Close button — always visible, outside scroll */}
       <button
         onClick={onClose}
-        className="absolute top-1 right-1 z-10 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+        className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
         aria-label="Close"
       >
         ✕
@@ -180,15 +180,15 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
               src={photoURL}
               alt={displayName || "User"}
               referrerPolicy="no-referrer"
-              className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-white/10"
+              className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-black/10 dark:ring-white/10"
             />
           ) : (
-            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-white/10">
+            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-400 to-gray-600 dark:from-gray-500 dark:to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-black/10 dark:ring-white/10">
               {loading ? "" : initials}
             </div>
           )}
 
-          <p className="text-[16px] font-semibold text-white leading-tight">
+          <p className="text-[16px] font-semibold text-gray-900 dark:text-white leading-tight">
             {loading ? "Loading…" : (displayName || "—")}
           </p>
           {userDoc?.email && (
@@ -262,10 +262,10 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
 
         {/* Logout */}
         <div className="mt-1 mb-4">
-          <div className="rounded-2xl overflow-hidden bg-white/[0.05] ring-1 ring-white/[0.06]">
+          <div className="rounded-2xl overflow-hidden bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
             <button
               onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-red-500/10 active:bg-red-500/15"
+              className="w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15"
             >
               <div className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 bg-red-600/80">
                 <Icon name="logout" size={16} className="text-white" />
@@ -352,7 +352,7 @@ export default function SettingsModal() {
           >
             {/* Modal card */}
             <div
-              className="relative bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]"
+              className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]"
             >
               <AnimatePresence mode="wait">
                 {step === "main" ? (
