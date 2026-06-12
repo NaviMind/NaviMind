@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { UIContext } from "@/context/UIContext";
 import WelcomeModalDesktop from "./WelcomeModalDesktop";
 import WelcomeModalMobile from "./WelcomeModalMobile";
 import TermsModalDesktop from "../Terms/TermsModalDesktop";
@@ -10,6 +11,7 @@ import PrivacyModalDesktop from "../Privacy/PrivacyModalDesktop";
 import PrivacyModalMobile from "../Privacy/PrivacyModalMobile";
 
 export default function WelcomeModal() {
+  const { theme } = useContext(UIContext);
   const [isMobile, setIsMobile] = useState(null);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState("welcome"); // "welcome" | "terms" | "privacy"
@@ -51,7 +53,7 @@ export default function WelcomeModal() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
+          className={`fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm p-6 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
         >
           <AnimatePresence mode="wait">
             {step === "welcome" && (
