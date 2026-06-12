@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext, useRef, useState, useEffect, useCallback, createRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
@@ -341,15 +342,14 @@ export default function DynamicProjectPage() {
           </>
         )}
       </div>
-      {/* Instruction modal */}
-      {instrModalOpen && (
+      {instrModalOpen && createPortal(
         <div
-          className="fixed left-0 top-0 right-0 z-[100] flex items-center justify-center bg-black/60 px-3 py-4"
+          className="fixed left-0 top-0 right-0 z-[200] flex items-center justify-center bg-black/60 px-3 py-4"
           style={{ bottom: kbHeight, transition: "bottom 200ms" }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
           <div
-            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch mb-0"
+            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
             onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
           >
             <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
@@ -382,7 +382,8 @@ export default function DynamicProjectPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </main>
   );
