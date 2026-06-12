@@ -26,35 +26,6 @@ const Tooltip = ({ children, content, position = "bottom" }) => (
   </div>
 );
 
-// Морфинг иконка: три линии → X
-function MenuIcon({ isOpen }) {
-  return (
-    <div className="w-6 flex flex-col justify-center gap-[7px]">
-      <span
-        className="block h-[2px] w-6 bg-current rounded origin-center"
-        style={{
-          transition: "transform 500ms cubic-bezier(0.4,0,0.2,1), opacity 400ms ease",
-          transform: isOpen ? "rotate(45deg) translateY(9px)" : "none",
-        }}
-      />
-      <span
-        className="block h-[2px] w-6 bg-current rounded"
-        style={{
-          transition: "opacity 300ms ease, transform 400ms ease",
-          opacity: isOpen ? 0 : 1,
-          transform: isOpen ? "scaleX(0)" : "scaleX(1)",
-        }}
-      />
-      <span
-        className="block h-[2px] w-6 bg-current rounded origin-center"
-        style={{
-          transition: "transform 500ms cubic-bezier(0.4,0,0.2,1), opacity 400ms ease",
-          transform: isOpen ? "rotate(-45deg) translateY(-9px)" : "none",
-        }}
-      />
-    </div>
-  );
-}
 
 export default function TopBar() {
   const {
@@ -84,16 +55,22 @@ export default function TopBar() {
           </div>
         )}
 
-        {/* Морфинг-кнопка hamburger ↔ X — только мобилка */}
-        <Tooltip content={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"} position="bottom">
-          <button
-            onClick={toggleSidebar}
-            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
-            aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+        {/* Мобилка: гамбургер всегда, открывает и закрывает sidebar */}
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
+          aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+        >
+          <svg
+            className="h-6 w-6 text-gray-800 dark:text-gray-200"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
           >
-            <MenuIcon isOpen={isSidebarOpen} />
-          </button>
-        </Tooltip>
+            <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
 
         {/* Десктоп — только когда sidebar закрыт */}
         {!isSidebarOpen && (
