@@ -86,13 +86,13 @@ if (!chat.title) return null;
     <div
       key={chat.chatId}
       className={`
-        group relative flex items-center px-3 py-1 rounded-md transition-all duration-200
+        group relative flex items-center px-2 py-0.5 mx-1 rounded-md transition-all duration-200
         ${isSelectMode && isSelected ? "bg-white/10" : ""}
         ${!isSelectMode && isActive ? "bg-white/10 text-white" : ""}
         ${!isSelectMode && !isActive ? "hover:bg-white/5 hover:text-gray-200" : ""}
         ${isSelectMode ? "cursor-pointer" : ""}
       `}
-      style={{ minHeight: 42 }}
+      style={{ minHeight: 34 }}
       onClick={isSelectMode ? () => onToggleSelect?.(chat.chatId) : undefined}
     >
       {/* Checkbox in select mode */}

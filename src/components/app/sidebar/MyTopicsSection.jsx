@@ -202,13 +202,13 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
             {/* ── Topic folder row ── */}
             <div
               className={`
-                group relative flex items-center px-2 py-1 rounded-md transition-all duration-200
+                group relative flex items-center px-2 py-0.5 mx-1 rounded-md transition-all duration-200
                 ${topicSelectMode && isTopicSelected ? "bg-white/10" : ""}
                 ${!topicSelectMode && isActive ? "bg-white/10 text-white" : ""}
                 ${!topicSelectMode && !isActive ? "hover:bg-white/5 hover:text-gray-200" : ""}
                 ${topicSelectMode ? "cursor-pointer" : ""}
               `}
-              style={{ minHeight: 36 }}
+              style={{ minHeight: 34 }}
               onClick={topicSelectMode ? () => toggleTopicSelect(projId) : undefined}
             >
               {/* Checkbox in topic select mode */}
