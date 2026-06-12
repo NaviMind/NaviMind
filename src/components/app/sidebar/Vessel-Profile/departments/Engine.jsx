@@ -33,6 +33,13 @@ export default function EngineDepartment({ form, setForm }) {
     "Fully Pressurised", "Semi-Pressurised", "Fully Refrigerated", "Ethylene Carrier",
   ];
 
+  const offshoreTypeOptions = [
+    "PSV", "AHTS", "Platform Supply", "DSV",
+    "Cable Layer", "Construction Vessel", "Drillship", "Jack-up",
+  ];
+
+  const dpClassOptions = ["Non-DP", "DP1", "DP2", "DP3"];
+
   const classificationOptions = [
     "DNV", "ABS", "LR", "BV", "RINA", "ClassNK", "CCS", "KR", "IRS", "Other",
   ];
@@ -149,6 +156,23 @@ export default function EngineDepartment({ form, setForm }) {
           options={lpgTypeOptions}
           placeholder="LPG Type"
         />
+      )}
+
+      {form.vesselType === "Offshore" && (
+        <>
+          <CustomSelect
+            value={form.offshoreType}
+            onChange={(val) => handleChange("offshoreType", val)}
+            options={offshoreTypeOptions}
+            placeholder="Offshore Type"
+          />
+          <CustomSelect
+            value={form.dpClass}
+            onChange={(val) => handleChange("dpClass", val)}
+            options={dpClassOptions}
+            placeholder="DP Class"
+          />
+        </>
       )}
 
       {/* Capacity */}
