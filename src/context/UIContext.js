@@ -104,8 +104,7 @@ export function UIProvider({ children }) {
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    setTheme(savedTheme || "dark");
+    localStorage.setItem("theme", "dark");
   }, []);
 
   useEffect(() => {
