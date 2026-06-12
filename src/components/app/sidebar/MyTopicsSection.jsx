@@ -6,7 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatItem from "./ChatItem";
 import Icon from "@/components/common/Icon";
-import { togglePinTopic, deleteChatFromFirestore, updateTopicDescription } from "@/firebase/chatStore";
+import { togglePinTopic, deleteChatFromFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
 export default function MyTopicsSection({ onSidebarItemClick }) {
@@ -25,8 +25,6 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
-  const [instrModalId, setInstrModalId] = useState(null);
-  const [instrText, setInstrText] = useState("");
 
   // ── Topic-folder select mode ──
   const [topicSelectMode, setTopicSelectMode] = useState(false);
@@ -336,28 +334,6 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
               )}
             </div>
 
-            {/* ── Instruction widget — below folder row, above expanded chats ── */}
-            {!topicSelectMode && (
-              <button
-                onClick={() => {
-                  setInstrText(proj.description || "");
-                  setInstrModalId(projId);
-                }}
-                className="flex items-center gap-1.5 ml-[38px] mb-0.5 px-2 py-[3px] rounded-md text-[11px] transition-colors hover:bg-white/5 group/instr"
-              >
-                {proj.description ? (
-                  <>
-                    <span className="text-gray-500 group-hover/instr:text-gray-300 transition-colors">✎</span>
-                    <span className="text-gray-500 group-hover/instr:text-gray-300 transition-colors truncate max-w-[140px]">
-                      {proj.description}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-gray-600 group-hover/instr:text-gray-400 transition-colors">+ Add instruction</span>
-                )}
-              </button>
-            )}
-
             {/* ── Expanded topic chats ── */}
             {isExpanded && (
               <div className="ml-5">
@@ -430,53 +406,6 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
           </div>
         );
       })}
-
-      {/* ── Instruction modal (TopicModal style) ── */}
-      {instrModalId && (() => {
-        const proj = customProjects[instrModalId];
-        const hasInstr = !!proj?.description;
-        return (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2"
-            onClick={(e) => { if (e.target === e.currentTarget) setInstrModalId(null); }}
-          >
-            <div
-              className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
-              onKeyDown={(e) => { if (e.key === "Escape") setInstrModalId(null); }}
-            >
-              <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
-                {hasInstr ? "Edit Instruction" : "Add Instruction"}
-              </h2>
-              <textarea
-                value={instrText}
-                onChange={(e) => setInstrText(e.target.value)}
-                placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
-                rows={4}
-                autoFocus
-                className="w-full px-3 py-2 mb-3 rounded-lg border text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setInstrModalId(null)}
-                  className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    const user = auth.currentUser;
-                    if (user) await updateTopicDescription(user.uid, instrModalId, instrText.trim());
-                    setInstrModalId(null);
-                  }}
-                  className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-blue-600 hover:bg-blue-700 text-white shadow"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </>
   );
 }

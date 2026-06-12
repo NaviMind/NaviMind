@@ -6,7 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
-import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat } from "@/firebase/chatStore";
+import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
 export default function DynamicProjectPage() {
@@ -37,6 +37,9 @@ export default function DynamicProjectPage() {
   const [openMenu, setOpenMenu] = useState(null);
   const [expanded, setExpanded] = useState(true);
   const anchorRefs = useRef({});
+
+  const [instrModalOpen, setInstrModalOpen] = useState(false);
+  const [instrText, setInstrText] = useState("");
 
   // ── Multi-select state ──
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -131,11 +134,24 @@ export default function DynamicProjectPage() {
         <div className="flex items-center w-full group relative">
           <Icon name="folder-open" size={24} className="mr-2 flex-shrink-0" />
           <span
-            className="block w-full text-[15px] whitespace-normal break-words leading-20t"
+            className="block text-[15px] whitespace-normal break-words leading-20t"
             style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
           >
             {currentProjectName}
           </span>
+          <button
+            onClick={() => {
+              setInstrText(customProjects?.[project]?.description || "");
+              setInstrModalOpen(true);
+            }}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium
+              border border-transparent text-gray-500 dark:text-gray-400
+              hover:border-blue-500/50 hover:text-gray-200 hover:bg-white/5
+              focus:outline-none focus:ring-2 focus:ring-blue-500/50
+              transition-colors duration-200 flex-shrink-0"
+          >
+            {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
+          </button>
         </div>
       </div>
 
@@ -311,6 +327,48 @@ export default function DynamicProjectPage() {
           </>
         )}
       </div>
+      {/* Instruction modal */}
+      {instrModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2"
+          onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
+        >
+          <div
+            className="bg-white/90 dark:bg-gray-800/90 p-4 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md flex flex-col items-stretch"
+            onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
+          >
+            <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
+              {customProjects?.[project]?.description ? "Edit Instruction" : "Add Instruction"}
+            </h2>
+            <textarea
+              value={instrText}
+              onChange={(e) => setInstrText(e.target.value)}
+              placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
+              rows={4}
+              autoFocus
+              className="w-full px-3 py-2 mb-3 rounded-lg border text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setInstrModalOpen(false)}
+                className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const user = auth.currentUser;
+                  if (user) await updateTopicDescription(user.uid, project, instrText.trim());
+                  setInstrModalOpen(false);
+                }}
+                className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-blue-600 hover:bg-blue-700 text-white shadow"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
