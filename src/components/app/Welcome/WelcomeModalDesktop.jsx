@@ -119,7 +119,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/20 dark:bg-gray-800/20 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/70 dark:bg-gray-800/20 backdrop-blur-xl">
       {/* Preload all card icons */}
       <div className="hidden" aria-hidden="true">
         {CARD_ICONS.map((src) => (
