@@ -142,14 +142,25 @@ export default function DynamicProjectPage() {
     return <ChatArea messages={messages} />;
   }
 
+  const lastActiveLabel = (() => {
+    if (!chats.length) return null;
+    const ts = chats[0]?.createdAt;
+    const ms = typeof ts === "number" ? ts : ts?.toMillis?.() ?? (ts?.seconds ?? 0) * 1000;
+    if (!ms) return null;
+    const days = Math.floor((Date.now() - ms) / 86400000);
+    if (days === 0) return "today";
+    if (days === 1) return "yesterday";
+    return `${days} days ago`;
+  })();
+
   return (
     <main className="w-full flex flex-col items-center py-6 px-4 overflow-y-auto custom-scroll">
       {/* Project header */}
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
-          <Icon name="folder-open" size={24} className="mr-2 flex-shrink-0" />
+          <Icon name="folder-open" size={24} className="mr-2 flex-shrink-0 text-white/80" />
           <span
-            className="block text-[15px] whitespace-normal break-words leading-20t"
+            className="block font-semibold text-white whitespace-normal break-words"
             style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
           >
             {currentProjectName}
@@ -168,6 +179,19 @@ export default function DynamicProjectPage() {
             {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
           </button>
         </div>
+        {(chats.length > 0 || lastActiveLabel) && (
+          <div className="flex items-center gap-1.5 mt-1 ml-8 text-[12px] text-gray-500 select-none">
+            {chats.length > 0 && (
+              <span>{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
+            )}
+            {chats.length > 0 && lastActiveLabel && (
+              <span className="text-gray-600">·</span>
+            )}
+            {lastActiveLabel && (
+              <span>last active {lastActiveLabel}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Chat list */}
