@@ -161,42 +161,42 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
   const photoURL = userDoc?.photoURL || auth.currentUser?.photoURL || null;
 
   return (
-    <>
-      {/* User header — fixed, does not scroll */}
-      <div className="relative flex flex-col items-center px-5 pt-7 pb-5 flex-shrink-0">
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-          aria-label="Close"
-        >
-          ✕
-        </button>
+    <div className="relative flex flex-col min-h-0 flex-1">
+      {/* Close button — always visible, outside scroll */}
+      <button
+        onClick={onClose}
+        className="absolute top-1 right-1 z-10 text-gray-400 hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+        aria-label="Close"
+      >
+        ✕
+      </button>
 
-        {photoURL ? (
-          <img
-            src={photoURL}
-            alt={displayName || "User"}
-            referrerPolicy="no-referrer"
-            className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-white/10"
-          />
-        ) : (
-          <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-white/10">
-            {loading ? "" : initials}
-          </div>
-        )}
+      {/* Single scrollable area — header + sections scroll together */}
+      <div className="overflow-y-auto flex-1 min-h-0 px-4 custom-scroll">
+        {/* User header — scrolls with content */}
+        <div className="flex flex-col items-center pt-7 pb-5 pr-6">
+          {photoURL ? (
+            <img
+              src={photoURL}
+              alt={displayName || "User"}
+              referrerPolicy="no-referrer"
+              className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-white/10"
+            />
+          ) : (
+            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-white/10">
+              {loading ? "" : initials}
+            </div>
+          )}
 
-        <p className="text-[16px] font-semibold text-white leading-tight">
-          {loading ? "Loading…" : (displayName || "—")}
-        </p>
-        {userDoc?.email && (
-          <p className="text-[12px] text-gray-400 mt-0.5 max-w-[200px] truncate">
-            {userDoc.email}
+          <p className="text-[16px] font-semibold text-white leading-tight">
+            {loading ? "Loading…" : (displayName || "—")}
           </p>
-        )}
-      </div>
-
-      {/* Scrollable sections */}
-      <div className="overflow-y-auto flex-1 min-h-0 px-4 py-4 custom-scroll">
+          {userDoc?.email && (
+            <p className="text-[12px] text-gray-400 mt-0.5 max-w-[200px] truncate">
+              {userDoc.email}
+            </p>
+          )}
+        </div>
         {/* Account */}
         <SectionGroup>
           <SettingRow
@@ -261,7 +261,7 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
         </SectionGroup>
 
         {/* Logout */}
-        <div className="mt-1 mb-1">
+        <div className="mt-1 mb-4">
           <div className="rounded-2xl overflow-hidden bg-white/[0.05] ring-1 ring-white/[0.06]">
             <button
               onClick={onLogout}
@@ -275,7 +275,7 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
