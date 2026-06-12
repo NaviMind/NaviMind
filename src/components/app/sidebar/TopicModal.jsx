@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useContext } from "react";
+import { UIContext } from "@/context/UIContext";
 
 export default function TopicModal({
   open,
@@ -9,6 +10,7 @@ export default function TopicModal({
   onCreate,
   onClose,
 }) {
+  const { theme } = useContext(UIContext);
   const inputRef = useRef(null);
   const [kbHeight, setKbHeight] = useState(0);
 
@@ -42,7 +44,7 @@ export default function TopicModal({
 
   return (
     <div
-      className="fixed left-0 top-0 right-0 z-[100] flex items-center justify-center bg-black/60 px-3 py-4"
+      className={`fixed left-0 top-0 right-0 z-[100] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
       style={{ bottom: kbHeight, transition: "bottom 200ms" }}
       onClick={handleBackdropClick}
     >
