@@ -129,7 +129,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
 
       {/* Glass card — fixed size, sized to fit the largest card (#4) */}
       <div className="w-full max-w-5xl
-                      bg-white/85 dark:bg-gray-800/30 backdrop-blur-xl
+                      bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl
                       rounded-2xl ring-1 ring-black/8 dark:ring-white/10 shadow-2xl
                       text-gray-900 dark:text-white
                       flex flex-col overflow-hidden">

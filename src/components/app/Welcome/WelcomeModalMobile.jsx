@@ -12,7 +12,7 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
   };
 
   return (
-      <div className="bg-white/95 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl
+      <div className="bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl
                 w-full max-w-sm max-h-[75vh] overflow-y-auto flex flex-col mt-16 mb-6 ring-1 ring-black/5 dark:ring-white/10
                 text-gray-900 dark:text-white">
         {/* Контент + скролл */}
