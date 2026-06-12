@@ -129,8 +129,9 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
 
       {/* Glass card — fixed size, sized to fit the largest card (#4) */}
       <div className="w-full max-w-5xl
-                      bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
-                      rounded-2xl ring-1 ring-white/10 shadow-2xl
+                      bg-white/90 dark:bg-gray-800/30 backdrop-blur-xl
+                      rounded-2xl ring-1 ring-black/5 dark:ring-white/10 shadow-2xl
+                      text-gray-900 dark:text-white
                       flex flex-col overflow-hidden">
 
         {/* Header */}
@@ -153,7 +154,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className="h-full overflow-y-auto custom-scroll"
             >
-              <div className="bg-white/20 dark:bg-gray-700/20 backdrop-blur-lg rounded-xl p-6 ring-1 ring-white/10 shadow-md space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-700/20 backdrop-blur-lg rounded-xl p-6 ring-1 ring-black/5 dark:ring-white/10 shadow-md space-y-4">
                 {/* Icon + title */}
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 shrink-0">
@@ -166,13 +167,13 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
                       priority
                     />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-bold text-white">
+                  <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                     {cards[currentCard].title}
                   </h3>
                 </div>
 
                 {/* Text */}
-                <div className="space-y-4 text-base md:text-lg text-gray-300 leading-relaxed">
+                <div className="space-y-4 text-base md:text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
                   {cards[currentCard].content}
                 </div>
               </div>
@@ -219,7 +220,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
                 className={`h-10 px-6 text-sm font-medium rounded-lg shadow transition ml-auto ${
                   accepted
                     ? "bg-blue-600 hover:bg-blue-500 text-white"
-                    : "bg-blue-900/40 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 dark:bg-blue-900/40 text-gray-400 cursor-not-allowed"
                 }`}
               >
                 Accept & Start
@@ -244,7 +245,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
                 className={`rounded-full transition-all duration-300 ${
                   i === currentCard
                     ? "w-6 h-2 bg-blue-500"
-                    : "w-2 h-2 bg-white/25"
+                    : "w-2 h-2 bg-gray-300 dark:bg-white/25"
                 }`}
               />
             ))}

@@ -12,14 +12,15 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
   };
 
   return (
-      <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl 
-                w-full max-w-sm max-h-[75vh] overflow-y-auto flex flex-col mt-16 mb-6 ring-1 ring-white/10">
+      <div className="bg-white/95 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl shadow-2xl
+                w-full max-w-sm max-h-[75vh] overflow-y-auto flex flex-col mt-16 mb-6 ring-1 ring-black/5 dark:ring-white/10
+                text-gray-900 dark:text-white">
         {/* Контент + скролл */}
         <div className="flex-1 p-5 space-y-5">
           {/* Header */}
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-3">Welcome to NaviMind</h2>
-            <p className="text-gray-400 dark:text-gray-400 text-sm leading-relaxed mb-5">
+            <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-5">
               NaviMind is built to make maritime work easier,<br />
               helping seafarers find answers faster,<br />
               stay compliant and reduce paperwork,<br />
@@ -52,7 +53,7 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
           </div>
 
           {/* Terms */}
-          <div className="bg-white/40 dark:bg-gray-700/40 rounded-lg p-3 flex items-start gap-2">
+          <div className="bg-gray-100 dark:bg-gray-700/40 rounded-lg p-3 flex items-start gap-2">
             <input
               type="checkbox"
               id="terms"
@@ -90,7 +91,7 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
             className={`w-full py-3 rounded-lg text-sm font-medium transition ${
               checked
                 ? "bg-blue-600 hover:bg-blue-500 text-white"
-                : "bg-blue-900/50 text-gray-400 cursor-not-allowed"
+                : "bg-gray-200 dark:bg-blue-900/50 text-gray-400 cursor-not-allowed"
             }`}
           >
             Accept & Start
@@ -102,7 +103,7 @@ export default function WelcomeModalMobile({ onClose, onShowTerms, onShowPrivacy
 
 function FeatureItem({ icon, title, text }) {
   return (
-   <div className="bg-white/25 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-white/10 rounded-lg p-4 flex items-start gap-3 shadow-md">
+   <div className="bg-gray-50 dark:bg-gray-700/25 backdrop-blur-lg ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-4 flex items-start gap-3 shadow-md">
       <div className="w-10 h-10 shrink-0 mt-1 relative">
         <Image
           src={icon}
