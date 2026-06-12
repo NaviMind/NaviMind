@@ -228,8 +228,9 @@ useEffect(() => {
   // Sidebar не двигается — main area съезжает вправо, открывая его
   const MobileAside = (
   <aside
-    className="fixed left-0 top-0 h-full flex flex-col sm:hidden bg-[var(--bg-sidebar)] text-gray-900 dark:text-white"
+    className="fixed left-0 top-0 flex flex-col sm:hidden bg-[var(--bg-sidebar)] text-gray-900 dark:text-white"
     style={{
+      height: "var(--app-height, 100dvh)",
       width: "calc(100vw - 3rem)",
       zIndex: 20,
       pointerEvents: isSidebarOpen ? "auto" : "none",
