@@ -229,11 +229,13 @@ useEffect(() => {
     className={[
       "fixed left-0 top-0 z-50 h-full",
       "bg-[var(--bg-sidebar)] backdrop-blur-sm",
-      "flex flex-col",
-      "transition-transform duration-300 ease-in-out sm:hidden",
+      "flex flex-col sm:hidden",
       isSidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none",
     ].join(" ")}
-    style={{ width: "calc(100vw - 3rem)" }}
+    style={{
+      width: "calc(100vw - 3rem)",
+      transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+    }}
   >
     <SidebarContent
       showNewChatButton={true}
