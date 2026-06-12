@@ -39,7 +39,7 @@ function StopBtn({ onClick, className = "" }) {
       onClick={onClick}
       type="button"
       aria-label="Stop recording"
-      className={`p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white dark:hover:bg-gray-700 hover:bg-gray-100 transition ${className}`}
+      className={`p-2 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white dark:hover:bg-gray-700 hover:bg-gray-100 transition ${className}`}
     >
       <Icon name="stop-circle" size={20} />
     </button>
@@ -371,7 +371,7 @@ export default function InputBar() {
             <div className="flex items-end w-full gap-1 px-1">
               {/* 📎 Attach File */}
               <Tooltip content="Add photos & files" position="top">
-                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center">
+                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
                   <Icon name="attach-file" size={20} />
                   <input type="file" multiple onChange={handleFileChange} className="sr-only" />
                 </label>
@@ -405,7 +405,7 @@ export default function InputBar() {
                   ) : showExpandBtn ? (
                     <button
                       onClick={() => setIsExpanded(true)}
-                      className="md:hidden p-1.5 rounded text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
+                      className="md:hidden p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
                       type="button"
                       aria-label="Expand editor"
                     >
@@ -425,7 +425,7 @@ export default function InputBar() {
                           onClick={toggleListening}
                           type="button"
                           aria-label="Start voice input"
-                          className="p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                          className="p-2 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                         >
                           <Icon name="mic" size={20} />
                         </button>
