@@ -5,7 +5,8 @@ import TopicModal from "./TopicModal";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
-import { createUserTopic } from "@/firebase/chatStore";
+import { createUserTopic, updateTopicDescription } from "@/firebase/chatStore";
+import { auth } from "@/firebase/config";
 import SidebarSectionTitle from "./SidebarSectionTitle";
 import MyTopicsSection from "./MyTopicsSection";
 import NewChatButton from "./NewChatButton";
@@ -26,6 +27,7 @@ export default function SidebarContainer({
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [topicName, setTopicName] = useState("");
+  const [topicInstruction, setTopicInstruction] = useState("");
 
 // === Swipe gesture detection (mobile) ===
 const startXRef = useRef(0);
@@ -275,22 +277,31 @@ useEffect(() => {
         open={isTopicModalOpen}
         topicName={topicName}
         setTopicName={setTopicName}
+        topicInstruction={topicInstruction}
+        setTopicInstruction={setTopicInstruction}
         onCreate={async () => {
           const name = topicName.trim();
           if (!name) return;
           try {
-            await createUserTopic(name);
+            const created = await createUserTopic(name);
+            if (topicInstruction.trim() && created?.topicId) {
+              const user = auth.currentUser;
+              if (user) {
+                await updateTopicDescription(user.uid, created.topicId, topicInstruction.trim());
+              }
+            }
           } catch (err) {
             console.error("Failed to create topic:", err);
-            alert("Failed to create topic. Check console.");
           } finally {
             setIsTopicModalOpen(false);
             setTopicName("");
+            setTopicInstruction("");
           }
         }}
         onClose={() => {
           setIsTopicModalOpen(false);
           setTopicName("");
+          setTopicInstruction("");
         }}
       />
       
