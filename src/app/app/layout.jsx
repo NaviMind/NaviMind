@@ -71,7 +71,7 @@ function AppShell({ children }) {
     <>
       <SidebarContainer />
 
-      <div className="flex flex-col flex-1 transition-[width] duration-300 ease-in-out w-full max-w-full min-w-0 overflow-x-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
         <div className="relative isolate sm:z-50 z-0 w-full max-w-full">
           <TopBar />
         </div>

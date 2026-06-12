@@ -245,14 +245,8 @@ useEffect(() => {
   // Десктоп-версия как переменная
   const DesktopAside = (
   <aside
-    className={[
-      ui.isSidebarOpen ? "sm:flex" : "sm:hidden",
-      "hidden flex-col h-full",
-      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
-      "flex flex-col",
-      "transition-[width] duration-300 ease-in-out",
-    ].join(" ")}
-    style={ui.isSidebarOpen ? { width: "16rem" } : { width: 0 }}
+    className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out"
+    style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
   >
       <SidebarContent
         showNewChatButton={true}
