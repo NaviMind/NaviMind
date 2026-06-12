@@ -248,11 +248,21 @@ useEffect(() => {
     className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out"
     style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
   >
+    <div
+      className="flex flex-col h-full w-[16rem]"
+      style={{
+        opacity: ui.isSidebarOpen ? 1 : 0,
+        transition: ui.isSidebarOpen
+          ? "opacity 180ms ease 160ms"   // открытие: сначала ширина, потом текст
+          : "opacity 120ms ease",         // закрытие: текст исчезает сразу
+      }}
+    >
       <SidebarContent
         showNewChatButton={true}
         showCloseButton={true}
         onCloseButtonClick={handleCloseSidebar}
       />
+    </div>
     </aside>
   );
 
