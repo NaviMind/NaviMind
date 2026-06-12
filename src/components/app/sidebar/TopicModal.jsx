@@ -78,7 +78,7 @@ export default function TopicModal({
           value={topicInstruction}
           onChange={(e) => setTopicInstruction?.(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 mb-3 rounded-lg border text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
+          className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none"
         />
 
         <button
