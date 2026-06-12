@@ -12,7 +12,7 @@ export default function QuickCheckCard({ question, onNext }) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-10 px-4 py-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-transparent dark:shadow-md">
+    <div className="w-full max-w-2xl mx-auto mt-10 px-4 py-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 bg-white dark:bg-transparent dark:shadow-md">
       {/* Заголовок с лампочкой */}
       <div className="flex items-center gap-2 mb-4">
         <Icon name="lightbulb" size={28} className="sm:hidden" />

@@ -86,7 +86,7 @@ export default function Icon({ name, className, style, size = 20 }) {
   const paths = ICONS[name];
   if (!paths) return null;
 
-  const defaultFill = name === "delete" ? "#F87171" : name === "lightbulb" ? "#FFFF55" : "currentColor";
+  const defaultFill = name === "delete" ? "#F87171" : name === "lightbulb" ? "#F59E0B" : "currentColor";
 
   return (
     <svg
