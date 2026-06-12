@@ -40,13 +40,12 @@ export default function DynamicProjectPage() {
 
   const [instrModalOpen, setInstrModalOpen] = useState(false);
   const [instrText, setInstrText] = useState("");
-  const [vpTop, setVpTop] = useState(0);
-  const [vpHeight, setVpHeight] = useState(0);
+  const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-    const update = () => { setVpTop(vv.offsetTop); setVpHeight(vv.height); };
+    const update = () => setKbHeight(Math.max(0, window.innerHeight - vv.height));
     update();
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
@@ -345,8 +344,8 @@ export default function DynamicProjectPage() {
       {/* Instruction modal */}
       {instrModalOpen && (
         <div
-          className="fixed left-0 right-0 z-[100] flex items-center justify-center bg-black/60 px-3 py-4"
-          style={{ top: vpTop, height: vpHeight || "100dvh" }}
+          className="fixed left-0 top-0 right-0 z-[100] flex items-center justify-center bg-black/60 px-3 py-4"
+          style={{ bottom: kbHeight, transition: "bottom 200ms" }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
           <div
