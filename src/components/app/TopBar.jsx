@@ -44,7 +44,7 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-2 pr-4 md:px-4 z-30">
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
@@ -58,11 +58,11 @@ export default function TopBar() {
         {/* Мобилка: гамбургер всегда, открывает и закрывает sidebar */}
         <button
           onClick={toggleSidebar}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
+          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
           aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           <svg
-            className="h-6 w-6 text-gray-800 dark:text-gray-200"
+            className="h-7 w-7 text-gray-800 dark:text-gray-200"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
