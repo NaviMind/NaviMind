@@ -47,6 +47,7 @@ export function ChatProvider({ children }) {
       name: d?.name || d?.title || "Untitled Topic",
       isPinned: !!d?.isPinned,
       createdAt: d?.createdAt,
+      description: d?.description || "",
     };
 
     const chatsRef = collection(db, "users", userId, "topics", docSnap.id, "chats");
@@ -102,6 +103,7 @@ useEffect(() => {
             name: t?.name || t?.title || "Untitled Topic",
             isPinned: !!t?.isPinned,
             createdAt: t?.createdAt,
+            description: t?.description || "",
           };
         });
         setCustomProjects(map);

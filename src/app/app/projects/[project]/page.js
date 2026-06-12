@@ -168,6 +168,17 @@ export default function DynamicProjectPage() {
             {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
           </button>
         </div>
+        {customProjects?.[project]?.description && (
+          <p
+            className="mt-1.5 ml-8 text-[12px] text-gray-500 dark:text-gray-500 leading-snug cursor-pointer hover:text-gray-400 transition-colors line-clamp-2"
+            onClick={() => {
+              setInstrText(customProjects?.[project]?.description || "");
+              setInstrModalOpen(true);
+            }}
+          >
+            {customProjects[project].description}
+          </p>
+        )}
       </div>
 
       {/* Chat list */}
