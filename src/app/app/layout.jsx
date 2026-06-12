@@ -83,10 +83,12 @@ function AppShell({ children }) {
       <div
           className="flex flex-col flex-1 min-w-0 overflow-x-hidden"
           style={{
-            transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+            zIndex: 30,
+            transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 420ms cubic-bezier(0.32, 0.72, 0, 1)",
             transform: isMobile && isSidebarOpen ? "translateX(calc(100vw - 3rem))" : "translateX(0)",
             borderTopLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
             borderBottomLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
+            boxShadow: isMobile && isSidebarOpen ? "-8px 0 32px rgba(0,0,0,0.55)" : "-8px 0 32px rgba(0,0,0,0)",
           }}
         >
         <div className="relative isolate sm:z-50 z-0 w-full max-w-full">

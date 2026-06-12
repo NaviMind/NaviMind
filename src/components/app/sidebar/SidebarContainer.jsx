@@ -224,17 +224,14 @@ useEffect(() => {
   );
 
     // Мобильная версия как переменная
+  // Sidebar не двигается — main area съезжает вправо, открывая его
   const MobileAside = (
   <aside
-    className={[
-      "fixed left-0 top-0 z-50 h-full",
-      "bg-[var(--bg-sidebar)] backdrop-blur-sm",
-      "flex flex-col sm:hidden",
-      isSidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none",
-    ].join(" ")}
+    className="fixed left-0 top-0 h-full flex flex-col sm:hidden bg-[var(--bg-sidebar)]"
     style={{
       width: "calc(100vw - 3rem)",
-      transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+      zIndex: 20,
+      pointerEvents: isSidebarOpen ? "auto" : "none",
     }}
   >
     <SidebarContent
