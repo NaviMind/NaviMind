@@ -127,7 +127,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
         ))}
       </div>
 
-      {/* Glass card */}
+      {/* Glass card — fixed size, sized to fit the largest card (#4) */}
       <div className="w-full max-w-3xl
                       bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
                       rounded-2xl ring-1 ring-white/10 shadow-2xl
@@ -142,8 +142,8 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
           </p>
         </div>
 
-        {/* Content */}
-        <div className="px-8 pb-4">
+        {/* Content — fixed height, only inner block slides */}
+        <div className="px-8 pb-4 relative overflow-hidden" style={{ height: 380 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentCard}
@@ -151,6 +151,8 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0 overflow-y-auto custom-scroll"
+              style={{ paddingBottom: 4 }}
             >
               <div className="bg-white/20 dark:bg-gray-700/20 backdrop-blur-lg rounded-xl p-6 ring-1 ring-white/10 shadow-md space-y-4">
                 {/* Icon + title */}
