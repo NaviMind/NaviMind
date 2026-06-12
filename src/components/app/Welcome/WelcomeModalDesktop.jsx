@@ -119,7 +119,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/70 dark:bg-gray-800/20 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/45 dark:bg-gray-800/20 backdrop-blur-md">
       {/* Preload all card icons */}
       <div className="hidden" aria-hidden="true">
         {CARD_ICONS.map((src) => (
@@ -129,8 +129,8 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
 
       {/* Glass card — fixed size, sized to fit the largest card (#4) */}
       <div className="w-full max-w-5xl
-                      bg-white/90 dark:bg-gray-800/30 backdrop-blur-xl
-                      rounded-2xl ring-1 ring-black/5 dark:ring-white/10 shadow-2xl
+                      bg-white/85 dark:bg-gray-800/30 backdrop-blur-xl
+                      rounded-2xl ring-1 ring-black/8 dark:ring-white/10 shadow-2xl
                       text-gray-900 dark:text-white
                       flex flex-col overflow-hidden">
 
@@ -154,7 +154,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className="h-full overflow-y-auto custom-scroll"
             >
-              <div className="bg-gray-50 dark:bg-gray-700/20 backdrop-blur-lg rounded-xl p-6 ring-1 ring-black/5 dark:ring-white/10 shadow-md space-y-4">
+              <div className="bg-white dark:bg-gray-700/20 backdrop-blur-lg rounded-xl p-6 border border-gray-200 dark:border-white/10 shadow-sm space-y-4">
                 {/* Icon + title */}
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 shrink-0">
