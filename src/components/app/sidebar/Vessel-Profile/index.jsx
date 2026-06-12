@@ -96,6 +96,11 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const supportsAdvanced = advancedSupportedTypes.includes(form.vesselType);
   const [department, setDepartment] = useState("deck");
   const [step, setStep] = useState("profile");
+  const [isPresent, setIsPresent] = useState(false);
+
+  useEffect(() => {
+    if (open) setIsPresent(true);
+  }, [open]);
 
   useEffect(() => {
     if (open && firstInputRef.current) {
@@ -163,7 +168,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     }, 2000);
   };
 
-  if (!open) return null;
+  if (!isPresent) return null;
 
   const slideVariants = {
     initial: { y: "100%", opacity: 0 },
@@ -175,11 +180,12 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
 
   return (
     <div
-      className={`fixed inset-0 overflow-hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
+      className={`fixed inset-0 overflow-hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+      style={{ opacity: open ? 1 : 0 }}
       onClick={handleBackdropClick}
     >
-      <AnimatePresence mode="wait">
-        {step === "profile" && (
+      <AnimatePresence mode="wait" onExitComplete={() => { if (!open) setIsPresent(false); }}>
+        {step === "profile" && open && (
           <motion.div
             key="profile"
             className="relative w-full max-w-sm sm:max-w-lg"
@@ -206,7 +212,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
           </motion.div>
         )}
 
-        {step === "advanced" && (
+        {step === "advanced" && open && (
           <motion.div
             key="advanced"
             className="relative w-full max-w-sm sm:max-w-lg"
