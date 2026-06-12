@@ -228,10 +228,10 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
               {/* Folder icon (hidden in select mode) */}
               {!topicSelectMode && (
-                <div className="relative group/topic flex flex-col items-center mr-2">
+                <div className="relative inline-flex flex-col items-center mr-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleExpand(projId); }}
-                    className="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                    className="peer p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
                   >
                     {isExpanded ? (
                       <Icon name="folder-open" size={20} />
@@ -239,7 +239,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
                       <Icon name="folder-close" size={20} />
                     )}
                   </button>
-                  <div className="absolute top-full mt-2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 group-hover/topic:opacity-100 transition-opacity z-[100] whitespace-nowrap translate-x-[26px] hidden sm:block">
+                  <div className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
                     {isExpanded ? "Close Chats" : "Open Chats"}
                   </div>
                 </div>
