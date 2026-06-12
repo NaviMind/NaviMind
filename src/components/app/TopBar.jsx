@@ -34,7 +34,7 @@ export default function TopBar() {
     setVesselProfileOpen,
   } = useContext(UIContext);
 
-  const { activeProject, customProjects } = useContext(ChatContext);
+  const { activeProject, customProjects, setActiveChatId } = useContext(ChatContext);
   const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
 
   const router = useRouter();
@@ -83,16 +83,20 @@ export default function TopBar() {
         {/* Topic pill — desktop only, when inside a topic */}
         {activeProjectName && (
           <button
-            onClick={() => router.push(`/app/projects/${activeProject}`)}
+            onClick={() => {
+              setActiveChatId(null);
+              router.push(`/app/projects/${activeProject}`);
+            }}
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
-              border border-white/15 bg-white/[0.04]
-              hover:border-white/30 hover:bg-white/[0.09]
-              focus:outline-none focus:ring-2 focus:ring-white/20
+              border border-emerald-500/40 bg-emerald-500/[0.07]
+              hover:border-emerald-400/65 hover:bg-emerald-500/[0.13]
+              focus:outline-none focus:ring-2 focus:ring-emerald-500/30
               transition-all duration-200 max-w-[200px]"
+            style={{ boxShadow: "0 0 10px rgba(16,185,129,0.12)" }}
             aria-label={`Go to topic ${activeProjectName}`}
           >
-            <Icon name="folder-open" size={14} className="text-white/50 flex-shrink-0" />
-            <span className="text-white/65 truncate">{activeProjectName}</span>
+            <Icon name="folder-open" size={14} className="text-emerald-400/70 flex-shrink-0" />
+            <span className="text-white/70 truncate">{activeProjectName}</span>
           </button>
         )}
 
