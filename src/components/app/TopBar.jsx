@@ -30,15 +30,28 @@ const Tooltip = ({ children, content, position = "bottom" }) => (
 function MenuIcon({ isOpen }) {
   return (
     <div className="w-6 flex flex-col justify-center gap-[7px]">
-      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 origin-center ${
-        isOpen ? "rotate-45 translate-y-[9px]" : ""
-      }`} />
-      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 ${
-        isOpen ? "opacity-0 scale-x-0" : ""
-      }`} />
-      <span className={`block h-[2px] w-6 bg-current rounded transition-all duration-300 origin-center ${
-        isOpen ? "-rotate-45 -translate-y-[9px]" : ""
-      }`} />
+      <span
+        className="block h-[2px] w-6 bg-current rounded origin-center"
+        style={{
+          transition: "transform 500ms cubic-bezier(0.4,0,0.2,1), opacity 400ms ease",
+          transform: isOpen ? "rotate(45deg) translateY(9px)" : "none",
+        }}
+      />
+      <span
+        className="block h-[2px] w-6 bg-current rounded"
+        style={{
+          transition: "opacity 300ms ease, transform 400ms ease",
+          opacity: isOpen ? 0 : 1,
+          transform: isOpen ? "scaleX(0)" : "scaleX(1)",
+        }}
+      />
+      <span
+        className="block h-[2px] w-6 bg-current rounded origin-center"
+        style={{
+          transition: "transform 500ms cubic-bezier(0.4,0,0.2,1), opacity 400ms ease",
+          transform: isOpen ? "rotate(-45deg) translateY(-9px)" : "none",
+        }}
+      />
     </div>
   );
 }
@@ -77,8 +90,11 @@ export default function TopBar() {
         <Tooltip content={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"} position="bottom">
           <button
             onClick={toggleSidebar}
-            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200
-              md:hidden"
+            className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 md:hidden"
+            style={{
+              transform: isSidebarOpen ? "translateX(-6px)" : "none",
+              transition: "transform 420ms cubic-bezier(0.32,0.72,0,1)",
+            }}
             aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
           >
             <MenuIcon isOpen={isSidebarOpen} />
