@@ -128,7 +128,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
       </div>
 
       {/* Glass card — fixed size, sized to fit the largest card (#4) */}
-      <div className="w-full max-w-3xl
+      <div className="w-full max-w-5xl
                       bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl
                       rounded-2xl ring-1 ring-white/10 shadow-2xl
                       flex flex-col overflow-hidden">
@@ -143,7 +143,7 @@ export default function WelcomeModalDesktop({ onClose, onShowTerms, onShowPrivac
         </div>
 
         {/* Content — fixed height, only inner block slides */}
-        <div className="px-8 pb-4 relative overflow-hidden" style={{ height: 380 }}>
+        <div className="px-8 pb-4 relative overflow-hidden" style={{ height: 500 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentCard}
