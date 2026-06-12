@@ -12,8 +12,8 @@ import PrivacyModalMobile from "../Privacy/PrivacyModalMobile";
 
 export default function WelcomeModal() {
   const { theme } = useContext(UIContext);
-  const [isMobile, setIsMobile] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [open, setOpen] = useState(true);
   const [step, setStep] = useState("welcome"); // "welcome" | "terms" | "privacy"
   const [isClosing, setIsClosing] = useState(false);
   const [currentCard, setCurrentCard] = useState(0); // lifted up so Terms/Privacy don't reset it
@@ -21,8 +21,7 @@ export default function WelcomeModal() {
   useEffect(() => {
     // TODO: uncomment before launch to show welcome only once
     // const alreadyAccepted = localStorage.getItem("navimind_welcome_accepted");
-    // if (!alreadyAccepted) setOpen(true);
-    setOpen(true);
+    // if (alreadyAccepted) setOpen(false);
 
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -36,7 +35,7 @@ export default function WelcomeModal() {
     setTimeout(() => setOpen(false), 800);
   };
 
-  if (!open || isMobile === null) return null;
+  if (!open) return null;
 
   const slideVariants = {
     initial: { y: "100%", opacity: 0 },
@@ -49,10 +48,10 @@ export default function WelcomeModal() {
       {!isClosing && (
         <motion.div
           key="backdrop"
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.5 }}
           className={`fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm p-6 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
         >
           <AnimatePresence mode="wait">
