@@ -2,6 +2,7 @@
 
 import { useContext, useRef, useState, useEffect, useCallback, createRef } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
@@ -42,8 +43,11 @@ export default function DynamicProjectPage() {
   const anchorRefs = useRef({});
 
   const [instrModalOpen, setInstrModalOpen] = useState(false);
+  const [isInstrPresent, setIsInstrPresent] = useState(false);
   const [instrText, setInstrText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
+
+  useEffect(() => { if (instrModalOpen) setIsInstrPresent(true); }, [instrModalOpen]);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -368,45 +372,55 @@ export default function DynamicProjectPage() {
           </>
         )}
       </div>
-      {instrModalOpen && createPortal(
+      {isInstrPresent && createPortal(
         <div
-          className={`fixed left-0 top-0 right-0 z-[200] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"}`}
-          style={{ bottom: kbHeight, transition: "bottom 200ms" }}
+          className={`fixed left-0 top-0 right-0 z-[200] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+          style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: instrModalOpen ? 1 : 0 }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
-          <div
-            className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
-            onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
-          >
-            <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
-              {customProjects?.[project]?.description ? "Edit Instruction" : "Add Instruction"}
-            </h2>
-            <textarea
-              value={instrText}
-              onChange={(e) => setInstrText(e.target.value)}
-              placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
-              autoFocus
-              className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setInstrModalOpen(false)}
-                className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+          <AnimatePresence onExitComplete={() => { if (!instrModalOpen) setIsInstrPresent(false); }}>
+            {instrModalOpen && (
+              <motion.div
+                key="instr-modal"
+                variants={{ initial: { y: "100%", opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: "100%", opacity: 0 } }}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
+                onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
               >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  const user = auth.currentUser;
-                  if (user) await updateTopicDescription(user.uid, project, instrText.trim());
-                  setInstrModalOpen(false);
-                }}
-                className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-blue-600 hover:bg-blue-700 text-white shadow"
-              >
-                Save
-              </button>
-            </div>
-          </div>
+                <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
+                  {customProjects?.[project]?.description ? "Edit Instruction" : "Add Instruction"}
+                </h2>
+                <textarea
+                  value={instrText}
+                  onChange={(e) => setInstrText(e.target.value)}
+                  placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
+                  autoFocus
+                  className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setInstrModalOpen(false)}
+                    className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const user = auth.currentUser;
+                      if (user) await updateTopicDescription(user.uid, project, instrText.trim());
+                      setInstrModalOpen(false);
+                    }}
+                    className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-blue-600 hover:bg-blue-700 text-white shadow"
+                  >
+                    Save
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>,
         document.body
       )}
