@@ -4,6 +4,7 @@ import AppModals from "./AppModals";
 import { useContext } from "react";
 import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton"; 
 
 // Tooltip — показываем только на десктопе
@@ -31,6 +32,9 @@ export default function TopBar() {
     vesselProfileData,
     setVesselProfileOpen,
   } = useContext(UIContext);
+
+  const { activeProject, customProjects } = useContext(ChatContext);
+  const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
 
   const router = useRouter();
 
@@ -73,8 +77,26 @@ export default function TopBar() {
         <img src="/logo-navi.png" alt="NaviMind AI" className="w-[170px] md:w-[220px] h-auto object-contain" />
       </div>
 
-      {/* Правый блок: vessel pill (desktop) + NewChat (mobile) */}
+      {/* Правый блок: topic pill + vessel pill (desktop) + NewChat (mobile) */}
       <div className="flex items-center gap-3 ml-auto">
+        {/* Topic pill — desktop only, when inside a topic */}
+        {activeProjectName && (
+          <button
+            onClick={() => router.push(`/app/projects/${activeProject}`)}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
+              border border-white/15 bg-white/[0.04]
+              hover:border-white/30 hover:bg-white/[0.09]
+              focus:outline-none focus:ring-2 focus:ring-white/20
+              transition-all duration-200 max-w-[200px]"
+            aria-label={`Go to topic ${activeProjectName}`}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50 flex-shrink-0">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span className="text-white/65 truncate">{activeProjectName}</span>
+          </button>
+        )}
+
         {/* Vessel profile pill — desktop only */}
         {vesselProfileData && (
           <button
