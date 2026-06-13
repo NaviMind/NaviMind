@@ -41,8 +41,8 @@ function ThemeToggle({ theme, setTheme }) {
         className={`
           absolute top-[3px] bottom-[3px] left-[3px]
           w-[calc(50%-3px)] rounded-[9px]
-          bg-white dark:bg-gray-500
-          shadow-sm transition-transform duration-300 ease-in-out
+          bg-gradient-to-br from-blue-500 to-blue-600
+          shadow-lg shadow-blue-900/40 transition-transform duration-300 ease-in-out
           ${theme === "dark" ? "translate-x-[calc(100%+2px)]" : "translate-x-0"}
         `}
       />
@@ -50,7 +50,7 @@ function ThemeToggle({ theme, setTheme }) {
         type="button"
         onClick={() => setTheme("light")}
         className={`relative flex-1 py-[5px] text-[12px] font-medium z-10 transition-colors duration-200
-          ${theme === "light" ? "text-gray-900" : "text-gray-400 dark:text-gray-500"}`}
+          ${theme === "light" ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
       >
         Light
       </button>
@@ -58,7 +58,7 @@ function ThemeToggle({ theme, setTheme }) {
         type="button"
         onClick={() => setTheme("dark")}
         className={`relative flex-1 py-[5px] text-[12px] font-medium z-10 transition-colors duration-200
-          ${theme === "dark" ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"}`}
+          ${theme === "dark" ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
       >
         Dark
       </button>
@@ -227,7 +227,12 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             onClick={onLogout}
             className="mt-2.5 w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15"
           >
-            <SvgIcon name="Logout.svg" />
+            <img
+              src="/Logout.svg"
+              alt=""
+              className="w-[28px] h-[28px] flex-shrink-0"
+              style={{ filter: "brightness(0) saturate(100%) invert(58%) sepia(45%) saturate(714%) hue-rotate(307deg) brightness(99%) contrast(102%)" }}
+            />
             <span className="flex-1 text-[14px] text-red-400">Log Out</span>
           </button>
         </div>
