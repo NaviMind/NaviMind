@@ -245,7 +245,7 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
 
               {/* Folder icon (hidden in select mode) */}
               {!topicSelectMode && (
-                <div className="relative inline-flex flex-col items-center mr-2">
+                <div className="relative inline-flex flex-col items-center -ml-1 mr-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleExpand(projId); }}
                     className="peer p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
