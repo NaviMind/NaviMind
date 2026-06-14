@@ -1,6 +1,7 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
@@ -8,36 +9,52 @@ import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 
-// ─── Single icon button with right-side tooltip ───────────────────────────────
+// ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
 function MiniBtn({ children, tooltip, onClick }) {
+  const [tipPos, setTipPos] = useState(null);
+  const ref = useRef(null);
+
+  const handleEnter = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setTipPos({ top: r.top + r.height / 2, left: r.right + 10 });
+  };
+
   return (
-    <div className="relative group flex justify-center w-full">
+    <div className="flex justify-center w-full">
       <button
+        ref={ref}
         onClick={onClick}
-        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setTipPos(null)}
+        className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
       >
         {children}
       </button>
-      <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-[300] whitespace-nowrap">
-        {tooltip}
-      </div>
+
+      {tipPos && createPortal(
+        <div
+          className="fixed z-[9999] px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg pointer-events-none whitespace-nowrap"
+          style={{ top: tipPos.top, left: tipPos.left, transform: "translateY(-50%)" }}
+        >
+          {tooltip}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
 
-// ─── Hamburger icon ───────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
 const IcMenu = () => (
-  <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-// ─── New chat icon ────────────────────────────────────────────────────────────
-
 const IcNewChat = () => (
-  <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -60,6 +77,8 @@ export default function MiniSidebar() {
 
   const [photoURL, setPhotoURL] = useState("");
   const [initials, setInitials] = useState("U");
+  const [avatarTip, setAvatarTip] = useState(null);
+  const avatarRef = useRef(null);
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -88,15 +107,19 @@ export default function MiniSidebar() {
     router.push("/app");
   };
 
+  const showAvatarTip = () => {
+    const r = avatarRef.current?.getBoundingClientRect();
+    if (r) setAvatarTip({ top: r.top + r.height / 2, left: r.right + 10 });
+  };
+
   return (
     <aside
       style={{ width: isSidebarOpen ? 0 : 56 }}
       className="hidden sm:flex flex-col overflow-hidden flex-shrink-0 h-full bg-[var(--bg-sidebar)] border-r border-gray-200 dark:border-white/[0.06] transition-[width] duration-300 ease-in-out"
     >
-      {/* Inner fixed-width column — clipped by parent overflow:hidden */}
-      <div className="w-14 flex flex-col items-center py-3 gap-1 h-full">
+      {/* Fixed-width inner column — clipped by parent during animation */}
+      <div className="w-14 flex flex-col items-center py-3 gap-0.5 h-full">
 
-        {/* Top buttons */}
         <MiniBtn tooltip="Open Sidebar" onClick={toggleSidebar}>
           <IcMenu />
         </MiniBtn>
@@ -106,35 +129,40 @@ export default function MiniSidebar() {
         </MiniBtn>
 
         <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
-          <Icon name="vessel-profile" size={22} />
+          <Icon name="vessel-profile" size={24} />
         </MiniBtn>
 
         <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
-          <Icon name="create-new" size={22} />
+          <Icon name="create-new" size={24} />
         </MiniBtn>
 
-        {/* Bottom: user avatar */}
-        <div className="relative group flex justify-center w-full mt-auto mb-1">
+        {/* User avatar — bottom */}
+        <div className="mt-auto mb-1 flex justify-center w-full">
           <button
+            ref={avatarRef}
             onClick={() => toggleSettings(true)}
+            onMouseEnter={showAvatarTip}
+            onMouseLeave={() => setAvatarTip(null)}
             className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-white/10 hover:ring-blue-500 transition-all duration-200"
           >
             {photoURL ? (
-              <img
-                src={photoURL}
-                alt=""
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+              <img src={photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <span className="w-full h-full flex items-center justify-center bg-blue-600 text-white text-xs font-semibold">
                 {initials}
               </span>
             )}
           </button>
-          <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-[300] whitespace-nowrap">
-            Account & Settings
-          </div>
+
+          {avatarTip && createPortal(
+            <div
+              className="fixed z-[9999] px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg pointer-events-none whitespace-nowrap"
+              style={{ top: avatarTip.top, left: avatarTip.left, transform: "translateY(-50%)" }}
+            >
+              Account & Settings
+            </div>,
+            document.body
+          )}
         </div>
 
       </div>
