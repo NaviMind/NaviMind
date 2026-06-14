@@ -254,7 +254,7 @@ useEffect(() => {
 )}
 
 {mobileMode && (
-  <div className="text-[9px] text-center text-gray-500 px-2 pt-1 pb-2 truncate">
+  <div className="text-[9px] leading-none text-center text-gray-400 dark:text-gray-500 px-2 pt-0.5 pb-1.5 truncate">
     Powered by advanced AI – Maritime enhanced.
   </div>
 )}
