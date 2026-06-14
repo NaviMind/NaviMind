@@ -49,14 +49,7 @@ export default function TopBar() {
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
-        {/* New Chat — только десктоп, только когда sidebar закрыт */}
-        {!isSidebarOpen && (
-          <div className="hidden md:block">
-            <NewChatButton />
-          </div>
-        )}
-
-        {/* Мобилка: гамбургер всегда, открывает и закрывает sidebar */}
+        {/* Мобилка: гамбургер — открывает/закрывает sidebar */}
         <button
           onClick={toggleSidebar}
           className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
@@ -72,27 +65,6 @@ export default function TopBar() {
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-
-        {/* Десктоп — только когда sidebar закрыт */}
-        {!isSidebarOpen && (
-          <Tooltip content="Open Sidebar" position="bottom">
-            <button
-              onClick={toggleSidebar}
-              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hidden md:flex items-center justify-center"
-              aria-label="Open Sidebar"
-            >
-              <svg
-                className="h-6 w-6 text-gray-800 dark:text-gray-200"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </Tooltip>
-        )}
       </div>
 
       {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}

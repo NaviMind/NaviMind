@@ -4,6 +4,7 @@ import { useState, useEffect, useContext } from "react";
 import { UIProvider, UIContext } from "@/context/UIContext";
 import { ChatProvider } from "@/context/ChatContext";
 import SidebarContainer from "@/components/app/sidebar/SidebarContainer";
+import MiniSidebar from "@/components/app/sidebar/MiniSidebar";
 import TopBar from "@/components/app/TopBar";
 import MobileSidebarOverlay from "@/components/app/MobileSidebarOverlay";
 import InputBar from "@/components/app/InputBar/InputBar";
@@ -79,6 +80,7 @@ function AppShell({ children }) {
   return (
     <>
       <SidebarContainer />
+      <MiniSidebar />
 
       <div
           className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] border-l border-gray-200 dark:border-transparent text-gray-900 dark:text-white"

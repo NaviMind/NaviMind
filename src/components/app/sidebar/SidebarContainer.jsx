@@ -23,9 +23,8 @@ export default function SidebarContainer({
 }) {
   const router = useRouter();
   const ui = useContext(UIContext);
-  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData } = ui;
+  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData, isTopicModalOpen, setIsTopicModalOpen } = ui;
   const { customProjects, projectChatSessions } = useContext(ChatContext);
-  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
 
