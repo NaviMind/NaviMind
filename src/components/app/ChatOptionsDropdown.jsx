@@ -129,7 +129,7 @@ export default function ChatOptionsDropdown({
               minWidth: isMobile ? 220 : 180,
               zIndex: 9999,
             }}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg ring-1 ring-slate-700 p-1 text-sm transition"
+            className="bg-white/95 dark:bg-[#1a2235]/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-1 text-sm"
           >
 
 <button
@@ -142,7 +142,7 @@ export default function ChatOptionsDropdown({
     setIsPinned(newState);
     onClose();
   }}
-  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
 >
   <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
@@ -157,7 +157,7 @@ export default function ChatOptionsDropdown({
     await exportChatAsTxt(messages, currentTitle);
     onClose();
   }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
             >
               <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
@@ -168,7 +168,7 @@ export default function ChatOptionsDropdown({
                 onRename(chatId);
                 onClose();
               }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
             >
               <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
@@ -180,7 +180,7 @@ export default function ChatOptionsDropdown({
                   onEnterSelectMode();
                   onClose();
                 }}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
               >
                 <Icon name="select" size={20} className="opacity-80" />
                 <span>Select</span>
