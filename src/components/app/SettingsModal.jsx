@@ -6,127 +6,87 @@ import { motion, AnimatePresence } from "framer-motion";
 import { UIContext } from "@/context/UIContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
-import Icon from "@/components/common/Icon";
 
-// ─── Icons ───────────────────────────────────────────────────────────────────
+// ─── Navigation icons ─────────────────────────────────────────────────────────
 
-const IcUser = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-const IcCard = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-  </svg>
-);
-const IcAppearance = () => (
-  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <circle cx="12" cy="12" r="10" stroke="currentColor"/>
-    <path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" stroke="none"/>
-  </svg>
-);
-const IcGlobe = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="2" y1="12" x2="22" y2="12"/>
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-  </svg>
-);
-const IcShield = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-);
-const IcHeadset = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
-    <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-  </svg>
-);
-const IcLock = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-const IcDoc = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-  </svg>
-);
-const IcChevron = ({ open }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
-    className={`w-[13px] h-[13px] text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}>
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-const IcCheck = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-[15px] h-[15px] text-blue-500 flex-shrink-0">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-);
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
     <polyline points="15 18 9 12 15 6"/>
   </svg>
 );
-const IcX = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[14px] h-[14px]">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+const IcChevron = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-[13px] h-[13px] text-gray-400 flex-shrink-0">
+    <polyline points="9 18 15 12 9 6"/>
   </svg>
 );
 
-// ─── Primitives ──────────────────────────────────────────────────────────────
+// ─── SVG icon from /public ────────────────────────────────────────────────────
 
-function SettingIcon({ bg, children }) {
+function SvgIcon({ name }) {
   return (
-    <div className={`w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 text-white ${bg}`}>
-      {children}
+    <img
+      src={`/${name}`}
+      alt=""
+      className="w-[28px] h-[28px] brightness-0 opacity-60 dark:invert dark:opacity-75 flex-shrink-0"
+    />
+  );
+}
+
+// ─── Dark / Light slide toggle ────────────────────────────────────────────────
+
+function ThemeToggle({ theme, setTheme }) {
+  return (
+    <div className="relative flex items-center bg-gray-200/80 dark:bg-gray-700/60 border border-gray-300/40 dark:border-white/10 rounded-xl p-[3px] w-[112px]">
+      <div
+        className={`
+          absolute top-[3px] bottom-[3px] left-[3px]
+          w-[calc(50%-3px)] rounded-[9px]
+          bg-gradient-to-br from-blue-500 to-blue-600
+          shadow-lg shadow-blue-900/40 transition-transform duration-300 ease-in-out
+          ${theme === "dark" ? "translate-x-[calc(100%+2px)]" : "translate-x-0"}
+        `}
+      />
+      <button
+        type="button"
+        onClick={() => setTheme("light")}
+        className={`relative flex-1 py-[5px] text-[12px] font-medium z-10 transition-colors duration-200
+          ${theme === "light" ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
+      >
+        Light
+      </button>
+      <button
+        type="button"
+        onClick={() => setTheme("dark")}
+        className={`relative flex-1 py-[5px] text-[12px] font-medium z-10 transition-colors duration-200
+          ${theme === "dark" ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
+      >
+        Dark
+      </button>
     </div>
   );
 }
 
-function SettingRow({ icon, label, value, badge, onPress, last = false, open = false, noChevron = false }) {
+// ─── Individual setting cell ──────────────────────────────────────────────────
+
+function SettingCell({ iconName, label, onPress, badge, right }) {
   return (
     <button
       onClick={onPress}
-      className={`w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.04] active:bg-gray-100 dark:active:bg-white/[0.07] ${
-        !last ? "border-b border-gray-100 dark:border-white/[0.06]" : ""
-      }`}
+      className="w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.08] active:bg-gray-100 dark:active:bg-white/[0.07]"
     >
-      {icon}
+      <SvgIcon name={iconName} />
       <span className="flex-1 text-[14px] text-gray-800 dark:text-white/90">{label}</span>
       {badge && (
         <span className="text-[11px] px-2 py-[2px] rounded-full bg-gray-100 dark:bg-white/[0.08] text-gray-500 dark:text-gray-400 mr-1 leading-none">
           {badge}
         </span>
       )}
-      {value && (
-        <span className="text-[13px] text-gray-400 mr-1 flex-shrink-0">{value}</span>
-      )}
-      {!noChevron && <IcChevron open={open} />}
+      {right}
     </button>
   );
 }
 
-function SectionGroup({ label, children }) {
-  return (
-    <div className="mb-3">
-      {label && (
-        <p className="text-[11px] font-medium uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-1.5">
-          {label}
-        </p>
-      )}
-      <div className="rounded-2xl overflow-hidden bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ─── Sub-screen stub (each section opens this for now) ───────────────────────
+// ─── Sub-screen ───────────────────────────────────────────────────────────────
 
 function SubScreen({ title, onBack }) {
   return (
@@ -148,11 +108,10 @@ function SubScreen({ title, onBack }) {
   );
 }
 
-// ─── Main list ───────────────────────────────────────────────────────────────
+// ─── Main settings list ───────────────────────────────────────────────────────
 
-function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, onLogout }) {
+function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }) {
   const { setTheme } = useContext(UIContext);
-  const [showThemePicker, setShowThemePicker] = useState(false);
 
   const displayName =
     userDoc?.displayName ||
@@ -171,7 +130,7 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
 
   return (
     <div className="relative flex flex-col min-h-0 flex-1">
-      {/* Close button — always visible, outside scroll */}
+      {/* Close button */}
       <button
         onClick={onClose}
         className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
@@ -180,9 +139,8 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
         ✕
       </button>
 
-      {/* Single scrollable area — header + sections scroll together */}
       <div className="overflow-y-auto flex-1 min-h-0 px-4 custom-scroll">
-        {/* User header — scrolls with content */}
+        {/* User header */}
         <div className="flex flex-col items-center pt-7 pb-5 pr-6">
           {photoURL ? (
             <img
@@ -196,7 +154,6 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
               {loading ? "" : initials}
             </div>
           )}
-
           <p className="text-[16px] font-semibold text-gray-900 dark:text-white leading-tight">
             {loading ? "Loading…" : (displayName || "—")}
           </p>
@@ -206,112 +163,89 @@ function SettingsMain({ userDoc, loading, theme, language, onNavigate, onClose, 
             </p>
           )}
         </div>
-        {/* Account */}
-        <SectionGroup>
-          <SettingRow
-            icon={<SettingIcon bg="bg-blue-600"><IcUser /></SettingIcon>}
-            label="Account"
-            onPress={() => onNavigate("account")}
-          />
-          <SettingRow
-            icon={<SettingIcon bg="bg-purple-600"><IcCard /></SettingIcon>}
-            label="Subscription"
-            badge={plan === "free" ? "Free" : "Pro"}
-            onPress={() => onNavigate("subscription")}
-            last
-          />
-        </SectionGroup>
 
-        {/* App */}
-        <SectionGroup label="App">
-          <SettingRow
-            icon={<SettingIcon bg="bg-gray-600"><IcAppearance /></SettingIcon>}
-            label="Theme"
-            value={theme === "dark" ? "Dark" : "Light"}
-            onPress={() => setShowThemePicker(v => !v)}
-            open={showThemePicker}
-          />
-          {showThemePicker && (
-            <div>
-              {[{ id: "light", label: "Light" }, { id: "dark", label: "Dark" }].map(({ id, label }, i, arr) => (
-                <button
-                  key={id}
-                  onClick={() => { setTheme(id); setShowThemePicker(false); }}
-                  className={`w-full flex items-center justify-between pl-[58px] pr-4 py-[11px] text-[14px] transition-colors border-t border-gray-100 dark:border-white/[0.06]
-                    ${theme === id
-                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.04]"}`}
-                >
-                  {label}
-                  {theme === id && <IcCheck />}
-                </button>
-              ))}
-            </div>
-          )}
-          <SettingRow
-            icon={<SettingIcon bg="bg-teal-600"><IcGlobe /></SettingIcon>}
-            label="Language"
-            value={language}
-            onPress={() => onNavigate("language")}
-            last
-          />
-        </SectionGroup>
-
-        {/* Privacy */}
-        <SectionGroup label="Privacy">
-          <SettingRow
-            icon={<SettingIcon bg="bg-indigo-600"><IcShield /></SettingIcon>}
-            label="Privacy & Data"
-            onPress={() => onNavigate("privacy")}
-            last
-          />
-        </SectionGroup>
-
-        {/* About */}
-        <SectionGroup label="About">
-          <SettingRow
-            icon={<SettingIcon bg="bg-orange-500"><IcHeadset /></SettingIcon>}
-            label="Support"
-            onPress={() => onNavigate("support")}
-          />
-          <SettingRow
-            icon={<SettingIcon bg="bg-slate-600"><IcLock /></SettingIcon>}
-            label="Privacy Policy"
-            onPress={() => onNavigate("privacyPolicy")}
-          />
-          <SettingRow
-            icon={<SettingIcon bg="bg-slate-600"><IcDoc /></SettingIcon>}
-            label="Terms of Service"
-            onPress={() => onNavigate("terms")}
-            last
-          />
-        </SectionGroup>
-
-        {/* Logout */}
-        <div className="mt-1 mb-4">
-          <div className="rounded-2xl overflow-hidden bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-[13px] text-left transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15"
-            >
-              <div className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center flex-shrink-0 bg-red-600/80">
-                <Icon name="logout" size={16} className="text-white" />
-              </div>
-              <span className="flex-1 text-[14px] text-red-400">Log Out</span>
-            </button>
+        {/* Settings cells */}
+        <div className="pb-4">
+          {/* Account & Subscription */}
+          <div className="space-y-2">
+            <SettingCell
+              iconName="Account_circle.svg"
+              label="Account"
+              right={<IcChevron />}
+              onPress={() => onNavigate("account")}
+            />
+            <SettingCell
+              iconName="Add_card.svg"
+              label="Subscription"
+              badge={plan === "free" ? "Free" : "Pro"}
+              right={<IcChevron />}
+              onPress={() => onNavigate("subscription")}
+            />
           </div>
+
+          {/* Theme */}
+          <div className="mt-2.5 flex items-center gap-3 px-4 py-[13px] rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
+            <SvgIcon name="Contrast.svg" />
+            <span className="flex-1 text-[14px] text-gray-800 dark:text-white/90">Theme</span>
+            <ThemeToggle theme={theme} setTheme={setTheme} />
+          </div>
+
+          {/* Privacy & Data */}
+          <div className="mt-2.5">
+            <SettingCell
+              iconName="Admin_panel.svg"
+              label="Privacy & Data"
+              right={<IcChevron />}
+              onPress={() => onNavigate("privacy")}
+            />
+          </div>
+
+          {/* Support / Legal */}
+          <div className="mt-2.5 space-y-2">
+            <SettingCell
+              iconName="Contact_support.svg"
+              label="Support"
+              right={<IcChevron />}
+              onPress={() => onNavigate("support")}
+            />
+            <SettingCell
+              iconName="Policy.svg"
+              label="Privacy Policy"
+              right={<IcChevron />}
+              onPress={() => onNavigate("privacyPolicy")}
+            />
+            <SettingCell
+              iconName="Article.svg"
+              label="Terms of Service"
+              right={<IcChevron />}
+              onPress={() => onNavigate("terms")}
+            />
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={onLogout}
+            className="mt-2.5 w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15"
+          >
+            <img
+              src="/Logout.svg"
+              alt=""
+              className="w-[28px] h-[28px] flex-shrink-0"
+              style={{ filter: "brightness(0) saturate(100%) invert(58%) sepia(45%) saturate(714%) hue-rotate(307deg) brightness(99%) contrast(102%)" }}
+            />
+            <span className="flex-1 text-[14px] text-red-400">Log Out</span>
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Modal ───────────────────────────────────────────────────────────────────
+// ─── Modal ────────────────────────────────────────────────────────────────────
 
 const SUB_TITLES = {
   account: "Account",
   subscription: "Subscription",
-  language: "Language",
   privacy: "Privacy & Data",
   support: "Support",
   privacyPolicy: "Privacy Policy",
@@ -324,12 +258,11 @@ const slideUp = {
   exit:    { y: "100%", opacity: 0 },
 };
 const slideTransition = { duration: 0.8, ease: [0.16, 1, 0.3, 1] };
-
 const crossFadeIn  = { initial: { opacity: 0, x: 18 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: 18 } };
 const crossFadeOut = { initial: { opacity: 0, x: -18 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -18 } };
 
 export default function SettingsModal() {
-  const { isSettingsOpen, toggleSettings, toggleLogout, theme, language } = useContext(UIContext);
+  const { isSettingsOpen, toggleSettings, toggleLogout, theme } = useContext(UIContext);
   const { data: userDoc, loading } = useCurrentUserDoc();
   const [step, setStep] = useState("main");
   const [mounted, setMounted] = useState(false);
@@ -376,10 +309,7 @@ export default function SettingsModal() {
             transition={slideTransition}
             className="w-full max-w-[360px] sm:max-w-lg"
           >
-            {/* Modal card */}
-            <div
-              className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]"
-            >
+            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]">
               <AnimatePresence mode="wait">
                 {step === "main" ? (
                   <motion.div
@@ -395,7 +325,6 @@ export default function SettingsModal() {
                       userDoc={userDoc}
                       loading={loading}
                       theme={theme}
-                      language={language}
                       onNavigate={setStep}
                       onClose={() => toggleSettings(false)}
                       onLogout={() => toggleLogout(true)}

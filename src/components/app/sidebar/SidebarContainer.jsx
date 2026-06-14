@@ -23,9 +23,8 @@ export default function SidebarContainer({
 }) {
   const router = useRouter();
   const ui = useContext(UIContext);
-  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData } = ui;
+  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData, isTopicModalOpen, setIsTopicModalOpen, theme } = ui;
   const { customProjects, projectChatSessions } = useContext(ChatContext);
-  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
 
@@ -91,9 +90,40 @@ useEffect(() => {
      showUserProfileButton = true,
   }) => (
     <div className="flex flex-col h-full">
-      {/* Верхняя панель */}
-     <div className="relative flex items-center justify-between px-3 py-2">
-        {showNewChatButton && (
+      {/* Desktop logo — full-width accent block */}
+      {!mobileMode && (
+        <div className="flex items-center justify-between px-3 pt-4 pb-2">
+          <img
+            src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
+            alt="NaviMind"
+            className="h-[42px] w-auto object-contain select-none pointer-events-none"
+            draggable={false}
+          />
+          {showCloseButton && (
+            <div className="relative inline-flex flex-col items-center">
+              <button
+                onClick={onCloseButtonClick}
+                className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                aria-label="Close sidebar"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div className="pointer-events-none absolute top-full mt-2 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+                Close Sidebar
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Верхняя панель (mobile only) */}
+     <div className={`relative flex items-center justify-between px-3 py-2 ${!mobileMode ? "hidden" : ""}`}>
+        {/* Desktop: logo moved to block above */}
+
+        {/* Mobile: New Chat icon (left) */}
+        {mobileMode && showNewChatButton && (
           <NewChatButton onSidebarItemClick={onSidebarItemClick} />
         )}
 
@@ -147,6 +177,13 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+{/* New Chat — full-width labeled row (desktop) */}
+{!mobileMode && showNewChatButton && (
+  <div className="px-1 py-0">
+    <NewChatButton variant="full" onSidebarItemClick={onSidebarItemClick} />
+  </div>
+)}
 
 {/* Vessel Profile Button */}
  <div className="px-1 py-0">
@@ -217,7 +254,7 @@ useEffect(() => {
 )}
 
 {mobileMode && (
-  <div className="text-[9px] text-center text-gray-500 px-2 pt-1 pb-2 truncate">
+  <div className="text-[9px] leading-none text-center text-gray-400 dark:text-gray-500 px-2 pt-0.5 pb-1.5 truncate">
     Powered by advanced AI – Maritime enhanced.
   </div>
 )}
@@ -244,14 +281,14 @@ useEffect(() => {
   </aside>
 );
 
-  // Десктоп-версия как переменная
+  // Десктоп-версия как переменная — floating card (same language as MiniSidebar)
   const DesktopAside = (
   <aside
-    className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
+    className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
     style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
   >
     <div
-      className="flex flex-col h-full w-[16rem]"
+      className="w-[16rem] h-full p-2 flex flex-col"
       style={{
         opacity: ui.isSidebarOpen ? 1 : 0,
         transition: ui.isSidebarOpen
@@ -259,11 +296,18 @@ useEffect(() => {
           : "opacity 120ms ease",         // закрытие: текст исчезает сразу
       }}
     >
-      <SidebarContent
-        showNewChatButton={true}
-        showCloseButton={true}
-        onCloseButtonClick={handleCloseSidebar}
-      />
+      {/* Floating card */}
+      <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
+        bg-white/95 dark:bg-[#151e30]/95 backdrop-blur-md
+        shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
+        dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
+        ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+        <SidebarContent
+          showNewChatButton={true}
+          showCloseButton={true}
+          onCloseButtonClick={handleCloseSidebar}
+        />
+      </div>
     </div>
     </aside>
   );

@@ -21,6 +21,7 @@ export default function DynamicProjectPage() {
     setActiveChatId,
     openChatSession,
     renameChat,
+    renameCustomProject,
     deleteChat,
     projectChatSessions,
     setProjectChatSessions,
@@ -38,6 +39,8 @@ export default function DynamicProjectPage() {
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
   const [expanded, setExpanded] = useState(true);
   const anchorRefs = useRef({});
@@ -144,6 +147,17 @@ export default function DynamicProjectPage() {
     customProjects?.[project]?.name ||
     project.charAt(0).toUpperCase() + project.slice(1);
 
+  const startEditName = () => {
+    setNameDraft(currentProjectName);
+    setIsEditingName(true);
+  };
+
+  const commitEditName = () => {
+    const v = nameDraft.trim();
+    if (v && v !== currentProjectName) renameCustomProject(project, v);
+    setIsEditingName(false);
+  };
+
   if (hasChat) {
     return <ChatArea messages={messages} />;
   }
@@ -156,7 +170,12 @@ export default function DynamicProjectPage() {
       if (ms > maxMs) maxMs = ms;
     }
     if (!maxMs) return null;
-    return new Date(maxMs).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const d = new Date(maxMs);
+    const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+    if (dayDiff <= 0) return "today";
+    if (dayDiff === 1) return "yesterday";
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   })();
 
   return (
@@ -165,12 +184,46 @@ export default function DynamicProjectPage() {
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
           <Icon name="folder-open" size={28} className="mr-2 flex-shrink-0" />
-          <span
-            className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words"
-            style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
-          >
-            {currentProjectName}
-          </span>
+          {isEditingName ? (
+            <input
+              type="text"
+              value={nameDraft}
+              autoFocus
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitEditName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
+                else if (e.key === "Escape") setIsEditingName(false);
+              }}
+              className="block font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 outline-none whitespace-normal break-words"
+              style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
+            />
+          ) : (
+            <>
+              <span
+                onDoubleClick={startEditName}
+                className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words cursor-text"
+                style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
+              >
+                {currentProjectName}
+              </span>
+              <span className="relative inline-flex flex-col items-center ml-1.5 flex-shrink-0">
+                <button
+                  onClick={startEditName}
+                  aria-label="Rename topic"
+                  className="peer p-1.5 rounded-lg text-gray-300 dark:text-gray-600
+                    hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
+                    focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                    transition-colors duration-200"
+                >
+                  <Icon name="edit" size={17} />
+                </button>
+                <span className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap hidden md:block">
+                  Rename
+                </span>
+              </span>
+            </>
+          )}
           <button
             onClick={() => {
               setInstrText(customProjects?.[project]?.description || "");
@@ -299,7 +352,7 @@ export default function DynamicProjectPage() {
                           }
                         }}
                         autoFocus
-                        className="flex-1 w-full bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
+                        className="flex-1 w-full bg-transparent border-b-2 border-blue-500 px-1 py-0.5 text-[15px] text-gray-900 dark:text-gray-100 outline-none"
                       />
                     ) : (
                       <button
@@ -387,7 +440,7 @@ export default function DynamicProjectPage() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
+                className="bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
                 onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
               >
                 <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
@@ -398,7 +451,7 @@ export default function DynamicProjectPage() {
                   onChange={(e) => setInstrText(e.target.value)}
                   placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
                   autoFocus
-                  className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
+                  className="w-full px-3 py-2 mb-3 rounded-xl border text-base bg-white dark:bg-white/5 border-gray-300 dark:border-white/10 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
                 />
                 <div className="flex gap-2">
                   <button

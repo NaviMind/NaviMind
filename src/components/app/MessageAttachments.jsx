@@ -1,210 +1,213 @@
 import React, { useState } from "react";
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getFileExt(name = "") {
+  return name.split(".").pop()?.toLowerCase() || "";
+}
+
+function getDocLabel(ext) {
+  if (ext === "pdf") return "PDF";
+  if (["doc", "docx"].includes(ext)) return "Word";
+  if (["xls", "xlsx"].includes(ext)) return "Excel";
+  if (["ppt", "pptx"].includes(ext)) return "PPT";
+  return ext.toUpperCase() || "File";
+}
+
+const OFFICE_EXTS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+
+function getFileUrl(file) {
+  return file.previewUrl || file.url || file.downloadURL || "";
+}
+
+// Build a viewer URL that can be embedded in an <iframe> for in-app viewing.
+function getViewerSrc(file) {
+  const url = getFileUrl(file);
+  if (!url) return null;
+  const ext = getFileExt(file.name);
+
+  // PDF — browsers render it natively inside an iframe
+  if (ext === "pdf" || file.type === "application/pdf") return url;
+
+  // Word / Excel / PowerPoint — Microsoft Office Online embed viewer
+  if (OFFICE_EXTS.includes(ext)) {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  }
+
+  // Anything else — Google Docs viewer fallback
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+}
+
+// ─── Document pill (unified blue theme) ──────────────────────────────────────
+
+function DocPill({ file, onClick }) {
+  const ext = getFileExt(file.name);
+  const label = getDocLabel(ext);
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group cursor-pointer"
+    >
+      {/* Type badge — neutral icon on subtle blue tint */}
+      <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
+        <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
+      {/* Name + type */}
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
+          {file.name}
+        </p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
+          {label}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+// ─── Image tile ───────────────────────────────────────────────────────────────
+
+function ImageTile({ file, sizeClass, onClick }) {
+  const previewUrl = file.previewUrl || file.url || file.downloadURL;
+  return (
+    <div
+      onClick={onClick}
+      className={`relative flex items-center justify-center ${sizeClass} rounded-xl overflow-hidden cursor-pointer hover:scale-[1.03] transition-transform shadow-sm`}
+    >
+      <img src={previewUrl} alt={file.name} className="object-cover w-full h-full" draggable={false} />
+      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-[3px] truncate">
+        {file.name}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function MessageAttachments({ attachments = [] }) {
   if (!attachments.length) return null;
 
   const [activeImage, setActiveImage] = useState(null);
-  const [activePdf, setActivePdf] = useState(null);
-  const isMobile =
-  typeof window !== "undefined" &&
-  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
 
-  const renderFile = (file, idx) => {
-    const isImage = file.type?.startsWith("image/");
-    const previewUrl = file.previewUrl || file.url || file.downloadURL;
+  const images = attachments.filter((f) => f.type?.startsWith("image/"));
+  const docs   = attachments.filter((f) => !f.type?.startsWith("image/"));
 
-    let sizeClass = "";
+  // Image grid size
+  const imgSize =
+    images.length === 1 ? "w-[220px] h-[220px]" :
+    images.length === 2 ? "w-[160px] h-[160px]" :
+                          "w-[110px] h-[110px]";
 
-if (attachments.length === 1) {
-  sizeClass = "w-[220px] h-[220px]";
-} else if (attachments.length === 2) {
-  sizeClass = "w-[160px] h-[160px]";
-} else {
-  sizeClass = "w-[110px] h-[110px]";
-}
-
-    return (
-      <div
-        key={file.name + idx}
-        onClick={() => {
-  if (!previewUrl) return;
-
-  const isPdf = file.type === "application/pdf";
-
-  if (isImage) {
-    setActiveImage(previewUrl);
-  } else if (isPdf) {
-    if (isMobile) {
-      window.open(previewUrl, "_blank");
-    } else {
-      setActivePdf(previewUrl);
-    }
-  } else {
-    window.open(previewUrl, "_blank", "noopener,noreferrer");
-  }
-}}
-
-
-        className={`
-  relative flex items-center justify-center
-  ${sizeClass}
-  bg-gray-200 dark:bg-gray-700
-  rounded overflow-hidden
-  cursor-pointer
-  hover:scale-105 transition-transform
-`}
-      >
-        {isImage ? (
-          <img
-            src={previewUrl}
-            alt={file.name}
-            className="object-cover w-full h-full"
-            draggable={false}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center text-xs p-2 text-center select-none">
-            <svg
-              className="w-6 h-6 mb-1 text-gray-700 dark:text-gray-300"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="truncate max-w-full">{file.name}</span>
-          </div>
-        )}
-
-        {/* overlay с названием */}
-        {isImage && (
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-[2px] truncate">
-            {file.name}
-          </div>
-        )}
-      </div>
-    );
+  const handleDocClick = (file) => {
+    const src = getViewerSrc(file);
+    if (!src) return;
+    setActiveDoc({ src, url: getFileUrl(file), name: file.name });
   };
 
   return (
-  <>
-    {/* ===== ATTACHMENTS ===== */}
-    {attachments.length === 1 && (
-      <div className="flex mt-2 justify-end">
-        {renderFile(attachments[0], 0)}
-      </div>
-    )}
-
-    {(attachments.length === 2 || attachments.length === 3) && (
-      <div className="flex gap-2 mt-2 justify-end">
-        {attachments.map((file, idx) => renderFile(file, idx))}
-      </div>
-    )}
-
-    {attachments.length === 4 && (
-      <div className="flex flex-col gap-2 mt-2 items-end max-w-fit">
-        <div className="flex gap-2">
-          {attachments.slice(0, 2).map((file, idx) =>
-            renderFile(file, idx)
-          )}
+    <>
+      {/* ── Images grid ─────────────────────────────────────────── */}
+      {images.length > 0 && (
+        <div className="flex flex-wrap gap-2 justify-end mt-2">
+          {images.map((file, idx) => (
+            <ImageTile
+              key={file.name + idx}
+              file={file}
+              sizeClass={imgSize}
+              onClick={() => setActiveImage(file.previewUrl || file.url || file.downloadURL)}
+            />
+          ))}
         </div>
-        <div className="flex gap-2">
-          {attachments.slice(2, 4).map((file, idx) =>
-            renderFile(file, idx + 2)
-          )}
+      )}
+
+      {/* ── Document pills (stacked column) ─────────────────────── */}
+      {docs.length > 0 && (
+        <div className="flex flex-col gap-1.5 items-end mt-2">
+          {docs.map((file, idx) => (
+            <DocPill
+              key={file.name + idx}
+              file={file}
+              onClick={() => handleDocClick(file)}
+            />
+          ))}
         </div>
-      </div>
-    )}
+      )}
 
-    {attachments.length === 5 && (
-      <div className="flex flex-col gap-2 mt-2 items-end max-w-fit">
-        <div className="flex gap-2">
-          {attachments.slice(0, 2).map((file, idx) =>
-            renderFile(file, idx)
-          )}
+      {/* ── Image lightbox ──────────────────────────────────────── */}
+      {activeImage && (
+        <div
+          onClick={() => setActiveImage(null)}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        >
+          <button
+            onClick={() => setActiveImage(null)}
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
+          >
+            ✕
+          </button>
+          <img
+            src={activeImage}
+            alt="preview"
+            className="max-w-[95vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
-        <div className="flex gap-2">
-          {attachments.slice(2, 5).map((file, idx) =>
-            renderFile(file, idx + 2)
-          )}
+      )}
+
+      {/* ── Document viewer (PDF / Word / Excel / PPT) ──────────── */}
+      {activeDoc && (
+        <div
+          onClick={() => setActiveDoc(null)}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        >
+          {/* Close */}
+          <button
+            onClick={() => setActiveDoc(null)}
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition z-10"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+
+          <div
+            className="flex flex-col w-[92vw] md:w-[70vw] h-[90vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with file name + open-in-new-tab fallback */}
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
+              <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
+                {activeDoc.name}
+              </span>
+              <a
+                href={activeDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
+              >
+                Open in new tab
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Embedded viewer */}
+            <iframe
+              src={activeDoc.src}
+              className="w-full flex-1 bg-white"
+              title={activeDoc.name}
+            />
+          </div>
         </div>
-      </div>
-    )}
-
-   {/* ===== MODAL PREVIEW ===== */}
-
-{activeImage && (
-  <div
-    onClick={() => setActiveImage(null)}
-    className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-  >
-    <button
-      onClick={() => setActiveImage(null)}
-      className="
-        absolute top-6 right-6
-        w-11 h-11
-        flex items-center justify-center
-        rounded-full
-        bg-black
-        text-white
-        text-xl
-        shadow-lg
-        hover:bg-gray-800
-        transition
-      "
-    >
-      ✕
-    </button>
-
-    <img
-      src={activeImage}
-      alt="preview"
-      className="max-w-[95vw] max-h-[90vh] object-contain"
-      onClick={(e) => e.stopPropagation()}
-    />
-  </div>
-)}
-
-{activePdf && (
-  <div
-    onClick={() => setActivePdf(null)}
-    className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-  >
-    <button
-      onClick={() => setActivePdf(null)}
-      className="
-        absolute top-6 right-6
-        w-11 h-11
-        flex items-center justify-center
-        rounded-full
-        bg-black
-        text-white
-        text-xl
-        shadow-lg
-        hover:bg-gray-800
-        transition
-      "
-    >
-      ✕
-    </button>
-
-    <div
-      className="w-[60vw] h-[90vh] bg-white rounded-lg overflow-hidden shadow-2xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <iframe
-        src={activePdf}
-        className="w-full h-full"
-        title="PDF preview"
-      />
-    </div>
-  </div>
-)}
-
-  </>
-);
+      )}
+    </>
+  );
 }

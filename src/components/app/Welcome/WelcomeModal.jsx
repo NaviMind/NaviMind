@@ -13,16 +13,15 @@ import PrivacyModalMobile from "../Privacy/PrivacyModalMobile";
 export default function WelcomeModal() {
   const { theme } = useContext(UIContext);
   const [isMobile, setIsMobile] = useState(false);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("navimind_welcome_accepted");
+  });
   const [step, setStep] = useState("welcome"); // "welcome" | "terms" | "privacy"
   const [isClosing, setIsClosing] = useState(false);
   const [currentCard, setCurrentCard] = useState(0); // lifted up so Terms/Privacy don't reset it
 
   useEffect(() => {
-    // TODO: uncomment before launch to show welcome only once
-    // const alreadyAccepted = localStorage.getItem("navimind_welcome_accepted");
-    // if (alreadyAccepted) setOpen(false);
-
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener("resize", check);

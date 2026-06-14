@@ -25,6 +25,9 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+
+  const TOPIC_LIMIT = 5;
 
   // ── Topic-folder select mode ──
   const [topicSelectMode, setTopicSelectMode] = useState(false);
@@ -139,6 +142,14 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   const allTopicsSelected = selectedTopicIds.size === sortedTopics.length;
 
+  // Show max TOPIC_LIMIT topics; rest hidden behind a "Show more" toggle.
+  // In select mode we always show everything so selection stays consistent.
+  const hasOverflow = sortedTopics.length > TOPIC_LIMIT;
+  const visibleTopics =
+    showAllTopics || topicSelectMode
+      ? sortedTopics
+      : sortedTopics.slice(0, TOPIC_LIMIT);
+
   return (
     <>
       {/* ── Topic select bar (replaces nothing — appears above list) ── */}
@@ -177,7 +188,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
         </div>
       )}
 
-      {sortedTopics.map(([projId, proj]) => {
+      {visibleTopics.map(([projId, proj]) => {
         const isActive = projId === activeProject;
         const isExpanded = expandedProjects[projId] || false;
         const rawChats = projectChatSessions[projId] || [];
@@ -202,7 +213,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
             {/* ── Topic folder row ── */}
             <div
               className={`
-                group relative flex items-center px-2 py-0.5 mx-1.5 my-px rounded-md transition-all duration-200
+                group relative flex items-center px-2.5 py-0.5 mx-1.5 my-px rounded-lg transition-all duration-200
                 ${topicSelectMode && isTopicSelected ? "bg-blue-50 dark:bg-white/10" : ""}
                 ${!topicSelectMode && isActive ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white" : ""}
                 ${!topicSelectMode && !isActive ? "hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200" : ""}
@@ -270,7 +281,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
                         setRenamingId(null);
                       }
                     }}
-                    className="w-full bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
+                    className="w-full bg-transparent border-b-2 border-blue-500 px-1 py-0.5 text-[15px] text-gray-900 dark:text-gray-100 outline-none"
                     autoFocus
                   />
                 ) : (
@@ -406,6 +417,16 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
           </div>
         );
       })}
+
+      {/* ── Show more / less toggle ── */}
+      {hasOverflow && !topicSelectMode && (
+        <button
+          onClick={() => setShowAllTopics((v) => !v)}
+          className="mt-0.5 mx-1.5 px-2.5 py-1 text-[14px] font-semibold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+        >
+          {showAllTopics ? "Show less" : `Show more (${sortedTopics.length - TOPIC_LIMIT})`}
+        </button>
+      )}
     </>
   );
 }

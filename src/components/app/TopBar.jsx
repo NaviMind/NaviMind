@@ -45,21 +45,14 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] border-b border-gray-200 dark:border-transparent pl-0 pr-4 md:px-4 z-30">
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30">
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
-        {/* New Chat — только десктоп, только когда sidebar закрыт */}
-        {!isSidebarOpen && (
-          <div className="hidden md:block">
-            <NewChatButton />
-          </div>
-        )}
-
-        {/* Мобилка: гамбургер всегда, открывает и закрывает sidebar */}
+        {/* Мобилка: гамбургер — открывает/закрывает sidebar */}
         <button
           onClick={toggleSidebar}
-          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
+          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 sm:hidden"
           aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           <svg
@@ -72,37 +65,16 @@ export default function TopBar() {
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-
-        {/* Десктоп — только когда sidebar закрыт */}
-        {!isSidebarOpen && (
-          <Tooltip content="Open Sidebar" position="bottom">
-            <button
-              onClick={toggleSidebar}
-              className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hidden md:flex items-center justify-center"
-              aria-label="Open Sidebar"
-            >
-              <svg
-                className="h-6 w-6 text-gray-800 dark:text-gray-200"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </Tooltip>
-        )}
       </div>
 
-      {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}
-      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
-        showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"
+      {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
+      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 sm:hidden ${
+        showMobileTopicPill ? "opacity-0" : "opacity-100"
       }`}>
         <img
           src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
           alt="NaviMind AI"
-          className="w-[170px] md:w-[220px] h-auto object-contain"
+          className="w-[170px] h-auto object-contain"
         />
       </div>
 

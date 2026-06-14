@@ -74,31 +74,34 @@ function ShareButton({ onShare, className = "" }) {
 // User message — Copy button lives BELOW the bubble
 function UserMessage({ content, attachments = [], copied, onCopy }) {
   return (
-    <div className="w-full flex justify-end mt-6">
-      <div className={`flex flex-col items-end gap-1 ${USER_MESSAGE_WIDTH}`}>
-        {attachments?.length > 0 && <MessageAttachments attachments={attachments} />}
-
-        {/* group is on the outer wrapper so hover covers bubble + button area */}
-        <div className={`group flex flex-col items-end w-full`}>
-          <div
-            className={`
-              p-3 rounded-xl
-              text-[17px] sm:text-base font-normal
-              leading-relaxed whitespace-pre-wrap shadow-md break-words
-              w-full
-              bg-gray-100 dark:bg-gray-700/40 backdrop-blur-md border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white
-            `}
-          >
-            {content}
-          </div>
-
-          {/* Copy below the bubble — always visible on mobile, hover on desktop */}
-          <CopyButton
-            copied={copied}
-            onCopy={onCopy}
-            className="mt-1 mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
-          />
+    <div className="w-full flex flex-col items-end mt-6 gap-1">
+      {/* Attachment row — independently sized */}
+      {attachments?.length > 0 && (
+        <div className={USER_MESSAGE_WIDTH}>
+          <MessageAttachments attachments={attachments} />
         </div>
+      )}
+
+      {/* Text bubble — sized by content, not by attachment width */}
+      <div className={`group flex flex-col items-end ${USER_MESSAGE_WIDTH}`}>
+        <div
+          className={`
+            p-3 rounded-xl
+            text-[17px] sm:text-base font-normal
+            leading-relaxed whitespace-pre-wrap shadow-md break-words
+            w-fit max-w-full
+            bg-gray-100 dark:bg-gray-700/40 backdrop-blur-md border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white
+          `}
+        >
+          {content}
+        </div>
+
+        {/* Copy below the bubble — always visible on mobile, hover on desktop */}
+        <CopyButton
+          copied={copied}
+          onCopy={onCopy}
+          className="mt-1 mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+        />
       </div>
     </div>
   );

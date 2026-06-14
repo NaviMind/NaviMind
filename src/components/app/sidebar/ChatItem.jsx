@@ -86,7 +86,7 @@ if (!chat.title) return null;
     <div
       key={chat.chatId}
       className={`
-        group relative flex items-center px-2 py-0.5 mx-1.5 my-px rounded-md transition-all duration-200
+        group relative flex items-center px-2.5 py-0.5 mx-1.5 my-px rounded-lg transition-all duration-200
         ${isSelectMode && isSelected ? "bg-blue-50 dark:bg-white/10" : ""}
         ${!isSelectMode && isActive ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white" : ""}
         ${!isSelectMode && !isActive ? "hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200" : ""}
@@ -123,7 +123,7 @@ if (!chat.title) return null;
             else if (e.key === "Escape") setRenamingId(null);
           }}
           onBlur={handleRename}
-          className="flex-1 bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
+          className="flex-1 bg-transparent border-b-2 border-blue-500 px-1 py-0.5 text-[15px] text-gray-900 dark:text-gray-100 outline-none"
           autoFocus
         />
       ) : (
