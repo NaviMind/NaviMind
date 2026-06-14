@@ -222,26 +222,30 @@ useEffect(() => {
       </span>
     </button>
     {/* Collapse chevron — desktop only, visible on row hover */}
-    <button
-      onClick={(e) => { e.stopPropagation(); setTopicsCollapsed((v) => !v); }}
-      className="
-        hidden sm:flex flex-shrink-0 items-center justify-center
-        w-8 h-8 mr-1 rounded
-        opacity-0 group-hover/ct:opacity-100
-        hover:bg-gray-200 dark:hover:bg-gray-700
-        transition-all duration-150
-      "
-      title={topicsCollapsed ? "Show all topics" : "Hide topics (keep pinned)"}
-      type="button"
-    >
-      <svg
-        width="16" height="16" viewBox="0 0 16 16" fill="none"
-        className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    <div className="relative hidden sm:flex flex-shrink-0 items-center justify-center mr-1">
+      <button
+        onClick={(e) => { e.stopPropagation(); setTopicsCollapsed((v) => !v); }}
+        className="
+          peer flex items-center justify-center
+          w-8 h-8 rounded
+          opacity-0 group-hover/ct:opacity-100
+          hover:bg-gray-200 dark:hover:bg-gray-700
+          transition-all duration-150
+        "
+        type="button"
       >
-        <polyline points="4 10 8 6 12 10" />
-      </svg>
-    </button>
+        <svg
+          width="16" height="16" viewBox="0 0 16 16" fill="none"
+          className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="4 10 8 6 12 10" />
+        </svg>
+      </button>
+      <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+        {topicsCollapsed ? "Show all topics" : "Hide topics"}
+      </div>
+    </div>
   </div>
 </div>
 
