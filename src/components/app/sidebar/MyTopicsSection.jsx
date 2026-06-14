@@ -422,9 +422,9 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
       {hasOverflow && !topicSelectMode && (
         <button
           onClick={() => setShowAllTopics((v) => !v)}
-          className="mt-px ml-3 px-2.5 py-1 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+          className="mt-0.5 mx-1.5 px-2.5 py-1 text-[14px] font-semibold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
         >
-          {showAllTopics ? "Show less" : `Show more`}
+          {showAllTopics ? "Show less" : `Show more (${sortedTopics.length - TOPIC_LIMIT})`}
         </button>
       )}
     </>
