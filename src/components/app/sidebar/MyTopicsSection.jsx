@@ -9,7 +9,7 @@ import Icon from "@/components/common/Icon";
 import { togglePinTopic, deleteChatFromFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
-export default function MyTopicsSection({ onSidebarItemClick }) {
+export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = false }) {
   const {
     projectChatSessions,
     customProjects,
@@ -142,18 +142,24 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   const allTopicsSelected = selectedTopicIds.size === sortedTopics.length;
 
-  // Show max TOPIC_LIMIT topics; rest hidden behind a "Show more" toggle.
-  // In select mode we always show everything so selection stays consistent.
-  const hasOverflow = sortedTopics.length > TOPIC_LIMIT;
-  const visibleTopics =
-    showAllTopics || topicSelectMode
+  // Collapsed mode: only show pinned topics (max TOPIC_LIMIT). No Show more.
+  // Expanded mode: show up to TOPIC_LIMIT with Show more/less toggle.
+  const pinnedTopics = sortedTopics.filter(([, proj]) => proj.isPinned);
+
+  const hasOverflow = !collapsedMode && sortedTopics.length > TOPIC_LIMIT;
+  const visibleTopics = collapsedMode
+    ? pinnedTopics.slice(0, TOPIC_LIMIT)
+    : showAllTopics || topicSelectMode
       ? sortedTopics
       : sortedTopics.slice(0, TOPIC_LIMIT);
+
+  // Nothing to show when collapsed with no pinned topics
+  if (collapsedMode && pinnedTopics.length === 0) return null;
 
   return (
     <>
       {/* ── Topic select bar (replaces nothing — appears above list) ── */}
-      {topicSelectMode && (
+      {topicSelectMode && !collapsedMode && (
         <div className="px-3 py-2 mt-1 flex items-center gap-2 text-[13px]">
           <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
             {selectedTopicIds.size} selected

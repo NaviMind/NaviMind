@@ -231,7 +231,7 @@ useEffect(() => {
         hover:bg-gray-200 dark:hover:bg-gray-700
         transition-all duration-150
       "
-      title={topicsCollapsed ? "Show topics" : "Hide topics"}
+      title={topicsCollapsed ? "Show all topics" : "Hide topics (keep pinned)"}
       type="button"
     >
       <svg
@@ -263,6 +263,7 @@ useEffect(() => {
       {/* Контент */}
      <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll">
   {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
+  {topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} collapsedMode />}
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
 </div>
 
