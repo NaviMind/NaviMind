@@ -96,7 +96,7 @@ useEffect(() => {
           <img
             src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
             alt="NaviMind"
-            className="h-14 w-auto object-contain select-none pointer-events-none"
+            className="h-[42px] w-auto object-contain select-none pointer-events-none"
             draggable={false}
           />
           {showCloseButton && (

@@ -38,7 +38,7 @@ function MiniBtn({ children, morph, tooltip, onClick }) {
       >
         {morph ? (
           // Cross-fade between idle (logo) and hover (hamburger)
-          <span className="relative w-8 h-8 flex items-center justify-center">
+          <span className="relative w-9 h-9 flex items-center justify-center">
             <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered ? "opacity-0" : "opacity-100"}`}>
               {morph.idle}
             </span>
@@ -154,7 +154,7 @@ export default function MiniSidebar() {
             tooltip="Open Sidebar"
             onClick={toggleSidebar}
             morph={{
-              idle: <img src="/compass.png" alt="" className="w-8 h-8 object-contain" draggable={false} />,
+              idle: <img src="/compass.png" alt="" className="w-9 h-9 object-contain" draggable={false} />,
               hover: <IcMenu />,
             }}
           />
