@@ -170,7 +170,12 @@ export default function DynamicProjectPage() {
       if (ms > maxMs) maxMs = ms;
     }
     if (!maxMs) return null;
-    return new Date(maxMs).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const d = new Date(maxMs);
+    const startOfDay = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+    if (dayDiff <= 0) return "today";
+    if (dayDiff === 1) return "yesterday";
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   })();
 
   return (
