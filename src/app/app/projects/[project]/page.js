@@ -387,7 +387,7 @@ export default function DynamicProjectPage() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="bg-white/90 dark:bg-gray-800/90 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
+                className="bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
                 onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
               >
                 <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
@@ -398,7 +398,7 @@ export default function DynamicProjectPage() {
                   onChange={(e) => setInstrText(e.target.value)}
                   placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
                   autoFocus
-                  className="w-full px-3 py-2 mb-3 rounded-lg border text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-400 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
+                  className="w-full px-3 py-2 mb-3 rounded-xl border text-base bg-white dark:bg-white/5 border-gray-300 dark:border-white/10 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
                 />
                 <div className="flex gap-2">
                   <button
