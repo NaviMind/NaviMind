@@ -126,7 +126,7 @@ export default function ChatListSection({ onSidebarItemClick }) {
           </button>
         </div>
       ) : (
-        <div className="px-4 py-2 mt-3 text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
+        <div className="px-2 py-2 mt-3 text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
           Chats
         </div>
       )}

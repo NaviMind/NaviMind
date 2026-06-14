@@ -212,7 +212,7 @@ useEffect(() => {
     <button
       onClick={() => setVesselProfileOpen(true)}
       className="
-        w-full flex items-center gap-2 px-5 py-1 rounded-md
+        w-full flex items-center gap-2 px-2.5 py-1 rounded-md
         border border-transparent bg-transparent
         hover:border-blue-500
         focus:outline-none focus:ring-2 focus:ring-blue-500
@@ -227,7 +227,7 @@ useEffect(() => {
   </div>
 
   {/* My Topics section header: label + collapse chevron + create (+) */}
-  <div className="group/topics flex items-center px-4 py-1 mt-1 select-none">
+  <div className="group/topics flex items-center px-2 py-1 mt-1 select-none">
     <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
       My Topics
     </span>

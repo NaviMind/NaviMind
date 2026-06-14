@@ -45,7 +45,7 @@ export default function NewChatButton({ onSidebarItemClick, variant = "icon" }) 
       <button
         onClick={handleNewChat}
         className="
-          w-full flex items-center gap-2 px-5 py-1 rounded-md
+          w-full flex items-center gap-2 px-2.5 py-1 rounded-md
           border border-transparent
           bg-transparent
           hover:border-blue-500
