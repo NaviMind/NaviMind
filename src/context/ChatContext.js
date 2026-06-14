@@ -1,6 +1,6 @@
 "use client";
 
-import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats } from "@/firebase/chatStore";
+import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats, renameTopicInFirestore } from "@/firebase/chatStore";
 import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
@@ -214,10 +214,18 @@ useEffect(() => {
 };
 
   const renameCustomProject = (id, newName) => {
+    const name = (newName ?? "").trim();
+    if (!name) return;
     setCustomProjects((prev) => ({
       ...prev,
-      [id]: { ...prev[id], name: newName },
+      [id]: { ...prev[id], name },
     }));
+    const uid = auth.currentUser?.uid;
+    if (uid && id && id !== "global") {
+      renameTopicInFirestore(uid, id, name).catch((e) =>
+        console.error("❌ Failed to persist topic rename:", e)
+      );
+    }
   };
 
   /* ───────── chats control ───────── */

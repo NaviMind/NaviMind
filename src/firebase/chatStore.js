@@ -367,6 +367,13 @@ export async function updateTopicDescription(uid, topicId, description) {
   await updateDoc(ref, { description: description ?? "" });
 }
 
+export async function renameTopicInFirestore(uid, topicId, newName) {
+  const name = (newName ?? "").trim();
+  if (!name) return;
+  const ref = doc(db, "users", uid, "topics", topicId);
+  await updateDoc(ref, { name });
+}
+
 export async function updateTopicMemory(uid, topicId, memoryText) {
   const ref = doc(db, "users", uid, "topics", topicId);
   await updateDoc(ref, {

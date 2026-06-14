@@ -21,6 +21,7 @@ export default function DynamicProjectPage() {
     setActiveChatId,
     openChatSession,
     renameChat,
+    renameCustomProject,
     deleteChat,
     projectChatSessions,
     setProjectChatSessions,
@@ -38,6 +39,8 @@ export default function DynamicProjectPage() {
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
   const [expanded, setExpanded] = useState(true);
   const anchorRefs = useRef({});
@@ -144,6 +147,17 @@ export default function DynamicProjectPage() {
     customProjects?.[project]?.name ||
     project.charAt(0).toUpperCase() + project.slice(1);
 
+  const startEditName = () => {
+    setNameDraft(currentProjectName);
+    setIsEditingName(true);
+  };
+
+  const commitEditName = () => {
+    const v = nameDraft.trim();
+    if (v && v !== currentProjectName) renameCustomProject(project, v);
+    setIsEditingName(false);
+  };
+
   if (hasChat) {
     return <ChatArea messages={messages} />;
   }
@@ -165,12 +179,41 @@ export default function DynamicProjectPage() {
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
           <Icon name="folder-open" size={28} className="mr-2 flex-shrink-0" />
-          <span
-            className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words"
-            style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
-          >
-            {currentProjectName}
-          </span>
+          {isEditingName ? (
+            <input
+              type="text"
+              value={nameDraft}
+              autoFocus
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitEditName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
+                else if (e.key === "Escape") setIsEditingName(false);
+              }}
+              className="block font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 outline-none whitespace-normal break-words"
+              style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
+            />
+          ) : (
+            <>
+              <span
+                onDoubleClick={startEditName}
+                className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words cursor-text"
+                style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
+              >
+                {currentProjectName}
+              </span>
+              <button
+                onClick={startEditName}
+                aria-label="Rename topic"
+                className="ml-1.5 p-1.5 rounded-lg flex-shrink-0 text-gray-400 dark:text-gray-500
+                  hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                  opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
+              >
+                <Icon name="edit" size={17} />
+              </button>
+            </>
+          )}
           <button
             onClick={() => {
               setInstrText(customProjects?.[project]?.description || "");
