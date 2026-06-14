@@ -186,68 +186,8 @@ useEffect(() => {
   </div>
 )}
 
-{/* Vessel Profile Button */}
- <div className="px-1 py-0">
-  <button
-  onClick={() => setVesselProfileOpen(true)}
- className="
-  w-full flex items-center gap-2 px-3.5 py-1 rounded-md
-  border border-transparent
-  bg-transparent
-  hover:border-blue-500
-  focus:outline-none focus:ring-2 focus:ring-blue-500
-  transition-colors duration-200 min-h-[38px] 
-"
->
-  <Icon name="vessel-profile" size={20} />
-  <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-    Vessel Profile
-  </span>
-</button>
-</div>
-
-{/* Create Topic Button — left: opens modal; right: chevron collapses topics (desktop hover only) */}
-<div className="px-1 py-0 group/ct">
-  <div className={`
-    flex items-center rounded-md border transition-colors duration-200 min-h-[38px]
-    border-transparent hover:border-blue-500
-  `}>
-    <button
-      onClick={() => setIsTopicModalOpen(true)}
-      className="flex flex-1 items-center gap-2 px-3.5 py-1 focus:outline-none"
-    >
-      <Icon name="create-new" size={20} />
-      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-        Create Topic
-      </span>
-    </button>
-    {/* Collapse chevron — desktop only, visible on row hover */}
-    <div className="relative hidden sm:flex flex-shrink-0 items-center justify-center mr-1">
-      <button
-        onClick={(e) => { e.stopPropagation(); setTopicsCollapsed((v) => !v); }}
-        className="
-          peer flex items-center justify-center
-          w-8 h-8 rounded
-          opacity-0 group-hover/ct:opacity-100
-          hover:bg-gray-200 dark:hover:bg-gray-700
-          transition-all duration-150
-        "
-        type="button"
-      >
-        <svg
-          width="16" height="16" viewBox="0 0 16 16" fill="none"
-          className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        >
-          <polyline points="4 10 8 6 12 10" />
-        </svg>
-      </button>
-      <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
-        {topicsCollapsed ? "Show all topics" : "Hide topics"}
-      </div>
-    </div>
-  </div>
-</div>
+{/* Vessel Profile + Create Topic moved into the scrollable content area below.
+    Only New Chat stays fixed at the top. */}
 
 {/* Плейсхолдер при отсутствии данных */}
 {!Object.keys(customProjects || {}).length &&
@@ -266,6 +206,82 @@ useEffect(() => {
 
       {/* Контент */}
      <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll">
+
+  {/* Vessel Profile (scrolls now) */}
+  <div className="px-1 py-0">
+    <button
+      onClick={() => setVesselProfileOpen(true)}
+      className="
+        w-full flex items-center gap-2 px-3.5 py-1 rounded-md
+        border border-transparent bg-transparent
+        hover:border-blue-500
+        focus:outline-none focus:ring-2 focus:ring-blue-500
+        transition-colors duration-200 min-h-[38px]
+      "
+    >
+      <Icon name="vessel-profile" size={20} />
+      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
+        Vessel Profile
+      </span>
+    </button>
+  </div>
+
+  {/* My Topics section header: label + collapse chevron + create (+) */}
+  <div className="group/topics flex items-center px-[12px] py-2 mt-3 select-none">
+    <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
+      My Topics
+    </span>
+    <div className="ml-auto flex items-center gap-0.5">
+      {/* Collapse chevron — desktop hover only */}
+      <div className="relative hidden sm:flex items-center justify-center">
+        <button
+          onClick={() => setTopicsCollapsed((v) => !v)}
+          className="
+            peer flex items-center justify-center w-7 h-7 rounded
+            opacity-0 group-hover/topics:opacity-100
+            hover:bg-gray-200 dark:hover:bg-gray-700
+            transition-all duration-150
+          "
+          type="button"
+        >
+          <svg
+            width="16" height="16" viewBox="0 0 16 16" fill="none"
+            className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polyline points="4 10 8 6 12 10" />
+          </svg>
+        </button>
+        <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+          {topicsCollapsed ? "Show all topics" : "Hide topics"}
+        </div>
+      </div>
+      {/* Create topic (+) — always visible */}
+      <div className="relative flex items-center justify-center">
+        <button
+          onClick={() => setIsTopicModalOpen(true)}
+          className="
+            peer flex items-center justify-center w-7 h-7 rounded
+            text-gray-500 dark:text-gray-400
+            hover:bg-gray-200 dark:hover:bg-gray-700
+            hover:text-gray-700 dark:hover:text-gray-200
+            transition-all duration-150
+          "
+          type="button"
+          aria-label="Create topic"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="8" y1="3" x2="8" y2="13" />
+            <line x1="3" y1="8" x2="13" y2="8" />
+          </svg>
+        </button>
+        <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
+          Create topic
+        </div>
+      </div>
+    </div>
+  </div>
+
   {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
   {topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} collapsedMode />}
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
