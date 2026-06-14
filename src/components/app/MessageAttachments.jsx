@@ -6,32 +6,28 @@ function getFileExt(name = "") {
   return name.split(".").pop()?.toLowerCase() || "";
 }
 
-function getDocMeta(ext) {
-  if (ext === "pdf")
-    return { label: "PDF", iconColor: "text-red-500", bg: "bg-red-50 dark:bg-red-500/10", border: "border-red-200/60 dark:border-red-500/20" };
-  if (["doc", "docx"].includes(ext))
-    return { label: "Word", iconColor: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10", border: "border-blue-200/60 dark:border-blue-500/20" };
-  if (["xls", "xlsx"].includes(ext))
-    return { label: "Excel", iconColor: "text-green-600", bg: "bg-green-50 dark:bg-green-500/10", border: "border-green-200/60 dark:border-green-500/20" };
-  if (["ppt", "pptx"].includes(ext))
-    return { label: "PPT", iconColor: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10", border: "border-orange-200/60 dark:border-orange-500/20" };
-  return { label: ext.toUpperCase() || "File", iconColor: "text-gray-500", bg: "bg-gray-100 dark:bg-white/[0.07]", border: "border-gray-200 dark:border-white/10" };
+function getDocLabel(ext) {
+  if (ext === "pdf") return "PDF";
+  if (["doc", "docx"].includes(ext)) return "Word";
+  if (["xls", "xlsx"].includes(ext)) return "Excel";
+  if (["ppt", "pptx"].includes(ext)) return "PPT";
+  return ext.toUpperCase() || "File";
 }
 
-// ─── Document pill ────────────────────────────────────────────────────────────
+// ─── Document pill (unified blue theme) ──────────────────────────────────────
 
 function DocPill({ file, onClick }) {
   const ext = getFileExt(file.name);
-  const { label, iconColor, bg, border } = getDocMeta(ext);
+  const label = getDocLabel(ext);
 
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${border} bg-white dark:bg-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group`}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group"
     >
-      {/* Type badge */}
-      <div className={`flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 ${bg}`}>
-        <svg className={`w-5 h-5 ${iconColor}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      {/* Type badge — neutral icon on subtle blue tint */}
+      <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
+        <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
           <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
           <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -42,13 +38,13 @@ function DocPill({ file, onClick }) {
         <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
           {file.name}
         </p>
-        <p className={`text-[10px] font-semibold uppercase tracking-wider mt-[1px] ${iconColor}`}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
           {label}
         </p>
       </div>
 
-      {/* Open arrow */}
-      <svg className="w-4 h-4 text-gray-300 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      {/* Open indicator (not share — opens the file on click) */}
+      <svg className="w-4 h-4 text-gray-300 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
         <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
         <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
