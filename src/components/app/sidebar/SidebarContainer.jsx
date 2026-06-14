@@ -227,7 +227,7 @@ useEffect(() => {
   </div>
 
   {/* My Topics section header: label + collapse chevron + create (+) */}
-  <div className="group/topics flex items-center px-2 py-1 mt-1 select-none">
+  <div className="group/topics flex items-center px-1.5 py-1 mt-1 select-none">
     <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
       My Topics
     </span>
