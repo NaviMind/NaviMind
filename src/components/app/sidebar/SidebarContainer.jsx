@@ -243,14 +243,14 @@ useEffect(() => {
   </aside>
 );
 
-  // Десктоп-версия как переменная
+  // Десктоп-версия как переменная — floating card (same language as MiniSidebar)
   const DesktopAside = (
   <aside
-    className="hidden sm:flex flex-col h-full bg-[var(--bg-sidebar)] backdrop-blur-sm overflow-hidden flex-shrink-0 transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
+    className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
     style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
   >
     <div
-      className="flex flex-col h-full w-[16rem]"
+      className="w-[16rem] h-full p-2 flex flex-col"
       style={{
         opacity: ui.isSidebarOpen ? 1 : 0,
         transition: ui.isSidebarOpen
@@ -258,11 +258,18 @@ useEffect(() => {
           : "opacity 120ms ease",         // закрытие: текст исчезает сразу
       }}
     >
-      <SidebarContent
-        showNewChatButton={true}
-        showCloseButton={true}
-        onCloseButtonClick={handleCloseSidebar}
-      />
+      {/* Floating card */}
+      <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
+        bg-white/95 dark:bg-[#151e30]/95 backdrop-blur-md
+        shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
+        dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
+        ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+        <SidebarContent
+          showNewChatButton={true}
+          showCloseButton={true}
+          onCloseButtonClick={handleCloseSidebar}
+        />
+      </div>
     </div>
     </aside>
   );

@@ -202,7 +202,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
             {/* ── Topic folder row ── */}
             <div
               className={`
-                group relative flex items-center px-2 py-0.5 mx-1.5 my-px rounded-md transition-all duration-200
+                group relative flex items-center px-2.5 py-0.5 mx-1.5 my-px rounded-lg transition-all duration-200
                 ${topicSelectMode && isTopicSelected ? "bg-blue-50 dark:bg-white/10" : ""}
                 ${!topicSelectMode && isActive ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white" : ""}
                 ${!topicSelectMode && !isActive ? "hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200" : ""}
