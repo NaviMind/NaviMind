@@ -67,14 +67,14 @@ export default function TopBar() {
         </button>
       </div>
 
-      {/* ── Центр: Логотип (скрыт на мобилке при таблетке топика) ── */}
-      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
-        showMobileTopicPill ? "opacity-0 md:opacity-100" : "opacity-100"
+      {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
+      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 sm:hidden ${
+        showMobileTopicPill ? "opacity-0" : "opacity-100"
       }`}>
         <img
           src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
           alt="NaviMind AI"
-          className="w-[170px] md:w-[220px] h-auto object-contain"
+          className="w-[170px] h-auto object-contain"
         />
       </div>
 

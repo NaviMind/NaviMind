@@ -23,7 +23,7 @@ export default function SidebarContainer({
 }) {
   const router = useRouter();
   const ui = useContext(UIContext);
-  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData, isTopicModalOpen, setIsTopicModalOpen } = ui;
+  const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData, isTopicModalOpen, setIsTopicModalOpen, theme } = ui;
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
@@ -92,7 +92,18 @@ useEffect(() => {
     <div className="flex flex-col h-full">
       {/* Верхняя панель */}
      <div className="relative flex items-center justify-between px-3 py-2">
-        {showNewChatButton && (
+        {/* Desktop: logo (mobile keeps it in the topbar) */}
+        {!mobileMode && (
+          <img
+            src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
+            alt="NaviMind"
+            className="h-7 w-auto object-contain select-none pointer-events-none"
+            draggable={false}
+          />
+        )}
+
+        {/* Mobile: New Chat icon (left) */}
+        {mobileMode && showNewChatButton && (
           <NewChatButton onSidebarItemClick={onSidebarItemClick} />
         )}
 
@@ -146,6 +157,13 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+{/* New Chat — full-width labeled row (desktop) */}
+{!mobileMode && showNewChatButton && (
+  <div className="px-1 py-0">
+    <NewChatButton variant="full" onSidebarItemClick={onSidebarItemClick} />
+  </div>
+)}
 
 {/* Vessel Profile Button */}
  <div className="px-1 py-0">

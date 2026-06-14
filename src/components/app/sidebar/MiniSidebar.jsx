@@ -11,13 +11,20 @@ import Icon from "@/components/common/Icon";
 
 // ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
-function MiniBtn({ children, tooltip, onClick }) {
+function MiniBtn({ children, morph, tooltip, onClick }) {
   const [tipPos, setTipPos] = useState(null);
+  const [hovered, setHovered] = useState(false);
   const ref = useRef(null);
 
   const handleEnter = () => {
+    setHovered(true);
     const r = ref.current?.getBoundingClientRect();
     if (r) setTipPos({ top: r.top + r.height / 2, left: r.right + 10 });
+  };
+
+  const handleLeave = () => {
+    setHovered(false);
+    setTipPos(null);
   };
 
   return (
@@ -26,10 +33,22 @@ function MiniBtn({ children, tooltip, onClick }) {
         ref={ref}
         onClick={onClick}
         onMouseEnter={handleEnter}
-        onMouseLeave={() => setTipPos(null)}
+        onMouseLeave={handleLeave}
         className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
       >
-        {children}
+        {morph ? (
+          // Cross-fade between idle (logo) and hover (hamburger)
+          <span className="relative w-6 h-6 flex items-center justify-center">
+            <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered ? "opacity-0" : "opacity-100"}`}>
+              {morph.idle}
+            </span>
+            <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered ? "opacity-100" : "opacity-0"}`}>
+              {morph.hover}
+            </span>
+          </span>
+        ) : (
+          children
+        )}
       </button>
 
       {tipPos && createPortal(
@@ -131,9 +150,14 @@ export default function MiniSidebar() {
           dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
           ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
         >
-          <MiniBtn tooltip="Open Sidebar" onClick={toggleSidebar}>
-            <IcMenu />
-          </MiniBtn>
+          <MiniBtn
+            tooltip="Open Sidebar"
+            onClick={toggleSidebar}
+            morph={{
+              idle: <img src="/compass.png" alt="" className="w-6 h-6 object-contain" draggable={false} />,
+              hover: <IcMenu />,
+            }}
+          />
 
           <MiniBtn tooltip="New Chat" onClick={handleNewChat}>
             <IcNewChat />
