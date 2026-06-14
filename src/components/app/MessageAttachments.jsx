@@ -14,6 +14,30 @@ function getDocLabel(ext) {
   return ext.toUpperCase() || "File";
 }
 
+const OFFICE_EXTS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+
+function getFileUrl(file) {
+  return file.previewUrl || file.url || file.downloadURL || "";
+}
+
+// Build a viewer URL that can be embedded in an <iframe> for in-app viewing.
+function getViewerSrc(file) {
+  const url = getFileUrl(file);
+  if (!url) return null;
+  const ext = getFileExt(file.name);
+
+  // PDF — browsers render it natively inside an iframe
+  if (ext === "pdf" || file.type === "application/pdf") return url;
+
+  // Word / Excel / PowerPoint — Microsoft Office Online embed viewer
+  if (OFFICE_EXTS.includes(ext)) {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  }
+
+  // Anything else — Google Docs viewer fallback
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+}
+
 // ─── Document pill (unified blue theme) ──────────────────────────────────────
 
 function DocPill({ file, onClick }) {
@@ -23,7 +47,7 @@ function DocPill({ file, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group"
+      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group cursor-pointer"
     >
       {/* Type badge — neutral icon on subtle blue tint */}
       <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
@@ -42,13 +66,6 @@ function DocPill({ file, onClick }) {
           {label}
         </p>
       </div>
-
-      {/* Open indicator (not share — opens the file on click) */}
-      <svg className="w-4 h-4 text-gray-300 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
     </button>
   );
 }
@@ -76,10 +93,7 @@ export default function MessageAttachments({ attachments = [] }) {
   if (!attachments.length) return null;
 
   const [activeImage, setActiveImage] = useState(null);
-  const [activePdf, setActivePdf] = useState(null);
-  const isMobile =
-    typeof window !== "undefined" &&
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
 
   const images = attachments.filter((f) => f.type?.startsWith("image/"));
   const docs   = attachments.filter((f) => !f.type?.startsWith("image/"));
@@ -91,14 +105,9 @@ export default function MessageAttachments({ attachments = [] }) {
                           "w-[110px] h-[110px]";
 
   const handleDocClick = (file) => {
-    const previewUrl = file.previewUrl || file.url || file.downloadURL;
-    if (!previewUrl) return;
-    if (file.type === "application/pdf") {
-      if (isMobile) window.open(previewUrl, "_blank");
-      else setActivePdf(previewUrl);
-    } else {
-      window.open(previewUrl, "_blank", "noopener,noreferrer");
-    }
+    const src = getViewerSrc(file);
+    if (!src) return;
+    setActiveDoc({ src, url: getFileUrl(file), name: file.name });
   };
 
   return (
@@ -151,23 +160,51 @@ export default function MessageAttachments({ attachments = [] }) {
         </div>
       )}
 
-      {/* ── PDF viewer ──────────────────────────────────────────── */}
-      {activePdf && (
+      {/* ── Document viewer (PDF / Word / Excel / PPT) ──────────── */}
+      {activeDoc && (
         <div
-          onClick={() => setActivePdf(null)}
+          onClick={() => setActiveDoc(null)}
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
         >
+          {/* Close */}
           <button
-            onClick={() => setActivePdf(null)}
-            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
+            onClick={() => setActiveDoc(null)}
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition z-10"
+            aria-label="Close"
           >
             ✕
           </button>
+
           <div
-            className="w-[60vw] h-[90vh] bg-white rounded-lg overflow-hidden shadow-2xl"
+            className="flex flex-col w-[92vw] md:w-[70vw] h-[90vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <iframe src={activePdf} className="w-full h-full" title="PDF preview" />
+            {/* Header with file name + open-in-new-tab fallback */}
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
+              <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
+                {activeDoc.name}
+              </span>
+              <a
+                href={activeDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
+              >
+                Open in new tab
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Embedded viewer */}
+            <iframe
+              src={activeDoc.src}
+              className="w-full flex-1 bg-white"
+              title={activeDoc.name}
+            />
           </div>
         </div>
       )}
