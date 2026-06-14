@@ -270,7 +270,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
                         setRenamingId(null);
                       }
                     }}
-                    className="w-full bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm text-gray-900 dark:text-gray-100 outline-none"
+                    className="w-full bg-transparent border-b-2 border-blue-500 px-1 py-0.5 text-[15px] text-gray-900 dark:text-gray-100 outline-none"
                     autoFocus
                   />
                 ) : (
