@@ -52,7 +52,7 @@ export default function TopBar() {
         {/* Мобилка: гамбургер — открывает/закрывает sidebar */}
         <button
           onClick={toggleSidebar}
-          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden"
+          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 sm:hidden"
           aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           <svg
