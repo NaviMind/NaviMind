@@ -90,17 +90,37 @@ useEffect(() => {
      showUserProfileButton = true,
   }) => (
     <div className="flex flex-col h-full">
-      {/* Верхняя панель */}
-     <div className="relative flex items-center justify-between px-3 py-2">
-        {/* Desktop: logo (mobile keeps it in the topbar) */}
-        {!mobileMode && (
+      {/* Desktop logo — full-width accent block */}
+      {!mobileMode && (
+        <div className="flex items-center justify-between px-3 pt-4 pb-2">
           <img
             src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
             alt="NaviMind"
-            className="h-7 w-auto object-contain select-none pointer-events-none"
+            className="h-14 w-auto object-contain select-none pointer-events-none"
             draggable={false}
           />
-        )}
+          {showCloseButton && (
+            <div className="relative inline-flex flex-col items-center">
+              <button
+                onClick={onCloseButtonClick}
+                className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                aria-label="Close sidebar"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div className="pointer-events-none absolute top-full mt-2 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+                Close Sidebar
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Верхняя панель (mobile only) */}
+     <div className={`relative flex items-center justify-between px-3 py-2 ${!mobileMode ? "hidden" : ""}`}>
+        {/* Desktop: logo moved to block above */}
 
         {/* Mobile: New Chat icon (left) */}
         {mobileMode && showNewChatButton && (
