@@ -157,7 +157,7 @@ export default function MiniSidebar() {
               onClick={() => toggleSettings(true)}
               onMouseEnter={showAvatarTip}
               onMouseLeave={() => setAvatarTip(null)}
-              className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-white/10 hover:ring-blue-500 transition-all duration-200"
+              className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-white/10 hover:ring-blue-500 dark:hover:ring-blue-500 hover:shadow-[0_0_10px_rgba(59,130,246,0.55)] transition-all duration-200"
             >
               {photoURL ? (
                 <img src={photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
