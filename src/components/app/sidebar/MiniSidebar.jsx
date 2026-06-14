@@ -113,58 +113,72 @@ export default function MiniSidebar() {
   };
 
   return (
+    // Aside reserves layout space; overflow-visible lets the card shadow bleed into content
     <aside
-      style={{ width: isSidebarOpen ? 0 : 56 }}
-      className="hidden sm:flex flex-col overflow-hidden flex-shrink-0 h-full bg-[var(--bg-sidebar)] border-r border-gray-200 dark:border-white/[0.06] transition-[width] duration-300 ease-in-out"
+      style={{ width: isSidebarOpen ? 0 : 68 }}
+      className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out"
     >
-      {/* Fixed-width inner column — clipped by parent during animation */}
-      <div className="w-14 flex flex-col items-center py-3 gap-0.5 h-full">
+      {/* Outer padding wrapper — fades out when sidebar opens */}
+      <div
+        className="w-[68px] h-full px-2 py-3 flex flex-col"
+        style={{ opacity: isSidebarOpen ? 0 : 1, transition: "opacity 150ms ease" }}
+      >
+        {/* Floating card */}
+        <div className="flex-1 flex flex-col items-center pt-2 pb-2.5 gap-0.5 rounded-2xl
+          bg-white/95 dark:bg-[#151e30]/95
+          backdrop-blur-md
+          shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
+          dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
+          ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+        >
+          <MiniBtn tooltip="Open Sidebar" onClick={toggleSidebar}>
+            <IcMenu />
+          </MiniBtn>
 
-        <MiniBtn tooltip="Open Sidebar" onClick={toggleSidebar}>
-          <IcMenu />
-        </MiniBtn>
+          <MiniBtn tooltip="New Chat" onClick={handleNewChat}>
+            <IcNewChat />
+          </MiniBtn>
 
-        <MiniBtn tooltip="New Chat" onClick={handleNewChat}>
-          <IcNewChat />
-        </MiniBtn>
+          <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
+            <Icon name="vessel-profile" size={24} />
+          </MiniBtn>
 
-        <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
-          <Icon name="vessel-profile" size={24} />
-        </MiniBtn>
+          <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
+            <Icon name="create-new" size={24} />
+          </MiniBtn>
 
-        <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
-          <Icon name="create-new" size={24} />
-        </MiniBtn>
+          {/* Divider */}
+          <div className="w-7 h-px bg-gray-200 dark:bg-white/10 my-1 flex-shrink-0" />
 
-        {/* User avatar — bottom */}
-        <div className="mt-auto mb-1 flex justify-center w-full">
-          <button
-            ref={avatarRef}
-            onClick={() => toggleSettings(true)}
-            onMouseEnter={showAvatarTip}
-            onMouseLeave={() => setAvatarTip(null)}
-            className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-white/10 hover:ring-blue-500 transition-all duration-200"
-          >
-            {photoURL ? (
-              <img src={photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="w-full h-full flex items-center justify-center bg-blue-600 text-white text-xs font-semibold">
-                {initials}
-              </span>
-            )}
-          </button>
-
-          {avatarTip && createPortal(
-            <div
-              className="fixed z-[9999] px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg pointer-events-none whitespace-nowrap"
-              style={{ top: avatarTip.top, left: avatarTip.left, transform: "translateY(-50%)" }}
+          {/* User avatar — pinned to bottom inside card */}
+          <div className="mt-auto flex justify-center w-full px-1">
+            <button
+              ref={avatarRef}
+              onClick={() => toggleSettings(true)}
+              onMouseEnter={showAvatarTip}
+              onMouseLeave={() => setAvatarTip(null)}
+              className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-200 dark:ring-white/10 hover:ring-blue-500 transition-all duration-200"
             >
-              Account & Settings
-            </div>,
-            document.body
-          )}
-        </div>
+              {photoURL ? (
+                <img src={photoURL} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center bg-blue-600 text-white text-xs font-semibold">
+                  {initials}
+                </span>
+              )}
+            </button>
 
+            {avatarTip && createPortal(
+              <div
+                className="fixed z-[9999] px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg pointer-events-none whitespace-nowrap"
+                style={{ top: avatarTip.top, left: avatarTip.left, transform: "translateY(-50%)" }}
+              >
+                Account & Settings
+              </div>,
+              document.body
+            )}
+          </div>
+        </div>
       </div>
     </aside>
   );
