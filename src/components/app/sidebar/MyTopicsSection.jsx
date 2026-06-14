@@ -25,6 +25,9 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
   const [openMenu, setOpenMenu] = useState(null);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+
+  const TOPIC_LIMIT = 5;
 
   // ── Topic-folder select mode ──
   const [topicSelectMode, setTopicSelectMode] = useState(false);
@@ -139,6 +142,14 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   const allTopicsSelected = selectedTopicIds.size === sortedTopics.length;
 
+  // Show max TOPIC_LIMIT topics; rest hidden behind a "Show more" toggle.
+  // In select mode we always show everything so selection stays consistent.
+  const hasOverflow = sortedTopics.length > TOPIC_LIMIT;
+  const visibleTopics =
+    showAllTopics || topicSelectMode
+      ? sortedTopics
+      : sortedTopics.slice(0, TOPIC_LIMIT);
+
   return (
     <>
       {/* ── Topic select bar (replaces nothing — appears above list) ── */}
@@ -177,7 +188,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
         </div>
       )}
 
-      {sortedTopics.map(([projId, proj]) => {
+      {visibleTopics.map(([projId, proj]) => {
         const isActive = projId === activeProject;
         const isExpanded = expandedProjects[projId] || false;
         const rawChats = projectChatSessions[projId] || [];
@@ -406,6 +417,16 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
           </div>
         );
       })}
+
+      {/* ── Show more / less toggle ── */}
+      {hasOverflow && !topicSelectMode && (
+        <button
+          onClick={() => setShowAllTopics((v) => !v)}
+          className="mt-px ml-3 px-2.5 py-1 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+        >
+          {showAllTopics ? "Show less" : `Show more`}
+        </button>
+      )}
     </>
   );
 }
