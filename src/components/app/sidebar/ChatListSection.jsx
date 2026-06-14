@@ -97,7 +97,7 @@ export default function ChatListSection({ onSidebarItemClick }) {
   const visibleChats = collapsed && !isSelectMode ? pinnedChats : globalChats;
 
   return (
-    <div>
+    <div className="group/chats">
       {/* Section header */}
       {isSelectMode ? (
         <div className="px-3 py-2 mt-3 flex items-center gap-2 text-[13px]">
@@ -132,31 +132,32 @@ export default function ChatListSection({ onSidebarItemClick }) {
           </button>
         </div>
       ) : (
-        <div className="group/chats flex items-center px-1.5 py-2 mt-3 select-none">
+        <div className="flex items-center px-1.5 py-2 mt-3 select-none">
           <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default">
             Chats
           </span>
-          {/* Collapse chevron — desktop hover only */}
-          <div className="ml-auto relative hidden sm:flex items-center justify-center">
+          {/* Collapse chevron — small, sits next to label, fades in on section hover */}
+          <div className="relative hidden sm:flex items-center justify-center ml-1">
             <button
               onClick={() => setCollapsed((v) => !v)}
               className="
-                peer flex items-center justify-center w-7 h-7 rounded
+                peer flex items-center justify-center p-0.5 rounded
+                text-gray-400 dark:text-gray-500
+                hover:text-gray-700 dark:hover:text-gray-200
                 opacity-0 group-hover/chats:opacity-100
-                hover:bg-gray-200 dark:hover:bg-gray-700
                 transition-all duration-150
               "
               type="button"
             >
               <svg
-                width="16" height="16" viewBox="0 0 16 16" fill="none"
-                className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+                width="14" height="14" viewBox="0 0 16 16" fill="none"
+                className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <polyline points="4 10 8 6 12 10" />
               </svg>
             </button>
-            <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+            <div className="pointer-events-none absolute top-full mt-1 left-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
               {collapsed ? "Show all chats" : "Hide chats"}
             </div>
           </div>

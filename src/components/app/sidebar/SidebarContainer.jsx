@@ -226,38 +226,39 @@ useEffect(() => {
     </button>
   </div>
 
-  {/* My Topics section header: label + collapse chevron + create (+) */}
-  <div className="group/topics flex items-center px-1.5 py-1 mt-1 select-none">
-    <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
-      My Topics
-    </span>
-    <div className="ml-auto flex items-center gap-0.5">
-      {/* Collapse chevron — desktop hover only */}
-      <div className="relative hidden sm:flex items-center justify-center">
+  {/* My Topics section — group wraps header + list so chevron reveals on hovering anywhere in the section */}
+  <div className="group/topics">
+    <div className="flex items-center px-1.5 py-1 mt-1 select-none">
+      <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
+        My Topics
+      </span>
+      {/* Collapse chevron — small, sits next to label, fades in on section hover */}
+      <div className="relative hidden sm:flex items-center justify-center ml-1">
         <button
           onClick={() => setTopicsCollapsed((v) => !v)}
           className="
-            peer flex items-center justify-center w-7 h-7 rounded
+            peer flex items-center justify-center p-0.5 rounded
+            text-gray-400 dark:text-gray-500
+            hover:text-gray-700 dark:hover:text-gray-200
             opacity-0 group-hover/topics:opacity-100
-            hover:bg-gray-200 dark:hover:bg-gray-700
             transition-all duration-150
           "
           type="button"
         >
           <svg
-            width="16" height="16" viewBox="0 0 16 16" fill="none"
-            className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
+            width="14" height="14" viewBox="0 0 16 16" fill="none"
+            className={`transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           >
             <polyline points="4 10 8 6 12 10" />
           </svg>
         </button>
-        <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
+        <div className="pointer-events-none absolute top-full mt-1 left-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
           {topicsCollapsed ? "Show all topics" : "Hide topics"}
         </div>
       </div>
-      {/* Create topic (+) — always visible */}
-      <div className="relative flex items-center justify-center">
+      {/* Create topic (+) — always visible, pushed to the right edge */}
+      <div className="ml-auto relative flex items-center justify-center">
         <button
           onClick={() => setIsTopicModalOpen(true)}
           className="
@@ -280,10 +281,11 @@ useEffect(() => {
         </div>
       </div>
     </div>
+
+    {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
+    {topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} collapsedMode />}
   </div>
 
-  {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
-  {topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} collapsedMode />}
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
 </div>
 
