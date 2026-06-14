@@ -207,8 +207,8 @@ useEffect(() => {
       {/* Контент */}
      <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll">
 
-  {/* Vessel Profile (scrolls now) */}
-  <div className="px-1 py-0">
+  {/* Vessel Profile (scrolls now) — -mx-2 cancels the px-2 outer so it aligns with New Chat above */}
+  <div className="-mx-2 px-1 py-0">
     <button
       onClick={() => setVesselProfileOpen(true)}
       className="
@@ -227,7 +227,7 @@ useEffect(() => {
   </div>
 
   {/* My Topics section header: label + collapse chevron + create (+) */}
-  <div className="group/topics flex items-center px-[12px] py-2 mt-3 select-none">
+  <div className="group/topics flex items-center px-[12px] py-1 mt-1 select-none">
     <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
       My Topics
     </span>
