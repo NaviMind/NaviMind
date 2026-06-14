@@ -27,6 +27,7 @@ export default function SidebarContainer({
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
+  const [topicsCollapsed, setTopicsCollapsed] = useState(false);
 
 // === Swipe gesture detection (mobile) ===
 const startXRef = useRef(0);
@@ -205,24 +206,43 @@ useEffect(() => {
 </button>
 </div>
 
-{/* Create Topic Button */}
-<div className="px-1 py-0">
-  <button
-  onClick={() => setIsTopicModalOpen(true)}
- className="
-  w-full flex items-center gap-2 px-3.5 py-1 rounded-md
-  border border-transparent
-  bg-transparent
-  hover:border-blue-500
-  focus:outline-none focus:ring-2 focus:ring-blue-500
-  transition-colors duration-200 min-h-[38px] 
-"
->
-  <Icon name="create-new" size={20} />
-  <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-    Create Topic
-  </span>
-</button>
+{/* Create Topic Button — left: opens modal; right: chevron collapses topics (desktop hover only) */}
+<div className="px-1 py-0 group/ct">
+  <div className={`
+    flex items-center rounded-md border transition-colors duration-200 min-h-[38px]
+    border-transparent hover:border-blue-500
+  `}>
+    <button
+      onClick={() => setIsTopicModalOpen(true)}
+      className="flex flex-1 items-center gap-2 px-3.5 py-1 focus:outline-none"
+    >
+      <Icon name="create-new" size={20} />
+      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
+        Create Topic
+      </span>
+    </button>
+    {/* Collapse chevron — desktop only, visible on row hover */}
+    <button
+      onClick={(e) => { e.stopPropagation(); setTopicsCollapsed((v) => !v); }}
+      className="
+        hidden sm:flex flex-shrink-0 items-center justify-center
+        w-8 h-8 mr-1 rounded
+        opacity-0 group-hover/ct:opacity-100
+        hover:bg-gray-200 dark:hover:bg-gray-700
+        transition-all duration-150
+      "
+      title={topicsCollapsed ? "Show topics" : "Hide topics"}
+      type="button"
+    >
+      <svg
+        width="16" height="16" viewBox="0 0 16 16" fill="none"
+        className={`text-gray-500 dark:text-gray-400 transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      >
+        <polyline points="4 10 8 6 12 10" />
+      </svg>
+    </button>
+  </div>
 </div>
 
 {/* Плейсхолдер при отсутствии данных */}
@@ -242,7 +262,7 @@ useEffect(() => {
 
       {/* Контент */}
      <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll">
-  <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />
+  {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
 </div>
 
