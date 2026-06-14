@@ -327,10 +327,10 @@ useEffect(() => {
   const DesktopAside = (
   <aside
     className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
-    style={{ width: ui.isSidebarOpen ? "18rem" : "0" }}
+    style={{ width: ui.isSidebarOpen ? "22rem" : "0" }}
   >
     <div
-      className="w-[18rem] h-full p-2 flex flex-col"
+      className="w-[22rem] h-full p-2 flex flex-col"
       style={{
         opacity: ui.isSidebarOpen ? 1 : 0,
         transition: ui.isSidebarOpen
