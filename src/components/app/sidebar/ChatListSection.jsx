@@ -18,6 +18,7 @@ export default function ChatListSection({ onSidebarItemClick }) {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const globalRaw = (projectChatSessions && projectChatSessions["global"]) || [];
 
@@ -90,8 +91,13 @@ export default function ChatListSection({ onSidebarItemClick }) {
 
   const allSelected = selectedIds.size === globalChats.length;
 
+  // Collapsed mode: show only pinned chats (all of them, no cap). Pinned-first
+  // sort already applied above.
+  const pinnedChats = globalChats.filter((c) => c.isPinned);
+  const visibleChats = collapsed && !isSelectMode ? pinnedChats : globalChats;
+
   return (
-    <div>
+    <div className="group/chats">
       {/* Section header */}
       {isSelectMode ? (
         <div className="px-3 py-2 mt-3 flex items-center gap-2 text-[13px]">
@@ -126,12 +132,36 @@ export default function ChatListSection({ onSidebarItemClick }) {
           </button>
         </div>
       ) : (
-        <div className="px-[12px] py-2 mt-3 text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default select-none">
-          Chats
+        <div className="flex items-center px-1.5 py-2 mt-3 select-none">
+          <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide cursor-default">
+            Chats
+          </span>
+          {/* Collapse chevron — small, sits next to label, fades in on section hover */}
+          <div className="relative hidden sm:flex items-center justify-center ml-1">
+            <button
+              onClick={() => setCollapsed((v) => !v)}
+              className="
+                peer flex items-center justify-center p-0.5 rounded
+                text-gray-400 dark:text-gray-500
+                hover:text-gray-700 dark:hover:text-gray-200
+                opacity-0 group-hover/chats:opacity-100
+                transition-all duration-150
+              "
+              type="button"
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 16 16" fill="none"
+                className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <polyline points="4 10 8 6 12 10" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
-      {globalChats.map((c, idx) => (
+      {visibleChats.map((c, idx) => (
         <ChatItem
           key={`global:${c.chatId || idx}`}
           chat={c}

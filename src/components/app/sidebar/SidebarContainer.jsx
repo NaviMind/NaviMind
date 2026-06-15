@@ -27,6 +27,7 @@ export default function SidebarContainer({
   const { customProjects, projectChatSessions } = useContext(ChatContext);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
+  const [topicsCollapsed, setTopicsCollapsed] = useState(false);
 
 // === Swipe gesture detection (mobile) ===
 const startXRef = useRef(0);
@@ -92,11 +93,11 @@ useEffect(() => {
     <div className="flex flex-col h-full">
       {/* Desktop logo — full-width accent block */}
       {!mobileMode && (
-        <div className="flex items-center justify-between px-3 pt-4 pb-2">
+        <div className="flex items-center justify-between pl-1.5 pr-3 pt-4 pb-2">
           <img
             src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
             alt="NaviMind"
-            className="h-[42px] w-auto object-contain select-none pointer-events-none"
+            className="h-[44px] w-auto object-contain select-none pointer-events-none"
             draggable={false}
           />
           {showCloseButton && (
@@ -185,45 +186,8 @@ useEffect(() => {
   </div>
 )}
 
-{/* Vessel Profile Button */}
- <div className="px-1 py-0">
-  <button
-  onClick={() => setVesselProfileOpen(true)}
- className="
-  w-full flex items-center gap-2 px-3.5 py-1 rounded-md
-  border border-transparent
-  bg-transparent
-  hover:border-blue-500
-  focus:outline-none focus:ring-2 focus:ring-blue-500
-  transition-colors duration-200 min-h-[38px] 
-"
->
-  <Icon name="vessel-profile" size={20} />
-  <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-    Vessel Profile
-  </span>
-</button>
-</div>
-
-{/* Create Topic Button */}
-<div className="px-1 py-0">
-  <button
-  onClick={() => setIsTopicModalOpen(true)}
- className="
-  w-full flex items-center gap-2 px-3.5 py-1 rounded-md
-  border border-transparent
-  bg-transparent
-  hover:border-blue-500
-  focus:outline-none focus:ring-2 focus:ring-blue-500
-  transition-colors duration-200 min-h-[38px] 
-"
->
-  <Icon name="create-new" size={20} />
-  <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-    Create Topic
-  </span>
-</button>
-</div>
+{/* Vessel Profile + Create Topic moved into the scrollable content area below.
+    Only New Chat stays fixed at the top. */}
 
 {/* Плейсхолдер при отсутствии данных */}
 {!Object.keys(customProjects || {}).length &&
@@ -241,8 +205,83 @@ useEffect(() => {
 
 
       {/* Контент */}
-     <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll">
-  <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />
+     <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll [scrollbar-gutter:stable]">
+
+  {/* Vessel Profile (scrolls now) — -mx-2 cancels the px-2 outer so it aligns with New Chat above */}
+  <div className="-mx-2 px-1 py-0">
+    <button
+      onClick={() => setVesselProfileOpen(true)}
+      className="
+        w-full flex items-center gap-2 px-2.5 py-1 rounded-md
+        border border-transparent bg-transparent
+        hover:border-blue-500
+        focus:outline-none focus:ring-2 focus:ring-blue-500
+        transition-colors duration-200 min-h-[38px]
+      "
+    >
+      <Icon name="vessel-profile" size={20} />
+      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
+        Vessel Profile
+      </span>
+    </button>
+  </div>
+
+  {/* My Topics section — group wraps header + list so chevron reveals on hovering anywhere in the section */}
+  <div className="group/topics">
+    <div className="flex items-center px-1.5 py-1 mt-1 select-none">
+      <span className="text-gray-500 dark:text-gray-400 text-[14px] font-medium tracking-wide">
+        My Topics
+      </span>
+      {/* Collapse chevron — small, sits next to label, fades in on section hover */}
+      <div className="relative hidden sm:flex items-center justify-center ml-1">
+        <button
+          onClick={() => setTopicsCollapsed((v) => !v)}
+          className="
+            peer flex items-center justify-center p-0.5 rounded
+            text-gray-400 dark:text-gray-500
+            hover:text-gray-700 dark:hover:text-gray-200
+            opacity-0 group-hover/topics:opacity-100
+            transition-all duration-150
+          "
+          type="button"
+        >
+          <svg
+            width="14" height="14" viewBox="0 0 16 16" fill="none"
+            className={`transition-transform duration-200 ${topicsCollapsed ? "rotate-180" : ""}`}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polyline points="4 10 8 6 12 10" />
+          </svg>
+        </button>
+      </div>
+      {/* Create topic (+) — always visible, pushed to the right edge */}
+      <div className="ml-auto relative flex items-center justify-center">
+        <button
+          onClick={() => setIsTopicModalOpen(true)}
+          className="
+            peer flex items-center justify-center w-7 h-7 rounded
+            text-gray-400 dark:text-gray-500
+            hover:text-gray-700 dark:hover:text-gray-200
+            transition-colors duration-150
+          "
+          type="button"
+          aria-label="Create topic"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="8" y1="3" x2="8" y2="13" />
+            <line x1="3" y1="8" x2="13" y2="8" />
+          </svg>
+        </button>
+        <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
+          Create topic
+        </div>
+      </div>
+    </div>
+
+    {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
+    {topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} collapsedMode />}
+  </div>
+
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
 </div>
 
@@ -273,11 +312,11 @@ useEffect(() => {
       pointerEvents: isSidebarOpen ? "auto" : "none",
     }}
   >
-    <SidebarContent
-      showNewChatButton={true}
-      showCloseButton={false}
-      onSidebarItemClick={handleCloseSidebar}
-    />
+    {SidebarContent({
+      showNewChatButton: true,
+      showCloseButton: false,
+      onSidebarItemClick: handleCloseSidebar,
+    })}
   </aside>
 );
 
@@ -285,10 +324,10 @@ useEffect(() => {
   const DesktopAside = (
   <aside
     className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
-    style={{ width: ui.isSidebarOpen ? "16rem" : "0" }}
+    style={{ width: ui.isSidebarOpen ? "18rem" : "0" }}
   >
     <div
-      className="w-[16rem] h-full p-2 flex flex-col"
+      className="w-[18rem] h-full p-2 flex flex-col"
       style={{
         opacity: ui.isSidebarOpen ? 1 : 0,
         transition: ui.isSidebarOpen
@@ -302,11 +341,11 @@ useEffect(() => {
         shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
         dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
         ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
-        <SidebarContent
-          showNewChatButton={true}
-          showCloseButton={true}
-          onCloseButtonClick={handleCloseSidebar}
-        />
+        {SidebarContent({
+          showNewChatButton: true,
+          showCloseButton: true,
+          onCloseButtonClick: handleCloseSidebar,
+        })}
       </div>
     </div>
     </aside>

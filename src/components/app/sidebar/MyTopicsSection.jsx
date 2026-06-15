@@ -9,7 +9,7 @@ import Icon from "@/components/common/Icon";
 import { togglePinTopic, deleteChatFromFirestore } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
-export default function MyTopicsSection({ onSidebarItemClick }) {
+export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = false }) {
   const {
     projectChatSessions,
     customProjects,
@@ -47,6 +47,12 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   const handleExpand = (projId) =>
     setExpandedProjects((prev) => ({ ...prev, [projId]: !prev[projId] }));
+
+  const handleTogglePinTopic = async (projId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await togglePinTopic(user.uid, projId);
+  };
 
   const handleDeleteCustomProject = (projId) => {
     deleteCustomProject(projId);
@@ -142,18 +148,24 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
   const allTopicsSelected = selectedTopicIds.size === sortedTopics.length;
 
-  // Show max TOPIC_LIMIT topics; rest hidden behind a "Show more" toggle.
-  // In select mode we always show everything so selection stays consistent.
-  const hasOverflow = sortedTopics.length > TOPIC_LIMIT;
-  const visibleTopics =
-    showAllTopics || topicSelectMode
+  // Collapsed mode: only show pinned topics (max TOPIC_LIMIT). No Show more.
+  // Expanded mode: show up to TOPIC_LIMIT with Show more/less toggle.
+  const pinnedTopics = sortedTopics.filter(([, proj]) => proj.isPinned);
+
+  const hasOverflow = !collapsedMode && sortedTopics.length > TOPIC_LIMIT;
+  const visibleTopics = collapsedMode
+    ? pinnedTopics.slice(0, TOPIC_LIMIT)
+    : showAllTopics || topicSelectMode
       ? sortedTopics
       : sortedTopics.slice(0, TOPIC_LIMIT);
+
+  // Nothing to show when collapsed with no pinned topics
+  if (collapsedMode && pinnedTopics.length === 0) return null;
 
   return (
     <>
       {/* ── Topic select bar (replaces nothing — appears above list) ── */}
-      {topicSelectMode && (
+      {topicSelectMode && !collapsedMode && (
         <div className="px-3 py-2 mt-1 flex items-center gap-2 text-[13px]">
           <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
             {selectedTopicIds.size} selected
@@ -213,7 +225,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
             {/* ── Topic folder row ── */}
             <div
               className={`
-                group relative flex items-center px-2.5 py-0.5 mx-1.5 my-px rounded-lg transition-all duration-200
+                group relative flex items-center px-1.5 py-0.5 my-px rounded-lg transition-all duration-200
                 ${topicSelectMode && isTopicSelected ? "bg-blue-50 dark:bg-white/10" : ""}
                 ${!topicSelectMode && isActive ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white" : ""}
                 ${!topicSelectMode && !isActive ? "hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200" : ""}
@@ -239,7 +251,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
 
               {/* Folder icon (hidden in select mode) */}
               {!topicSelectMode && (
-                <div className="relative inline-flex flex-col items-center mr-2">
+                <div className="relative inline-flex flex-col items-center -ml-1 mr-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleExpand(projId); }}
                     className="peer p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
@@ -250,7 +262,7 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
                       <Icon name="folder-close" size={20} />
                     )}
                   </button>
-                  <div className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
+                  <div className="pointer-events-none absolute top-full mt-2 left-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
                     {isExpanded ? "Close Chats" : "Open Chats"}
                   </div>
                 </div>
@@ -292,7 +304,28 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
               </button>
 
               {proj.isPinned && !isBeingRenamed && !topicSelectMode && (
-                <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTogglePinTopic(projId);
+                  }}
+                  className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+                  aria-label="Unpin topic"
+                  type="button"
+                >
+                  {/* Pinned (default) */}
+                  <Icon
+                    name="pin"
+                    size={16}
+                    className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden"
+                  />
+                  {/* Unpin (on hover) — soft glow, no hover box */}
+                  <Icon
+                    name="unpin"
+                    size={16}
+                    className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]"
+                  />
+                </button>
               )}
 
               {!isBeingRenamed && !topicSelectMode && (
@@ -422,9 +455,9 @@ export default function MyTopicsSection({ onSidebarItemClick }) {
       {hasOverflow && !topicSelectMode && (
         <button
           onClick={() => setShowAllTopics((v) => !v)}
-          className="mt-0.5 mx-1.5 px-2.5 py-1 text-[14px] font-semibold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
+          className="mt-0.5 px-1.5 py-1 text-[13px] text-blue-400/70 dark:text-blue-400/60 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
         >
-          {showAllTopics ? "Show less" : `Show more (${sortedTopics.length - TOPIC_LIMIT})`}
+          {showAllTopics ? "Show less" : "Show more"}
         </button>
       )}
     </>
