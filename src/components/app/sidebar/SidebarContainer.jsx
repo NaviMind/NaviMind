@@ -93,11 +93,11 @@ useEffect(() => {
     <div className="flex flex-col h-full">
       {/* Desktop logo — full-width accent block */}
       {!mobileMode && (
-        <div className="flex items-center justify-between px-3 pt-4 pb-2">
+        <div className="flex items-center justify-between pl-1.5 pr-3 pt-4 pb-2">
           <img
             src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
             alt="NaviMind"
-            className="h-[42px] w-auto object-contain select-none pointer-events-none"
+            className="h-[44px] w-auto object-contain select-none pointer-events-none"
             draggable={false}
           />
           {showCloseButton && (
