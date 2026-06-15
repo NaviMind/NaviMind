@@ -9,6 +9,7 @@ import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 import SearchModal from "./SearchModal";
+import MiniPinned from "./MiniPinned";
 
 // ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
@@ -169,6 +170,8 @@ export default function MiniSidebar() {
           <MiniBtn tooltip="Search topics and chats" onClick={() => setIsSearchOpen(true)}>
             <Icon name="search" size={26} />
           </MiniBtn>
+
+          <MiniPinned />
 
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
             <Icon name="vessel-profile" size={24} />
