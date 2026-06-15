@@ -4,7 +4,7 @@ import React, { useContext, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
-import { renameChatInFirestore } from "@/firebase/chatStore";
+import { renameChatInFirestore, togglePinChat } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 
@@ -66,6 +66,12 @@ function ChatItem({
   };
 
   const effectiveTopicId = projId && projId !== "global" ? projId : null;
+
+  const handleTogglePin = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await togglePinChat(user.uid, chat.chatId, effectiveTopicId);
+  };
 
   const handleRename = async () => {
   const newTitle = renameText.trim();
@@ -140,7 +146,28 @@ if (!chat.title) return null;
       )}
 
       {chat.isPinned && !isBeingRenamed && !isSelectMode && (
-        <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTogglePin();
+          }}
+          className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+          aria-label="Unpin chat"
+          type="button"
+        >
+          {/* Pinned (default) */}
+          <Icon
+            name="pin"
+            size={16}
+            className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden"
+          />
+          {/* Unpin (on hover) — soft glow, no hover box */}
+          <Icon
+            name="unpin"
+            size={16}
+            className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]"
+          />
+        </button>
       )}
 
       {!isBeingRenamed && !isSelectMode && (

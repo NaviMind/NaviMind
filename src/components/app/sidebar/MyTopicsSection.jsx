@@ -48,6 +48,12 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
   const handleExpand = (projId) =>
     setExpandedProjects((prev) => ({ ...prev, [projId]: !prev[projId] }));
 
+  const handleTogglePinTopic = async (projId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await togglePinTopic(user.uid, projId);
+  };
+
   const handleDeleteCustomProject = (projId) => {
     deleteCustomProject(projId);
     setProjectChatSessions((prev) => {
@@ -298,7 +304,28 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
               </button>
 
               {proj.isPinned && !isBeingRenamed && !topicSelectMode && (
-                <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTogglePinTopic(projId);
+                  }}
+                  className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+                  aria-label="Unpin topic"
+                  type="button"
+                >
+                  {/* Pinned (default) */}
+                  <Icon
+                    name="pin"
+                    size={16}
+                    className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden"
+                  />
+                  {/* Unpin (on hover) — soft glow, no hover box */}
+                  <Icon
+                    name="unpin"
+                    size={16}
+                    className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]"
+                  />
+                </button>
               )}
 
               {!isBeingRenamed && !topicSelectMode && (
