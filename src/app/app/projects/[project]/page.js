@@ -83,14 +83,18 @@ export default function DynamicProjectPage() {
     const name = customProjects?.[project]?.name;
     if (!name) return; // wait until Firebase loads the topic name
     const instruction = customProjects?.[project]?.description || "";
-    const cacheKey = `topic-suggestions:${project}:${instruction}`;
+    const cacheKey = `topic-suggestions:v2:${project}:${instruction}`;
+
+    // Reject any question that leaked the raw Firestore document id
+    const isClean = (arr) =>
+      Array.isArray(arr) && arr.length > 0 && !arr.some((q) => q.includes(project));
 
     // Show cached questions instantly if we already generated them
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const arr = JSON.parse(cached);
-        if (Array.isArray(arr) && arr.length) {
+        if (isClean(arr)) {
           setSuggestedQuestions(arr);
           setIsLoadingQuestions(false);
           return;
@@ -107,7 +111,7 @@ export default function DynamicProjectPage() {
     })
       .then((r) => r.json())
       .then(({ questions }) => {
-        const arr = Array.isArray(questions) ? questions : [];
+        const arr = isClean(questions) ? questions : [];
         setSuggestedQuestions(arr);
         if (arr.length) {
           try { sessionStorage.setItem(cacheKey, JSON.stringify(arr)); } catch { /* ignore */ }
