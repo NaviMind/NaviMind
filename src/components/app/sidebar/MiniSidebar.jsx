@@ -167,7 +167,7 @@ export default function MiniSidebar() {
           </MiniBtn>
 
           <MiniBtn tooltip="Search topics and chats" onClick={() => setIsSearchOpen(true)}>
-            <Icon name="search" size={24} />
+            <Icon name="search" size={26} />
           </MiniBtn>
 
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
