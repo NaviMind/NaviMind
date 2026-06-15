@@ -156,12 +156,12 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
             exit="exit"
             transition={slideTransition}
             className="w-full max-w-[360px] sm:max-w-lg"
+            onKeyDown={handleKeyDown}
           >
-            <div
-              className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[85vh]"
-              onKeyDown={handleKeyDown}
-            >
-              {/* Close button */}
+            {/* Outer card — matches SettingsModal shell */}
+            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl overflow-hidden">
+
+              {/* Close ✕ */}
               <button
                 onClick={onClose}
                 className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
@@ -171,68 +171,74 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
                 ✕
               </button>
 
-              {/* Search input row */}
-              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-black/[0.06] dark:border-white/[0.06] flex-shrink-0 pr-10">
-                <Icon
-                  name="search"
-                  size={20}
-                  className="text-gray-400 dark:text-gray-500 flex-shrink-0"
-                />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => { setQuery(e.target.value); setSel(0); }}
-                  placeholder="Search chats…"
-                  className="flex-1 bg-transparent outline-none text-[16px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
+              <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
 
-              {/* Results list */}
-              <div className="overflow-y-auto custom-scroll py-1">
-                {results.length === 0 ? (
-                  <div className="px-4 py-10 text-center text-[14px] text-gray-400 dark:text-gray-500">
-                    {query.trim() ? "No chats found" : "Start typing to search your chats"}
-                  </div>
-                ) : (
-                  <>
-                    {!query.trim() && (
-                      <div className="px-4 pt-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 select-none">
-                        Recent
+                {/* Pill 1 — Search input */}
+                <div className="flex items-center gap-3 px-4 py-[13px] rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] pr-10">
+                  <Icon
+                    name="search"
+                    size={20}
+                    className="text-gray-400 dark:text-gray-500 flex-shrink-0"
+                  />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={query}
+                    onChange={(e) => { setQuery(e.target.value); setSel(0); }}
+                    placeholder="Search chats…"
+                    className="flex-1 bg-transparent outline-none text-[15px] text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+
+                {/* Pill 2 — Results block */}
+                <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] overflow-hidden">
+                  <div className="overflow-y-auto custom-scroll max-h-[50vh] sm:max-h-[60vh]">
+                    {results.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[14px] text-gray-400 dark:text-gray-500">
+                        {query.trim() ? "No chats found" : "Start typing to search your chats"}
                       </div>
+                    ) : (
+                      <>
+                        {!query.trim() && (
+                          <div className="px-4 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 select-none">
+                            Recent
+                          </div>
+                        )}
+                        {results.map((item, i) => (
+                          <button
+                            key={`${item.projId}:${item.chatId}`}
+                            ref={(el) => (rowRefs.current[i] = el)}
+                            onClick={() => handleSelect(item)}
+                            onMouseMove={() => setSel(i)}
+                            className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-150 ${
+                              i === sel
+                                ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white"
+                                : "hover:bg-gray-100 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200"
+                            }`}
+                            type="button"
+                          >
+                            <Icon
+                              name={item.topicName ? "folder-close" : "chat-bubble"}
+                              size={18}
+                              className="flex-shrink-0 text-gray-400 dark:text-gray-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[14px]">
+                                <Highlighted text={item.title} query={query} />
+                              </div>
+                              <div className="truncate text-[12px] text-gray-400 dark:text-gray-500">
+                                {item.topicName || "Chats"}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </>
                     )}
-                    {results.map((item, i) => (
-                      <button
-                        key={`${item.projId}:${item.chatId}`}
-                        ref={(el) => (rowRefs.current[i] = el)}
-                        onClick={() => handleSelect(item)}
-                        onMouseMove={() => setSel(i)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                          i === sel
-                            ? "bg-blue-50 dark:bg-white/[0.07]"
-                            : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
-                        }`}
-                        type="button"
-                      >
-                        <Icon
-                          name={item.topicName ? "folder-close" : "chat-bubble"}
-                          size={18}
-                          className="flex-shrink-0 text-gray-400 dark:text-gray-500"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-[15px] text-gray-900 dark:text-gray-100">
-                            <Highlighted text={item.title} query={query} />
-                          </div>
-                          <div className="truncate text-[12px] text-gray-400 dark:text-gray-500">
-                            {item.topicName || "Chats"}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </>
-                )}
+                  </div>
+                </div>
+
               </div>
             </div>
           </motion.div>
