@@ -181,7 +181,7 @@ useEffect(() => {
 
 {/* New Chat — full-width labeled row (desktop) */}
 {!mobileMode && showNewChatButton && (
-  <div className="px-1 py-0">
+  <div className="pl-1 pr-[10px] py-0">
     <NewChatButton variant="full" onSidebarItemClick={onSidebarItemClick} />
   </div>
 )}
