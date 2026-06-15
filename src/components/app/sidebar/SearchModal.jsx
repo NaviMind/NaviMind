@@ -4,12 +4,18 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import dayjs from "dayjs";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
 import Icon from "@/components/common/Icon";
 
 const toMs = (v) =>
   typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
+
+const fmtDate = (v) => {
+  const ms = toMs(v);
+  return ms ? dayjs(ms).format("D MMM YYYY") : "";
+};
 
 const slideUp = {
   initial: { y: "100%", opacity: 0 },
@@ -235,6 +241,11 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
                                   {item.topicName || "Chats"}
                                 </div>
                               </div>
+                              {fmtDate(item.createdAt) && (
+                                <span className="flex-shrink-0 text-[11px] text-gray-400 dark:text-gray-500 ml-2 whitespace-nowrap">
+                                  {fmtDate(item.createdAt)}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
