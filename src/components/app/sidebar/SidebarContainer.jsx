@@ -14,6 +14,7 @@ import NewChatButton from "./NewChatButton";
 import ChatListSection from "./ChatListSection";
 import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
+import SearchModal from "./SearchModal";
 import Icon from "@/components/common/Icon";
 
 
@@ -63,6 +64,21 @@ export default function SidebarContainer({
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
   const [topicsCollapsed, setTopicsCollapsed] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Global Cmd/Ctrl+K to open search. Registered once (desktop instance only)
+  // so the two mounted SidebarContainers don't toggle each other out.
+  useEffect(() => {
+    if (mobileMode) return;
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setIsSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMode]);
 
 // === Swipe gesture detection (mobile) ===
 const startXRef = useRef(0);
@@ -135,19 +151,30 @@ useEffect(() => {
             className="h-[44px] w-auto object-contain select-none pointer-events-none"
             draggable={false}
           />
-          {showCloseButton && (
-            <HoverTipRight label="Close Sidebar">
+          <div className="flex items-center gap-0.5">
+            <HoverTipRight label="Search">
               <button
-                onClick={onCloseButtonClick}
+                onClick={() => setIsSearchOpen(true)}
                 className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                aria-label="Close sidebar"
+                aria-label="Search chats"
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Icon name="search" size={22} />
               </button>
             </HoverTipRight>
-          )}
+            {showCloseButton && (
+              <HoverTipRight label="Close Sidebar">
+                <button
+                  onClick={onCloseButtonClick}
+                  className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  aria-label="Close sidebar"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </HoverTipRight>
+            )}
+          </div>
         </div>
       )}
 
@@ -178,6 +205,17 @@ useEffect(() => {
                 ? vesselProfileData.offshoreType
                 : vesselProfileData.vesselType}
             </span>
+          </button>
+        )}
+
+        {/* Mobile: Search icon (right) */}
+        {mobileMode && (
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+            aria-label="Search chats"
+          >
+            <Icon name="search" size={24} />
           </button>
         )}
 
@@ -448,6 +486,12 @@ useEffect(() => {
   setVesselProfileOpen(false);
 }}
 />
+
+      <SearchModal
+        open={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSidebarItemClick={mobileMode ? handleCloseSidebar : undefined}
+      />
     </>
   );
 }
