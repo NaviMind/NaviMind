@@ -49,7 +49,7 @@ export default function NewChatButton({ onSidebarItemClick, variant = "icon" }) 
           border border-transparent
           bg-transparent
           hover:border-blue-500
-          focus:outline-none focus:ring-2 focus:ring-blue-500
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
           transition-colors duration-200 min-h-[38px]
         "
       >
