@@ -171,6 +171,50 @@ export default function DynamicProjectPage() {
     return <ChatArea messages={messages} />;
   }
 
+  // Empty topic — Gemini-style centered glow state
+  if (chats.length === 0) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Glow — light mode */}
+        <div
+          className="absolute inset-0 pointer-events-none dark:hidden"
+          style={{ background: "radial-gradient(ellipse 70% 44% at 50% 50%, rgba(59,130,246,0.13) 0%, rgba(14,165,233,0.05) 50%, transparent 72%)" }}
+        />
+        {/* Glow — dark mode */}
+        <div
+          className="absolute inset-0 pointer-events-none hidden dark:block"
+          style={{ background: "radial-gradient(ellipse 70% 44% at 50% 50%, rgba(59,130,246,0.24) 0%, rgba(99,102,241,0.09) 50%, transparent 72%)" }}
+        />
+        <div className="relative z-10 text-center px-8 max-w-3xl w-full">
+          {isEditingName ? (
+            <input
+              type="text"
+              value={nameDraft}
+              autoFocus
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitEditName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
+                else if (e.key === "Escape") setIsEditingName(false);
+              }}
+              className="w-full bg-transparent border-b-2 border-blue-500 outline-none text-center text-gray-900 dark:text-white font-semibold tracking-tight"
+              style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.15 }}
+            />
+          ) : (
+            <h1
+              className="font-semibold text-gray-900 dark:text-white tracking-tight cursor-text select-none"
+              style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", lineHeight: 1.15 }}
+              onClick={isCompact ? startEditName : undefined}
+              onDoubleClick={startEditName}
+            >
+              {currentProjectName}
+            </h1>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const lastActiveLabel = (() => {
     if (!chats.length) return null;
     let maxMs = 0;
