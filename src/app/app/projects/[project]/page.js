@@ -297,7 +297,7 @@ export default function DynamicProjectPage() {
               </div>
             )}
 
-            <ul className="space-y-2">
+            <ul className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {chats.map((c) => {
                 if (!anchorRefs.current[c.chatId]) {
                   anchorRefs.current[c.chatId] = createRef();
@@ -310,7 +310,7 @@ export default function DynamicProjectPage() {
                 return (
                   <li
                     key={c.chatId}
-                    className={`group relative flex items-center justify-between px-3 py-1 rounded-lg transition-all
+                    className={`group relative flex items-center justify-between px-3 py-2 transition-all
                       ${isSelectMode && isSelected ? "bg-blue-50 dark:bg-gray-700/60" : ""}
                       ${!isSelectMode && (isDropdownOpen || isBeingRenamed) ? "bg-gray-100 dark:bg-gray-700/60" : ""}
                       ${!isSelectMode && !isDropdownOpen && !isBeingRenamed ? "hover:bg-gray-100 dark:hover:bg-white/5" : ""}
@@ -366,7 +366,26 @@ export default function DynamicProjectPage() {
                     )}
 
                     {c.isPinned && !isBeingRenamed && !isSelectMode && (
-                      <Icon name="pin" size={16} className="flex-shrink-0 mx-1 opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)]" />
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const user = auth.currentUser;
+                          if (!user) return;
+                          const newState = await togglePinChat(user.uid, c.chatId, project);
+                          setProjectChatSessions((prev) => ({
+                            ...prev,
+                            [project]: (prev[project] || []).map((chat) =>
+                              chat.chatId === c.chatId ? { ...chat, isPinned: newState } : chat
+                            ),
+                          }));
+                        }}
+                        className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+                        aria-label="Unpin chat"
+                        type="button"
+                      >
+                        <Icon name="pin" size={16} className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden" />
+                        <Icon name="unpin" size={16} className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]" />
+                      </button>
                     )}
 
                     {!isBeingRenamed && !isSelectMode && (
