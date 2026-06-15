@@ -315,11 +315,11 @@ useEffect(() => {
       pointerEvents: isSidebarOpen ? "auto" : "none",
     }}
   >
-    <SidebarContent
-      showNewChatButton={true}
-      showCloseButton={false}
-      onSidebarItemClick={handleCloseSidebar}
-    />
+    {SidebarContent({
+      showNewChatButton: true,
+      showCloseButton: false,
+      onSidebarItemClick: handleCloseSidebar,
+    })}
   </aside>
 );
 
@@ -344,11 +344,11 @@ useEffect(() => {
         shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
         dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
         ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
-        <SidebarContent
-          showNewChatButton={true}
-          showCloseButton={true}
-          onCloseButtonClick={handleCloseSidebar}
-        />
+        {SidebarContent({
+          showNewChatButton: true,
+          showCloseButton: true,
+          onCloseButtonClick: handleCloseSidebar,
+        })}
       </div>
     </div>
     </aside>
