@@ -8,6 +8,7 @@ import { ChatContext } from "@/context/ChatContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
+import SearchModal from "./SearchModal";
 
 // ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
@@ -97,6 +98,7 @@ export default function MiniSidebar() {
   const [photoURL, setPhotoURL] = useState("");
   const [initials, setInitials] = useState("U");
   const [avatarTip, setAvatarTip] = useState(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const avatarRef = useRef(null);
 
   useEffect(() => {
@@ -132,7 +134,8 @@ export default function MiniSidebar() {
   };
 
   return (
-    // Aside reserves layout space; overflow-visible lets the card shadow bleed into content
+    <>
+    {/* Aside reserves layout space; overflow-visible lets the card shadow bleed into content */}
     <aside
       style={{ width: isSidebarOpen ? 0 : 68 }}
       className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out"
@@ -161,6 +164,10 @@ export default function MiniSidebar() {
 
           <MiniBtn tooltip="New Chat" onClick={handleNewChat}>
             <IcNewChat />
+          </MiniBtn>
+
+          <MiniBtn tooltip="Search topics and chats" onClick={() => setIsSearchOpen(true)}>
+            <Icon name="search" size={24} />
           </MiniBtn>
 
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
@@ -205,5 +212,11 @@ export default function MiniSidebar() {
         </div>
       </div>
     </aside>
+
+    <SearchModal
+      open={isSearchOpen}
+      onClose={() => setIsSearchOpen(false)}
+    />
+    </>
   );
 }
