@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import TopicModal from "./TopicModal";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
@@ -15,6 +16,40 @@ import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
 import Icon from "@/components/common/Icon";
 
+
+// Tooltip rendered to the RIGHT of its trigger via a portal, so it escapes
+// the sidebar card's overflow-hidden (same language as MiniSidebar tooltips).
+function HoverTipRight({ label, children, className = "" }) {
+  const [pos, setPos] = useState(null);
+  const ref = useRef(null);
+
+  const show = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.top + r.height / 2, left: r.right + 10 });
+  };
+  const hide = () => setPos(null);
+
+  return (
+    <div
+      ref={ref}
+      className={`relative inline-flex ${className}`}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+    >
+      {children}
+      {pos &&
+        createPortal(
+          <div
+            className="fixed z-[9999] px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md shadow-lg pointer-events-none whitespace-nowrap hidden sm:block"
+            style={{ top: pos.top, left: pos.left, transform: "translateY(-50%)" }}
+          >
+            {label}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
 
 export default function SidebarContainer({
   mobileMode = false,
@@ -101,20 +136,17 @@ useEffect(() => {
             draggable={false}
           />
           {showCloseButton && (
-            <div className="relative inline-flex flex-col items-center">
+            <HoverTipRight label="Close Sidebar">
               <button
                 onClick={onCloseButtonClick}
-                className="peer p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
                 aria-label="Close sidebar"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <div className="pointer-events-none absolute top-full mt-2 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
-                Close Sidebar
-              </div>
-            </div>
+            </HoverTipRight>
           )}
         </div>
       )}
@@ -277,11 +309,11 @@ useEffect(() => {
         </button>
       </div>
       {/* Create topic (+) — always visible, pushed to the right edge */}
-      <div className="ml-auto relative flex items-center justify-center">
+      <HoverTipRight label="Create topic" className="ml-auto items-center justify-center">
         <button
           onClick={() => setIsTopicModalOpen(true)}
           className="
-            peer flex items-center justify-center w-7 h-7 rounded
+            flex items-center justify-center w-7 h-7 rounded
             text-gray-400 dark:text-gray-500
             hover:text-gray-700 dark:hover:text-gray-200
             transition-colors duration-150
@@ -294,10 +326,7 @@ useEffect(() => {
             <line x1="3" y1="8" x2="13" y2="8" />
           </svg>
         </button>
-        <div className="pointer-events-none absolute top-full mt-1 right-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
-          Create topic
-        </div>
-      </div>
+      </HoverTipRight>
     </div>
 
     {!topicsCollapsed && <MyTopicsSection onSidebarItemClick={onSidebarItemClick} />}
