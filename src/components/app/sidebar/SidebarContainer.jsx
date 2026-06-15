@@ -205,7 +205,7 @@ useEffect(() => {
 
 
       {/* Контент */}
-     <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 custom-scroll [scrollbar-gutter:stable]">
+     <div className="flex-1 overflow-y-auto pt-0 px-2 pb-2 sidebar-scroll [scrollbar-gutter:stable]">
 
   {/* Vessel Profile (scrolls now) — -mx-2 cancels the px-2 outer so it aligns with New Chat above */}
   <div className="-mx-2 px-1 py-0">
