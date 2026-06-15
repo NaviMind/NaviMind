@@ -314,7 +314,7 @@ export default function DynamicProjectPage() {
                 return (
                   <li
                     key={c.chatId}
-                    className={`group relative flex items-center justify-between px-3 py-2 transition-all
+                    className={`group relative flex items-center justify-between px-3 py-2 rounded-lg transition-all
                       ${isSelectMode && isSelected ? "bg-blue-50 dark:bg-gray-700/60" : ""}
                       ${!isSelectMode && (isDropdownOpen || isBeingRenamed) ? "bg-gray-100 dark:bg-gray-700/60" : ""}
                       ${!isSelectMode && !isDropdownOpen && !isBeingRenamed ? "hover:bg-gray-100 dark:hover:bg-white/5" : ""}
