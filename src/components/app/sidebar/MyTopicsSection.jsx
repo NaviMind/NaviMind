@@ -61,6 +61,12 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
       delete updated[projId];
       return updated;
     });
+    // If the deleted topic is currently open, go back to the home screen
+    if (activeProject === projId) {
+      setActiveProject(null);
+      setActiveChatId(null);
+      router.push("/app");
+    }
   };
 
   // ─── Topic-folder select handlers ───────────────────────────────────────────
