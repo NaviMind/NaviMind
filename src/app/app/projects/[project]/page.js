@@ -175,17 +175,30 @@ export default function DynamicProjectPage() {
   if (chats.length === 0) {
     return (
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        {/* Glow — light mode */}
+        {/* Glow — light mode (layered: tight core + wide bloom) */}
         <div
           className="absolute inset-0 pointer-events-none dark:hidden"
-          style={{ background: "radial-gradient(ellipse 70% 44% at 50% 50%, rgba(59,130,246,0.13) 0%, rgba(14,165,233,0.05) 50%, transparent 72%)" }}
+          style={{
+            background:
+              "radial-gradient(ellipse 38% 30% at 50% 48%, rgba(59,130,246,0.30) 0%, rgba(59,130,246,0.12) 45%, transparent 70%)," +
+              "radial-gradient(ellipse 85% 60% at 50% 50%, rgba(14,165,233,0.12) 0%, transparent 68%)",
+          }}
         />
-        {/* Glow — dark mode */}
+        {/* Glow — dark mode (layered: tight core + wide bloom) */}
         <div
           className="absolute inset-0 pointer-events-none hidden dark:block"
-          style={{ background: "radial-gradient(ellipse 70% 44% at 50% 50%, rgba(59,130,246,0.24) 0%, rgba(99,102,241,0.09) 50%, transparent 72%)" }}
+          style={{
+            background:
+              "radial-gradient(ellipse 40% 32% at 50% 48%, rgba(59,130,246,0.42) 0%, rgba(59,130,246,0.16) 45%, transparent 72%)," +
+              "radial-gradient(ellipse 88% 62% at 50% 50%, rgba(99,102,241,0.16) 0%, transparent 70%)",
+          }}
         />
-        <div className="relative z-10 text-center px-8 max-w-3xl w-full">
+        <div className="relative z-10 flex flex-col items-center text-center px-8 max-w-3xl w-full">
+          <Icon
+            name="folder-open"
+            size={56}
+            className="mb-5 text-blue-500/90 dark:text-blue-400 drop-shadow-[0_0_18px_rgba(59,130,246,0.45)]"
+          />
           {isEditingName ? (
             <input
               type="text"
