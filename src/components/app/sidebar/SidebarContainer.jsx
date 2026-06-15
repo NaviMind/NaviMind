@@ -152,11 +152,11 @@ useEffect(() => {
             draggable={false}
           />
           <div className="flex items-center gap-0.5">
-            <HoverTipRight label="Search">
+            <HoverTipRight label="Search topics and chats">
               <button
                 onClick={() => setIsSearchOpen(true)}
                 className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                aria-label="Search chats"
+                aria-label="Search topics and chats"
               >
                 <Icon name="search" size={22} />
               </button>
