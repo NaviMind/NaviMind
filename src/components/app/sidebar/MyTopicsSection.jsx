@@ -256,7 +256,7 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                       <Icon name="folder-close" size={20} />
                     )}
                   </button>
-                  <div className="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
+                  <div className="pointer-events-none absolute top-full mt-2 left-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap hidden sm:block">
                     {isExpanded ? "Close Chats" : "Open Chats"}
                   </div>
                 </div>
