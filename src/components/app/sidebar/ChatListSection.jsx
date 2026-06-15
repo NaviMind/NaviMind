@@ -157,9 +157,6 @@ export default function ChatListSection({ onSidebarItemClick }) {
                 <polyline points="4 10 8 6 12 10" />
               </svg>
             </button>
-            <div className="pointer-events-none absolute top-full mt-1 left-0 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[200] whitespace-nowrap">
-              {collapsed ? "Show all chats" : "Hide chats"}
-            </div>
           </div>
         </div>
       )}
