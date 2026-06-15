@@ -11,6 +11,7 @@ import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
 import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
+import { sendChatMessage } from "@/components/app/InputBar/sendChatMessage";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -28,7 +29,7 @@ export default function DynamicProjectPage() {
     customProjects,
     messages,
   } = useContext(ChatContext);
-  const { theme } = useContext(UIContext);
+  const { theme, vesselProfileData } = useContext(UIContext);
 
   const hasChat = Boolean(activeChatId) && messages && messages.length > 0;
   const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
@@ -50,6 +51,8 @@ export default function DynamicProjectPage() {
   const [instrText, setInstrText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
@@ -73,6 +76,45 @@ export default function DynamicProjectPage() {
       vv.removeEventListener("scroll", update);
     };
   }, []);
+
+  // Fetch AI-suggested questions for empty topics (cached per topic+instruction)
+  useEffect(() => {
+    if ((projectChatSessions?.[project] || []).length > 0) return;
+    const instruction = customProjects?.[project]?.description || "";
+    const name = customProjects?.[project]?.name || project;
+    const cacheKey = `topic-suggestions:${project}:${instruction}`;
+
+    // Show cached questions instantly if we already generated them
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const arr = JSON.parse(cached);
+        if (Array.isArray(arr) && arr.length) {
+          setSuggestedQuestions(arr);
+          setIsLoadingQuestions(false);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    setIsLoadingQuestions(true);
+    setSuggestedQuestions([]);
+    fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topicName: name, topicInstruction: instruction }),
+    })
+      .then((r) => r.json())
+      .then(({ questions }) => {
+        const arr = Array.isArray(questions) ? questions : [];
+        setSuggestedQuestions(arr);
+        if (arr.length) {
+          try { sessionStorage.setItem(cacheKey, JSON.stringify(arr)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => setSuggestedQuestions([]))
+      .finally(() => setIsLoadingQuestions(false));
+  }, [project, customProjects?.[project]?.description, customProjects?.[project]?.name]);
 
   // ── Multi-select state ──
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -167,38 +209,34 @@ export default function DynamicProjectPage() {
     setIsEditingName(false);
   };
 
+  const handleSendQuestion = (question) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    sendChatMessage({
+      message: question,
+      attachments: [],
+      currentUser: user,
+      activeChatId: null,
+      topicIdFromURL: project,
+      projectChatSessions,
+      setProjectChatSessions,
+      setActiveProject,
+      setActiveChatId,
+      vesselProfile: vesselProfileData || null,
+    });
+  };
+
   if (hasChat) {
     return <ChatArea messages={messages} />;
   }
 
-  // Empty topic — Gemini-style centered name with glow radiating from center
+  // Empty topic — centered title + AI-suggested question pills
   if (chats.length === 0) {
     return (
-      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        {/* Glow — light mode (radiates from the centered title) */}
-        <div
-          className="absolute inset-0 pointer-events-none dark:hidden"
-          style={{
-            background:
-              "radial-gradient(ellipse 42% 34% at 50% 50%, rgba(59,130,246,0.26) 0%, rgba(59,130,246,0.10) 45%, transparent 70%)," +
-              "radial-gradient(ellipse 90% 64% at 50% 50%, rgba(14,165,233,0.10) 0%, transparent 70%)",
-          }}
-        />
-        {/* Glow — dark mode */}
-        <div
-          className="absolute inset-0 pointer-events-none hidden dark:block"
-          style={{
-            background:
-              "radial-gradient(ellipse 44% 36% at 50% 50%, rgba(59,130,246,0.40) 0%, rgba(59,130,246,0.14) 45%, transparent 72%)," +
-              "radial-gradient(ellipse 92% 66% at 50% 50%, rgba(99,102,241,0.14) 0%, transparent 72%)",
-          }}
-        />
-        <div className="relative z-10 flex items-center justify-center gap-3 px-8 max-w-3xl w-full">
-          <Icon
-            name="folder-open"
-            size={44}
-            className="flex-shrink-0 text-gray-900 dark:text-white"
-          />
+      <div className="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll px-6" style={{ paddingTop: "13vh" }}>
+        {/* Icon + topic name */}
+        <div className="flex items-center gap-3 mb-7">
+          <Icon name="folder-open" size={44} className="flex-shrink-0 text-gray-900 dark:text-white" />
           {isEditingName ? (
             <input
               type="text"
@@ -210,7 +248,7 @@ export default function DynamicProjectPage() {
                 if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
                 else if (e.key === "Escape") setIsEditingName(false);
               }}
-              className="bg-transparent border-b-2 border-blue-500 outline-none text-center text-gray-900 dark:text-white font-semibold tracking-tight"
+              className="bg-transparent border-b-2 border-blue-500 outline-none text-gray-900 dark:text-white font-semibold tracking-tight"
               style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
             />
           ) : (
@@ -222,6 +260,29 @@ export default function DynamicProjectPage() {
             >
               {currentProjectName}
             </h1>
+          )}
+        </div>
+
+        {/* Suggested question pills */}
+        <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
+          {isLoadingQuestions ? (
+            [52, 44, 48].map((w, i) => (
+              <div key={i} className={`h-9 w-${w} rounded-full bg-gray-200 dark:bg-white/10 animate-pulse`} />
+            ))
+          ) : (
+            suggestedQuestions.map((q, i) => (
+              <button
+                key={i}
+                onClick={() => handleSendQuestion(q)}
+                className="px-4 py-2 rounded-full border border-gray-200 dark:border-white/10
+                  text-sm text-gray-700 dark:text-gray-200
+                  bg-white dark:bg-white/5
+                  hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10
+                  transition-colors"
+              >
+                {q}
+              </button>
+            ))
           )}
         </div>
       </div>
