@@ -119,7 +119,12 @@ export default function DynamicProjectPage() {
       })
       .catch(() => setSuggestedQuestions([]))
       .finally(() => setIsLoadingQuestions(false));
-  }, [project, customProjects?.[project]?.description, customProjects?.[project]?.name]);
+  }, [
+    project,
+    customProjects?.[project]?.description,
+    customProjects?.[project]?.name,
+    (projectChatSessions?.[project] || []).length,
+  ]);
 
   // ── Multi-select state ──
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -235,60 +240,62 @@ export default function DynamicProjectPage() {
     return <ChatArea messages={messages} />;
   }
 
-  // Empty topic — centered title + AI-suggested question pills
+  // Empty topic — title + AI-suggested question pills, left-aligned as a block
   if (chats.length === 0) {
     return (
       <div className="w-full h-full flex flex-col items-center overflow-y-auto custom-scroll px-6" style={{ paddingTop: "13vh" }}>
-        {/* Icon + topic name */}
-        <div className="flex items-center gap-3 mb-7">
-          <Icon name="folder-open" size={44} className="flex-shrink-0 text-gray-900 dark:text-white" />
-          {isEditingName ? (
-            <input
-              type="text"
-              value={nameDraft}
-              autoFocus
-              onChange={(e) => setNameDraft(e.target.value)}
-              onBlur={commitEditName}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
-                else if (e.key === "Escape") setIsEditingName(false);
-              }}
-              className="bg-transparent border-b-2 border-blue-500 outline-none text-gray-900 dark:text-white font-semibold tracking-tight"
-              style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
-            />
-          ) : (
-            <h1
-              className="font-semibold text-gray-900 dark:text-white tracking-tight cursor-text select-none"
-              style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
-              onClick={isCompact ? startEditName : undefined}
-              onDoubleClick={startEditName}
-            >
-              {currentProjectName}
-            </h1>
-          )}
-        </div>
-
-        {/* Suggested question pills */}
-        <div className="flex flex-wrap justify-center gap-2 max-w-2xl">
-          {isLoadingQuestions ? (
-            [52, 44, 48].map((w, i) => (
-              <div key={i} className={`h-9 w-${w} rounded-full bg-gray-200 dark:bg-white/10 animate-pulse`} />
-            ))
-          ) : (
-            suggestedQuestions.map((q, i) => (
-              <button
-                key={i}
-                onClick={() => handleSendQuestion(q)}
-                className="px-4 py-2 rounded-full border border-gray-200 dark:border-white/10
-                  text-sm text-gray-700 dark:text-gray-200
-                  bg-white dark:bg-white/5
-                  hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10
-                  transition-colors"
+        <div className="flex flex-col items-start w-full max-w-2xl">
+          {/* Icon + topic name */}
+          <div className="flex items-center gap-3 mb-7">
+            <Icon name="folder-open" size={44} className="flex-shrink-0 text-gray-900 dark:text-white" />
+            {isEditingName ? (
+              <input
+                type="text"
+                value={nameDraft}
+                autoFocus
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={commitEditName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
+                  else if (e.key === "Escape") setIsEditingName(false);
+                }}
+                className="bg-transparent border-b-2 border-blue-500 outline-none text-gray-900 dark:text-white font-semibold tracking-tight"
+                style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
+              />
+            ) : (
+              <h1
+                className="font-semibold text-gray-900 dark:text-white tracking-tight cursor-text select-none"
+                style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
+                onClick={isCompact ? startEditName : undefined}
+                onDoubleClick={startEditName}
               >
-                {q}
-              </button>
-            ))
-          )}
+                {currentProjectName}
+              </h1>
+            )}
+          </div>
+
+          {/* Suggested question pills */}
+          <div className="flex flex-col items-start gap-2 w-full">
+            {isLoadingQuestions ? (
+              [52, 44, 48].map((w, i) => (
+                <div key={i} className={`h-9 w-${w} rounded-full bg-gray-200 dark:bg-white/10 animate-pulse`} />
+              ))
+            ) : (
+              suggestedQuestions.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSendQuestion(q)}
+                  className="px-4 py-2 rounded-full border border-gray-200 dark:border-white/10
+                    text-sm text-gray-700 dark:text-gray-200
+                    bg-white dark:bg-white/5
+                    hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10
+                    transition-colors text-left"
+                >
+                  {q}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       </div>
     );
