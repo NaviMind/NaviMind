@@ -171,8 +171,6 @@ export default function MiniSidebar() {
             <Icon name="search" size={26} />
           </MiniBtn>
 
-          <MiniPinned />
-
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
             <Icon name="vessel-profile" size={24} />
           </MiniBtn>
@@ -181,8 +179,11 @@ export default function MiniSidebar() {
             <Icon name="create-new" size={24} />
           </MiniBtn>
 
-          {/* Divider */}
+          {/* Divider — separates fixed actions (above) from the workflow zone (below) */}
           <div className="w-7 h-px bg-gray-200 dark:bg-white/10 my-1 flex-shrink-0" />
+
+          {/* Pinned quick-access — workflow zone, below the divider */}
+          <MiniPinned />
 
           {/* User avatar — pinned to bottom inside card */}
           <div className="mt-auto flex justify-center w-full px-1">
