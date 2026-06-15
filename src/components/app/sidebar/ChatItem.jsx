@@ -178,9 +178,9 @@ if (!chat.title) return null;
             setOpenMenu({ chatId: chat.chatId, anchorRef });
           }}
           className={`
-            peer flex-shrink-0 ml-2 p-2 rounded-full
-            bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700
-            transition-opacity
+            peer flex-shrink-0 ml-2 p-1.5
+            text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
+            transition-all
             opacity-100 md:opacity-0 md:group-hover:opacity-100
             flex items-center justify-center
           `}

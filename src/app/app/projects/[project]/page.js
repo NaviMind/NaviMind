@@ -399,7 +399,7 @@ export default function DynamicProjectPage() {
                           e.stopPropagation();
                           setOpenMenu({ chatId: c.chatId, anchorRef, currentTitle: c.title });
                         }}
-                        className="peer flex-shrink-0 p-2 rounded-full flex items-center justify-center bg-transparent hover:bg-gray-300 dark:hover:bg-gray-600 transition opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        className="peer flex-shrink-0 p-1.5 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
                         aria-label="Chat options"
                       >
                         <Icon name="more-vert" size={16} />

@@ -341,7 +341,7 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                     e.stopPropagation();
                     setOpenMenu({ projectId: projId, anchorRef });
                   }}
-                  className="peer ml-2 p-2 rounded-full bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center"
+                  className="peer ml-2 p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center"
                   aria-label="Show menu"
                   type="button"
                 >
