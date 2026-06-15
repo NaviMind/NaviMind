@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext } from "react";
 import { UIProvider, UIContext } from "@/context/UIContext";
-import { ChatProvider } from "@/context/ChatContext";
+import { ChatProvider, ChatContext } from "@/context/ChatContext";
 import SidebarContainer from "@/components/app/sidebar/SidebarContainer";
 import MiniSidebar from "@/components/app/sidebar/MiniSidebar";
 import TopBar from "@/components/app/TopBar";
@@ -17,6 +17,7 @@ import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 /* ---------------------- */
 
 function AppShell({ children }) {
+  const { isLoadingMessages } = useContext(ChatContext);
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -108,8 +109,16 @@ function AppShell({ children }) {
         )}
 
         <div className="flex flex-col flex-1 min-h-0 w-full max-w-full">
-          <div className="flex-1 min-h-0 overflow-hidden w-full max-w-full">
+          <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
+            {isLoadingMessages && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center backdrop-blur-[6px] bg-white/30 dark:bg-[#0b1220]/40">
+                <svg className="animate-spin" width="36" height="36" viewBox="0 0 36 36" fill="none">
+                  <circle cx="18" cy="18" r="15" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
+                  <path d="M18 3 A15 15 0 0 1 33 18" stroke="#0ea5e9" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
           </div>
           <InputBar />
         </div>

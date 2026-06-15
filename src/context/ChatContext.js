@@ -26,6 +26,7 @@ export function ChatProvider({ children }) {
   const [activeProject, setActiveProject] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const clearAllChats = () => {
     setProjectChatSessions({});
@@ -139,14 +140,25 @@ useEffect(() => {
 
   // Подписка на сообщения активного чата (учитывает topicId)
   useEffect(() => {
-    if (!activeChatId || !auth.currentUser) return;
+    if (!activeChatId || !auth.currentUser) {
+      setIsLoadingMessages(false);
+      return;
+    }
+
+    setMessages([]);
+    setIsLoadingMessages(true);
 
     const uid = auth.currentUser.uid;
     const topicId = activeProject && activeProject !== "global" ? activeProject : null;
 
+    const onMessages = (msgs) => {
+      setMessages(msgs);
+      setIsLoadingMessages(false);
+    };
+
     const unsubscribe = topicId
-      ? subscribeToTopicMessages(uid, topicId, activeChatId, (msgs) => setMessages(msgs))
-      : subscribeToMessages(uid, activeChatId, (msgs) => setMessages(msgs));
+      ? subscribeToTopicMessages(uid, topicId, activeChatId, onMessages)
+      : subscribeToMessages(uid, activeChatId, onMessages);
 
     return () => unsubscribe();
   }, [activeChatId, activeProject]);
@@ -342,6 +354,7 @@ useEffect(() => {
     clearAllChats,
     messages,
     setMessages,
+    isLoadingMessages,
     createNewChat,
     sendMessage,
   };
