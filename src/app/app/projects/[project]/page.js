@@ -80,8 +80,9 @@ export default function DynamicProjectPage() {
   // Fetch AI-suggested questions for empty topics (cached per topic+instruction)
   useEffect(() => {
     if ((projectChatSessions?.[project] || []).length > 0) return;
+    const name = customProjects?.[project]?.name;
+    if (!name) return; // wait until Firebase loads the topic name
     const instruction = customProjects?.[project]?.description || "";
-    const name = customProjects?.[project]?.name || project;
     const cacheKey = `topic-suggestions:${project}:${instruction}`;
 
     // Show cached questions instantly if we already generated them
