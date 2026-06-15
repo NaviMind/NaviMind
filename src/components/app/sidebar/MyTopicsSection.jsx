@@ -172,30 +172,27 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
     <>
       {/* ── Topic select bar (replaces nothing — appears above list) ── */}
       {topicSelectMode && !collapsedMode && (
-        <div className="px-3 py-2 mt-1 flex items-center gap-2 text-[13px]">
-          <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
-            {selectedTopicIds.size} selected
-          </span>
+        <div className="px-2 py-2 mt-1 flex items-center gap-1.5">
           <button
             onClick={() =>
               allTopicsSelected
                 ? setSelectedTopicIds(new Set())
                 : setSelectedTopicIds(new Set(sortedTopics.map(([id]) => id)))
             }
-            className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition ml-auto"
+            className="px-3 py-1 rounded-full text-[12px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
           >
             {allTopicsSelected ? "Deselect all" : "Select all"}
           </button>
           <button
             onClick={cancelTopicSelect}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition px-1"
+            className="px-3 py-1 rounded-full text-[12px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
           >
             Cancel
           </button>
           <button
             onClick={() => bulkDeleteTopics(sortedTopics)}
             disabled={selectedTopicIds.size === 0 || isDeletingTopics}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+            className={`ml-auto px-3 py-1 rounded-full text-[12px] font-medium transition ${
               selectedTopicIds.size > 0 && !isDeletingTopics
                 ? "bg-red-600 hover:bg-red-500 text-white"
                 : "bg-red-900/30 text-red-400/50 cursor-not-allowed"
@@ -389,30 +386,27 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
               <div className="ml-5">
                 {/* Chat select bar for this topic */}
                 {chatSelectActive && (
-                  <div className="px-2 py-1 mb-1 flex items-center gap-2 text-[12px]">
-                    <span className="text-gray-300 font-medium">
-                      {chatSelect.selectedIds.size} selected
-                    </span>
+                  <div className="px-1 py-1 mb-1 flex items-center gap-1.5">
                     <button
                       onClick={() =>
                         allChatsSelected
                           ? setChatSelect((p) => ({ ...p, selectedIds: new Set() }))
                           : setChatSelect((p) => ({ ...p, selectedIds: new Set(chats.map((c) => c.chatId)) }))
                       }
-                      className="text-blue-400 hover:text-blue-300 transition ml-auto text-[11px]"
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
                     >
                       {allChatsSelected ? "Deselect all" : "Select all"}
                     </button>
                     <button
                       onClick={cancelChatSelect}
-                      className="text-gray-400 hover:text-gray-200 transition"
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => bulkDeleteChats(projId, chats)}
                       disabled={chatSelect.selectedIds.size === 0 || isDeletingChats}
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${
+                      className={`ml-auto px-2.5 py-0.5 rounded-full text-[11px] font-medium transition ${
                         chatSelect.selectedIds.size > 0 && !isDeletingChats
                           ? "bg-red-600 hover:bg-red-500 text-white"
                           : "bg-red-900/30 text-red-400/50 cursor-not-allowed"

@@ -100,21 +100,17 @@ export default function ChatListSection({ onSidebarItemClick }) {
     <div className="group/chats">
       {/* Section header */}
       {isSelectMode ? (
-        <div className="px-3 py-2 mt-3 flex items-center gap-2 text-[13px]">
-          <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[70px]">
-            {selectedIds.size} selected
-          </span>
-
+        <div className="px-2 py-2 mt-3 flex items-center gap-1.5">
           <button
             onClick={allSelected ? () => setSelectedIds(new Set()) : handleSelectAll}
-            className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition ml-auto"
+            className="px-3 py-1 rounded-full text-[12px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
           >
             {allSelected ? "Deselect all" : "Select all"}
           </button>
 
           <button
             onClick={handleCancelSelect}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition px-1"
+            className="px-3 py-1 rounded-full text-[12px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15 transition"
           >
             Cancel
           </button>
@@ -122,7 +118,7 @@ export default function ChatListSection({ onSidebarItemClick }) {
           <button
             onClick={handleBulkDelete}
             disabled={selectedIds.size === 0 || isDeleting}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+            className={`ml-auto px-3 py-1 rounded-full text-[12px] font-medium transition ${
               selectedIds.size > 0 && !isDeleting
                 ? "bg-red-600 hover:bg-red-500 text-white"
                 : "bg-red-900/30 text-red-400/50 cursor-not-allowed"
