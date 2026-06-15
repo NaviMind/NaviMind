@@ -161,20 +161,22 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
             {/* Outer card — matches SettingsModal shell */}
             <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl overflow-hidden">
 
-              {/* Close ✕ */}
-              <button
-                onClick={onClose}
-                className="absolute top-1 right-1 z-10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
-                aria-label="Close"
-                type="button"
-              >
-                ✕
-              </button>
+              {/* Header row — gives the ✕ its own space, doesn't overlap pills */}
+              <div className="flex items-center justify-end px-3 pt-3 pb-0">
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  aria-label="Close"
+                  type="button"
+                >
+                  ✕
+                </button>
+              </div>
 
-              <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
+              <div className="px-4 pt-2 pb-4 flex flex-col gap-3">
 
                 {/* Pill 1 — Search input */}
-                <div className="flex items-center gap-3 px-4 py-[13px] rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] pr-10">
+                <div className="flex items-center gap-3 px-4 py-[13px] rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
                   <Icon
                     name="search"
                     size={20}
@@ -185,7 +187,7 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
                     type="text"
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setSel(0); }}
-                    placeholder="Search chats…"
+                    placeholder="Search topics and chats…"
                     className="flex-1 bg-transparent outline-none text-[15px] text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                     autoComplete="off"
                     spellCheck={false}
@@ -194,7 +196,7 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
 
                 {/* Pill 2 — Results block */}
                 <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] overflow-hidden">
-                  <div className="overflow-y-auto custom-scroll max-h-[50vh] sm:max-h-[60vh]">
+                  <div className="overflow-y-auto custom-scroll max-h-[50vh] sm:max-h-[65vh]">
                     {results.length === 0 ? (
                       <div className="px-4 py-8 text-center text-[14px] text-gray-400 dark:text-gray-500">
                         {query.trim() ? "No chats found" : "Start typing to search your chats"}
@@ -202,38 +204,40 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
                     ) : (
                       <>
                         {!query.trim() && (
-                          <div className="px-4 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 select-none">
+                          <div className="px-4 pt-3 pb-1 text-[12px] font-medium text-gray-400 dark:text-gray-500 select-none">
                             Recent
                           </div>
                         )}
-                        {results.map((item, i) => (
-                          <button
-                            key={`${item.projId}:${item.chatId}`}
-                            ref={(el) => (rowRefs.current[i] = el)}
-                            onClick={() => handleSelect(item)}
-                            onMouseMove={() => setSel(i)}
-                            className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-150 ${
-                              i === sel
-                                ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white"
-                                : "hover:bg-gray-100 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200"
-                            }`}
-                            type="button"
-                          >
-                            <Icon
-                              name={item.topicName ? "folder-close" : "chat-bubble"}
-                              size={18}
-                              className="flex-shrink-0 text-gray-400 dark:text-gray-500"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[14px]">
-                                <Highlighted text={item.title} query={query} />
+                        <div className="px-2 pb-2">
+                          {results.map((item, i) => (
+                            <button
+                              key={`${item.projId}:${item.chatId}`}
+                              ref={(el) => (rowRefs.current[i] = el)}
+                              onClick={() => handleSelect(item)}
+                              onMouseMove={() => setSel(i)}
+                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors duration-150 ${
+                                i === sel
+                                  ? "bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white"
+                                  : "hover:bg-gray-200 dark:hover:bg-white/5 text-gray-800 dark:text-gray-200"
+                              }`}
+                              type="button"
+                            >
+                              <Icon
+                                name={item.topicName ? "folder-close" : "chat-bubble"}
+                                size={18}
+                                className="flex-shrink-0 text-gray-400 dark:text-gray-500"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[14px]">
+                                  <Highlighted text={item.title} query={query} />
+                                </div>
+                                <div className="truncate text-[12px] text-gray-400 dark:text-gray-500">
+                                  {item.topicName || "Chats"}
+                                </div>
                               </div>
-                              <div className="truncate text-[12px] text-gray-400 dark:text-gray-500">
-                                {item.topicName || "Chats"}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
+                            </button>
+                          ))}
+                        </div>
                       </>
                     )}
                   </div>
