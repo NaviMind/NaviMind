@@ -49,6 +49,15 @@ export default function DynamicProjectPage() {
   const [isInstrPresent, setIsInstrPresent] = useState(false);
   const [instrText, setInstrText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setIsCompact(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => { if (instrModalOpen) setIsInstrPresent(true); }, [instrModalOpen]);
 
@@ -201,24 +210,27 @@ export default function DynamicProjectPage() {
           ) : (
             <>
               <span
+                onClick={isCompact ? startEditName : undefined}
                 onDoubleClick={startEditName}
                 className="block font-semibold text-gray-900 dark:text-white whitespace-normal break-words cursor-text"
                 style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
               >
                 {currentProjectName}
               </span>
-              <span className="relative inline-flex flex-col items-center ml-1.5 flex-shrink-0">
+              {/* Rename pencil — desktop only, reveals on hovering the header area */}
+              <span className="relative hidden md:inline-flex flex-col items-center ml-1.5 flex-shrink-0
+                opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
                   onClick={startEditName}
                   aria-label="Rename topic"
-                  className="peer p-1.5 rounded-lg text-gray-300 dark:text-gray-600
+                  className="peer p-2 rounded-lg text-gray-500 dark:text-gray-400
                     hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
                     transition-colors duration-200"
                 >
-                  <Icon name="edit" size={17} />
+                  <Icon name="edit" size={20} />
                 </button>
-                <span className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap hidden md:block">
+                <span className="pointer-events-none absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-2 py-[2px] text-xs bg-blue-600 text-white rounded shadow opacity-0 peer-hover:opacity-100 transition-opacity z-[100] whitespace-nowrap">
                   Rename
                 </span>
               </span>
@@ -238,17 +250,9 @@ export default function DynamicProjectPage() {
             {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
           </button>
         </div>
-        {(chats.length > 0 || lastActiveLabel) && (
+        {lastActiveLabel && (
           <div className="flex items-center gap-1.5 mt-1 ml-8 text-[12px] text-gray-500 select-none">
-            {chats.length > 0 && (
-              <span>{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
-            )}
-            {chats.length > 0 && lastActiveLabel && (
-              <span className="text-gray-600">·</span>
-            )}
-            {lastActiveLabel && (
-              <span>last active {lastActiveLabel}</span>
-            )}
+            <span>last active {lastActiveLabel}</span>
           </div>
         )}
       </div>
