@@ -171,6 +171,63 @@ export default function DynamicProjectPage() {
     return <ChatArea messages={messages} />;
   }
 
+  // Empty topic — Gemini-style centered name with glow radiating from center
+  if (chats.length === 0) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Glow — light mode (radiates from the centered title) */}
+        <div
+          className="absolute inset-0 pointer-events-none dark:hidden"
+          style={{
+            background:
+              "radial-gradient(ellipse 42% 34% at 50% 50%, rgba(59,130,246,0.26) 0%, rgba(59,130,246,0.10) 45%, transparent 70%)," +
+              "radial-gradient(ellipse 90% 64% at 50% 50%, rgba(14,165,233,0.10) 0%, transparent 70%)",
+          }}
+        />
+        {/* Glow — dark mode */}
+        <div
+          className="absolute inset-0 pointer-events-none hidden dark:block"
+          style={{
+            background:
+              "radial-gradient(ellipse 44% 36% at 50% 50%, rgba(59,130,246,0.40) 0%, rgba(59,130,246,0.14) 45%, transparent 72%)," +
+              "radial-gradient(ellipse 92% 66% at 50% 50%, rgba(99,102,241,0.14) 0%, transparent 72%)",
+          }}
+        />
+        <div className="relative z-10 flex items-center justify-center gap-3 px-8 max-w-3xl w-full">
+          <Icon
+            name="folder-open"
+            size={44}
+            className="flex-shrink-0 text-gray-900 dark:text-white"
+          />
+          {isEditingName ? (
+            <input
+              type="text"
+              value={nameDraft}
+              autoFocus
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={commitEditName}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEditName(); }
+                else if (e.key === "Escape") setIsEditingName(false);
+              }}
+              className="bg-transparent border-b-2 border-blue-500 outline-none text-center text-gray-900 dark:text-white font-semibold tracking-tight"
+              style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
+            />
+          ) : (
+            <h1
+              className="font-semibold text-gray-900 dark:text-white tracking-tight cursor-text select-none"
+              style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
+              onClick={isCompact ? startEditName : undefined}
+              onDoubleClick={startEditName}
+            >
+              {currentProjectName}
+            </h1>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const lastActiveLabel = (() => {
     if (!chats.length) return null;
     let maxMs = 0;
@@ -188,28 +245,7 @@ export default function DynamicProjectPage() {
   })();
 
   return (
-    <main className="relative w-full flex flex-col items-center py-6 px-4 overflow-y-auto custom-scroll">
-      {/* Glow empty state — only when no chats */}
-      {chats.length === 0 && (
-        <>
-          <div
-            className="absolute inset-0 pointer-events-none dark:hidden"
-            style={{
-              background:
-                "radial-gradient(ellipse 38% 30% at 50% 48%, rgba(59,130,246,0.28) 0%, rgba(59,130,246,0.11) 45%, transparent 70%)," +
-                "radial-gradient(ellipse 85% 60% at 50% 50%, rgba(14,165,233,0.10) 0%, transparent 68%)",
-            }}
-          />
-          <div
-            className="absolute inset-0 pointer-events-none hidden dark:block"
-            style={{
-              background:
-                "radial-gradient(ellipse 40% 32% at 50% 48%, rgba(59,130,246,0.40) 0%, rgba(59,130,246,0.15) 45%, transparent 72%)," +
-                "radial-gradient(ellipse 88% 62% at 50% 50%, rgba(99,102,241,0.14) 0%, transparent 70%)",
-            }}
-          />
-        </>
-      )}
+    <main className="w-full flex flex-col items-center py-6 px-4 overflow-y-auto custom-scroll">
       {/* Project header */}
       <div className="w-full max-w-4xl mb-6 flex flex-col items-start pl-[19px]">
         <div className="flex items-center w-full group relative">
