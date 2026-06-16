@@ -312,7 +312,7 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                     e.stopPropagation();
                     handleTogglePinTopic(projId);
                   }}
-                  className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+                  className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
                   aria-label="Unpin topic"
                   type="button"
                 >

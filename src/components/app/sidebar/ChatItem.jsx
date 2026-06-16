@@ -151,7 +151,7 @@ if (!chat.title) return null;
             e.stopPropagation();
             handleTogglePin();
           }}
-          className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+          className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
           aria-label="Unpin chat"
           type="button"
         >
