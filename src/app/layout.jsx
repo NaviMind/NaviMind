@@ -11,10 +11,10 @@ const outfit = Outfit({
 export const metadata = {
   title: "NaviMind",
   description: "Your AI Copilot for Maritime Operations",
-  themeColor: "#0b1220",
+  themeColor: "#ffffff",
   manifest: "/manifest.json",
   icons: {
-    icon: "/branding/compass.png",
+    icon: "/branding/compass-192.png",
     apple: "/branding/compass.png",
   },
   appleWebApp: {
@@ -33,7 +33,7 @@ export default function RootLayout({ children }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#0b1220" />
+        <meta name="theme-color" content="#ffffff" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="NaviMind" />

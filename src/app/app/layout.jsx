@@ -10,6 +10,7 @@ import MobileSidebarOverlay from "@/components/app/MobileSidebarOverlay";
 import InputBar from "@/components/app/InputBar/InputBar";
 import WelcomeModal from "@/components/app/Welcome/WelcomeModal";
 import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
+import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 
 
 /* ---------------------- */
@@ -80,6 +81,7 @@ function AppShell({ children }) {
 
   return (
     <>
+      <ThemeColorMeta />
       <SidebarContainer />
       <MiniSidebar />
 

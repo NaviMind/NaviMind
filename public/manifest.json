@@ -3,23 +3,24 @@
   "short_name": "NaviMind",
   "start_url": "/app",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "description": "Your AI Copilot for Maritime Operations",
   "icons": [
     {
-      "src": "/branding/compass.png",
+      "src": "/branding/compass-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/branding/compass.png",
+      "src": "/branding/compass-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/branding/compass.png",
+      "src": "/branding/compass-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
