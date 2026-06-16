@@ -184,6 +184,15 @@ background: radial-gradient(
   animation: shine 4s linear infinite;
 }
 
+/* === WelcomePage / лендинг: всегда тёмный фон, независимо от темы приложения === */
+.gradient-bg {
+  background-color: #0b1220;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(30, 58, 138, 0.35), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13, 42, 88, 0.30), transparent 70%),
+    linear-gradient(180deg, #0b1220 0%, #060b16 100%);
+}
+
 /* === WelcomePage: правки только для PWA fullscreen === */
 @media all and (display-mode: standalone) {
   .WelcomePage .welcome-typewriter {

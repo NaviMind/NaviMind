@@ -101,7 +101,7 @@ export default function WelcomePage() {
 
   return (
     <motion.div
-      className="WelcomePage fixed inset-0 z-[100] flex flex-col items-center justify-center gradient-bg"
+      className="WelcomePage fixed inset-0 z-[100] flex flex-col items-center justify-center gradient-bg text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
