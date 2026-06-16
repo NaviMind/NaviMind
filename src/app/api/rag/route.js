@@ -119,6 +119,15 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Main chat model. Override via env to switch to a reasoning-class model
+// (e.g. set OPENAI_MODEL to your account's reasoning model). Falls back to
+// the previous known-good model so nothing breaks if the env is unset.
+const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
+
+// When set ("low" | "medium" | "high"), enables reasoning on models that
+// support it. Left null for non-reasoning models like gpt-4.1.
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || null;
+
 // ===== SSE helper =====
 
 function sse(event, data) {
@@ -363,8 +372,9 @@ const assembledSystemPrompt = [
           const useWebSearch = needsWebSearch(question, vesselProfile);
 
           const completion = await openai.responses.create({
-            model: "gpt-4.1",
+            model: CHAT_MODEL,
             stream: true,
+            ...(REASONING_EFFORT ? { reasoning: { effort: REASONING_EFFORT } } : {}),
             ...(useWebSearch ? {
               tools: [{ type: "web_search_preview" }],
               tool_choice: "required",
