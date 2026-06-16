@@ -145,50 +145,58 @@ if (!chat.title) return null;
         </button>
       )}
 
-      {chat.isPinned && !isBeingRenamed && !isSelectMode && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleTogglePin();
-          }}
-          className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150 md:opacity-0 md:group-hover:opacity-100"
-          aria-label="Unpin chat"
-          type="button"
-        >
-          {/* Pinned (default) */}
-          <Icon
-            name="pin"
-            size={16}
-            className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden"
-          />
-          {/* Unpin (on hover) — soft glow, no hover box */}
-          <Icon
-            name="unpin"
-            size={16}
-            className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]"
-          />
-        </button>
-      )}
-
       {!isBeingRenamed && !isSelectMode && (
-        <button
-          ref={anchorRef}
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpenMenu({ chatId: chat.chatId, anchorRef });
-          }}
+        <div
           className={`
-            peer flex-shrink-0 ml-2 p-1.5
-            text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
-            transition-all
-            opacity-100 md:opacity-0 md:group-hover:opacity-100
-            flex items-center justify-center
+            flex items-center flex-shrink-0 transition-all duration-200
+            ${openMenu?.chatId === chat.chatId
+              ? "max-w-[72px] opacity-100"
+              : "md:max-w-0 md:overflow-hidden md:opacity-0 md:group-hover:max-w-[72px] md:group-hover:opacity-100"}
           `}
-          aria-label="Show menu"
-          type="button"
         >
-          <Icon name="more-vert" size={16} />
-        </button>
+          {chat.isPinned && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTogglePin();
+              }}
+              className="group/pin flex-shrink-0 mx-1 flex items-center justify-center transition-all duration-150"
+              aria-label="Unpin chat"
+              type="button"
+            >
+              {/* Pinned (default) */}
+              <Icon
+                name="pin"
+                size={16}
+                className="opacity-70 drop-shadow-[0_0_2px_rgba(255,255,255,0.3)] group-hover/pin:hidden"
+              />
+              {/* Unpin (on hover) — soft glow, no hover box */}
+              <Icon
+                name="unpin"
+                size={16}
+                className="hidden group-hover/pin:block text-blue-400 dark:text-blue-300 drop-shadow-[0_0_5px_rgba(59,130,246,0.55)]"
+              />
+            </button>
+          )}
+
+          <button
+            ref={anchorRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenMenu({ chatId: chat.chatId, anchorRef });
+            }}
+            className="
+              peer flex-shrink-0 ml-1 p-1.5
+              text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
+              transition-all
+              flex items-center justify-center
+            "
+            aria-label="Show menu"
+            type="button"
+          >
+            <Icon name="more-vert" size={16} />
+          </button>
+        </div>
       )}
 
       {/* Hack: disable hover bg when hovering the three-dot menu */}
