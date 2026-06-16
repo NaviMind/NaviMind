@@ -114,7 +114,7 @@ export default function WelcomePage() {
 
       {/* Контент */}
       <div className="
-  relative z-10
+  relative z-10 w-full
   flex flex-col items-center justify-between flex-1
   px-6 text-center
   pt-10 sm:pt-16 md:pt-20 lg:pt-24
