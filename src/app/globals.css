@@ -28,7 +28,7 @@
 /* ─── Цветовые переменные темы — LIGHT (default) ─── */
 :root {
   --bg-app: #ffffff;
-  --bg-sidebar: #ffffff;
+  --bg-sidebar: #f1f5f9;
   --bg-topbar: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #374151;
@@ -39,7 +39,7 @@
 /* ─── Цветовые переменные темы — DARK ─── */
 .dark {
   --bg-app: #0b1220;
-  --bg-sidebar: rgba(17, 24, 39, 0.85);
+  --bg-sidebar: #070e1a;
   --bg-topbar: #0b1220;
   --text-primary: #ffffff;
   --text-secondary: #e5e7eb;
