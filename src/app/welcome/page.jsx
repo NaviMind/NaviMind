@@ -155,13 +155,17 @@ export default function WelcomePage() {
         transition={{ duration: FADE_MS / 1000 }}
       >
         <p className="text-[20px] sm:text-[30px] font-extrabold leading-snug px-4 text-center whitespace-normal break-words max-w-[800px] mx-auto">
-  {typed}
+  <span>{typed}</span>
   {isTyping && (
     <span
       aria-hidden="true"
-      className="inline-block align-[-0.1em] w-[1px] h-[1.2em] bg-current ml-1"
+      className="inline-block align-[-0.1em] w-[2px] h-[1.2em] bg-current -mr-[2px]"
     />
   )}
+  {/* Прозрачный остаток резервирует полную высоту — без скачков при тайпинге */}
+  <span aria-hidden="true" className="text-transparent">
+    {current.text.slice(typed.length)}
+  </span>
 </p>
       </motion.div>
     </AnimatePresence>
