@@ -1,13 +1,12 @@
 "use client";
 
 import AppModals from "./AppModals";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
 import Icon from "@/components/common/Icon";
-import SearchModal from "@/components/app/sidebar/SearchModal";
 
 // Tooltip — только на десктопе
 const Tooltip = ({ children, content, position = "bottom" }) => (
@@ -36,8 +35,6 @@ export default function TopBar() {
     setVesselProfileOpen,
     theme,
   } = useContext(UIContext);
-
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const { activeProject, customProjects, setActiveChatId, activeChatId } = useContext(ChatContext);
   const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
@@ -148,15 +145,6 @@ export default function TopBar() {
           </button>
         )}
 
-        {/* Search — только мобилка */}
-        <button
-          onClick={() => setIsSearchOpen(true)}
-          className="flex sm:hidden p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-          aria-label="Search topics and chats"
-        >
-          <Icon name="search" size={24} />
-        </button>
-
         {/* NewChatButton — только мобилка */}
         <div className="flex sm:hidden">
           <NewChatButton />
@@ -164,7 +152,6 @@ export default function TopBar() {
       </div>
 
       <AppModals />
-      <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </header>
   );
 }
