@@ -28,10 +28,11 @@ export default function DynamicProjectPage() {
     setProjectChatSessions,
     customProjects,
     messages,
+    isLoadingMessages,
   } = useContext(ChatContext);
   const { theme, vesselProfileData } = useContext(UIContext);
 
-  const hasChat = Boolean(activeChatId) && messages && messages.length > 0;
+  const hasChat = Boolean(activeChatId) && (messages?.length > 0 || isLoadingMessages);
   const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
   const chats = [...(projectChatSessions?.[project] || [])].sort((a, b) => {
     if (!!a.isPinned !== !!b.isPinned) return a.isPinned ? -1 : 1;
