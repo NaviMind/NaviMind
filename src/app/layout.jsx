@@ -26,9 +26,16 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark w-full max-w-[100vw] overflow-x-hidden">
+    <html lang="en" className="w-full max-w-[100vw] overflow-x-hidden">
       <head>
-        {/* 👇 важные мета-теги для fullscreen и PWA */}
+        {/* Синхронно применяем тему из localStorage до рендера CSS — устраняет вспышку */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          try {
+            if (localStorage.getItem('theme') === 'dark') {
+              document.documentElement.classList.add('dark');
+            }
+          } catch(e) {}
+        `}} />
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -39,13 +46,12 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="NaviMind" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
-
       </head>
 
       <body
-  className={`${outfit.className} bg-[#0b1220] text-white w-full max-w-[100vw] overflow-x-hidden`}
-  style={{ WebkitTapHighlightColor: "transparent" }}
->
+        className={`${outfit.className} bg-[var(--bg-app)] text-[var(--text-primary)] w-full max-w-[100vw] overflow-x-hidden`}
+        style={{ WebkitTapHighlightColor: "transparent" }}
+      >
         {children}
       </body>
     </html>
