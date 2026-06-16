@@ -280,19 +280,23 @@ export default function DynamicProjectPage() {
           {/* Suggested question pills */}
           <div className="flex flex-col items-start gap-2 w-full">
             {isLoadingQuestions ? (
-              [52, 44, 48].map((w, i) => (
-                <div key={i} className={`h-9 w-${w} rounded-full bg-gray-200 dark:bg-white/10 animate-pulse`} />
+              [220, 180, 200].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-9 max-w-full rounded-full bg-gray-200 dark:bg-white/10 animate-pulse"
+                  style={{ width: w }}
+                />
               ))
             ) : (
               suggestedQuestions.map((q, i) => (
                 <button
                   key={i}
                   onClick={() => handleSendQuestion(q)}
-                  className="px-4 py-2 rounded-full border border-gray-200 dark:border-white/10
+                  className="px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/10
                     text-sm text-gray-700 dark:text-gray-200
                     bg-white dark:bg-white/5
                     hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10
-                    transition-colors text-left"
+                    transition-colors text-left max-w-full whitespace-normal"
                 >
                   {q}
                 </button>
