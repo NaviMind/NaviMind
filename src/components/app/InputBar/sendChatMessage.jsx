@@ -91,6 +91,7 @@ export async function sendChatMessage({
   setProjectChatSessions,
   setActiveProject,
   setActiveChatId,
+  setIsLoadingMessages,
   vesselProfile = null,
 }) {
   if (!message?.trim()) return;
@@ -125,6 +126,9 @@ sendLocks.add(sendKey);
       chatId = created.chatId;
       setActiveProject(topicId);
       setActiveChatId(chatId);
+      // Flip into "loading messages" in the same batch so the UI jumps
+      // straight to the chat area instead of flashing the chat list
+      setIsLoadingMessages?.(true);
 
       const snap = await getDoc(
         doc(db, "users", currentUser.uid, "topics", topicId, "chats", chatId)
@@ -152,6 +156,7 @@ sendLocks.add(sendKey);
       chatId = created.chatId;
       setActiveProject(null);
       setActiveChatId(chatId);
+      setIsLoadingMessages?.(true);
 
       const snap = await getDoc(
         doc(db, "users", currentUser.uid, "chats", chatId)

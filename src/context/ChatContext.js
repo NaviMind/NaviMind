@@ -355,6 +355,7 @@ useEffect(() => {
     messages,
     setMessages,
     isLoadingMessages,
+    setIsLoadingMessages,
     createNewChat,
     sendMessage,
   };

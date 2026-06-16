@@ -60,6 +60,7 @@ export default function InputBar() {
     setProjectChatSessions,
     setActiveProject,
     setActiveChatId,
+    setIsLoadingMessages,
   } = useContext(ChatContext);
 
   const [inputValue, setInputValue] = useState("");
@@ -216,6 +217,7 @@ export default function InputBar() {
       setProjectChatSessions,
       setActiveProject,
       setActiveChatId,
+      setIsLoadingMessages,
       vesselProfile: vesselProfileData || null,
     });
   };

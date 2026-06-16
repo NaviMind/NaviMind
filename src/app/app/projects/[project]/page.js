@@ -29,6 +29,7 @@ export default function DynamicProjectPage() {
     customProjects,
     messages,
     isLoadingMessages,
+    setIsLoadingMessages,
   } = useContext(ChatContext);
   const { theme, vesselProfileData } = useContext(UIContext);
 
@@ -233,6 +234,7 @@ export default function DynamicProjectPage() {
       setProjectChatSessions,
       setActiveProject,
       setActiveChatId,
+      setIsLoadingMessages,
       vesselProfile: vesselProfileData || null,
     });
   };
