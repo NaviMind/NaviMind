@@ -24,10 +24,21 @@ export async function POST(req) {
 
     const buffer = Buffer.from(fileBase64, "base64");
 
-    const pdfParse = (await import("pdf-parse")).default;
-    const parsed = await pdfParse(buffer);
+    // pdf-parse v2 API: instantiate PDFParse with the buffer, then getText().
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    let parsed;
+    try {
+      parsed = await parser.getText();
+    } finally {
+      await parser.destroy?.();
+    }
 
-    let text = (parsed.text || "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    let text = (parsed?.text || "")
+      .replace(/\n*-- \d+ of \d+ --\n*/g, "\n") // strip pdf-parse v2 page markers
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
     if (!text) {
       return NextResponse.json(
@@ -45,6 +56,9 @@ export async function POST(req) {
     return NextResponse.json({ text, truncated });
   } catch (err) {
     console.error("ship-particulars extract error:", err);
-    return NextResponse.json({ error: "Failed to process PDF" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to process PDF", detail: String(err?.message || err) },
+      { status: 500 }
+    );
   }
 }

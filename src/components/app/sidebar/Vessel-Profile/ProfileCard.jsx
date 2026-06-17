@@ -95,6 +95,10 @@ export default function ProfileCard({
 
         {/* Scrollable department fields */}
         <div className="flex-1 overflow-y-auto custom-scroll px-2 mt-4 space-y-4">
+          {/* Ship particulars (optional) — vessel-wide, kept at the top so it's
+              not missed below the fold */}
+          <ShipParticulars form={form} setForm={setForm} />
+
           {department === "deck" && (
             <DeckDepartment
               form={form}
@@ -107,9 +111,6 @@ export default function ProfileCard({
           {department === "engine" && (
             <EngineDepartment form={form} setForm={setForm} />
           )}
-
-          {/* Ship particulars (optional) — vessel-wide, shown in both departments */}
-          <ShipParticulars form={form} setForm={setForm} />
         </div>
 
         <button

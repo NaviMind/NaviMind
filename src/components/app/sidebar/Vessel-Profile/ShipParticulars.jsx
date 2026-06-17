@@ -54,7 +54,11 @@ export default function ShipParticulars({ form, setForm }) {
         body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Could not read this PDF.");
+      if (!res.ok) {
+        throw new Error(
+          data?.detail ? `${data.error} (${data.detail})` : data?.error || "Could not read this PDF."
+        );
+      }
 
       // 2) Keep the original file in Storage (best-effort, non-blocking failure)
       let url = "";
