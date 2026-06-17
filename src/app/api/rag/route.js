@@ -299,14 +299,16 @@ export async function POST(req) {
   safetyRules,
   confidenceCalibration,
   clarificationStrategy,
-  webAutonomyPolicy,
 ].join("\n\n---\n\n");
 
+// Web policy is only relevant when a web search is actually likely. Loading it
+// conditionally keeps it out of the prompt on the majority of requests.
 const contextualBlocks = [
   vesselBlock,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
+  needsWebSearch(question, vesselProfile) ? webAutonomyPolicy : null,
 ].filter(Boolean);
 
 const assembledSystemPrompt = [
