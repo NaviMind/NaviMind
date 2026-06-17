@@ -14,6 +14,9 @@ import Icon from "@/components/common/Icon";
 import { Maximize2, Minimize2 } from "lucide-react";
 
 const FILES_LIMIT = 5;
+// Pasting more than this many characters turns the text into a .txt attachment
+// instead of dumping a wall of text into the input (useful for long threads).
+const PASTE_TO_FILE_THRESHOLD = 1500;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
 const MAX_DOCUMENT_SIZE = 30 * 1024 * 1024;
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024;
@@ -245,6 +248,31 @@ export default function InputBar() {
     }
   };
 
+  // Long pastes (e.g. an entire email thread) become a .txt attachment so the
+  // input stays clean and the assistant processes it as a document.
+  const handlePaste = (e) => {
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (text.length <= PASTE_TO_FILE_THRESHOLD) return; // normal paste
+
+    e.preventDefault();
+
+    if (uploadedFiles.length >= FILES_LIMIT) {
+      setFileAlert(`You can upload up to ${FILES_LIMIT} files`);
+      setTimeout(() => setFileAlert(""), 7000);
+      return;
+    }
+
+    const stamp = new Date()
+      .toISOString()
+      .slice(0, 16)
+      .replace(/[:T]/g, "-");
+    const file = new File([text], `pasted-message-${stamp}.txt`, {
+      type: "text/plain",
+    });
+
+    setUploadedFiles((prev) => [...prev, file]);
+  };
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
 
@@ -358,6 +386,7 @@ export default function InputBar() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
             className="flex-1 bg-transparent outline-none text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-4 resize-none overflow-y-auto custom-scroll leading-relaxed"
           />
@@ -407,6 +436,7 @@ export default function InputBar() {
                 onFocus={() => setIsActive(true)}
                 onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
                 placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
                 style={{ minWidth: 0 }}

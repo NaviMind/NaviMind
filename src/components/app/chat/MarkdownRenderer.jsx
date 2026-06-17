@@ -3,7 +3,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, Link } from "lucide-react";
+import { Copy, Check, Link, Mail } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 // ─── Table wrapper с умными фейдами ──────────────────────────────────────────
@@ -105,6 +105,81 @@ function CodeBlock({ children }) {
   );
 }
 
+// ─── Email draft card ──────────────────────────────────────────────────────
+function parseEmail(raw) {
+  const lines = String(raw).replace(/\n+$/, "").split("\n");
+  let subject = "";
+  let to = "";
+  let i = 0;
+  while (i < lines.length) {
+    const ms = /^subject\s*:\s*(.*)$/i.exec(lines[i]);
+    const mt = /^(?:to|recipients?)\s*:\s*(.*)$/i.exec(lines[i]);
+    if (ms) { subject = ms[1].trim(); i++; continue; }
+    if (mt) { to = mt[1].trim(); i++; continue; }
+    break;
+  }
+  while (i < lines.length && lines[i].trim() === "") i++;
+  const body = lines.slice(i).join("\n").trim();
+  return { subject, to, body };
+}
+
+function EmailCard({ children }) {
+  const { subject, to, body } = parseEmail(children);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const full = body; // body is what gets pasted into the mail client
+    try {
+      await navigator.clipboard.writeText(full);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Copy is not supported on this device.");
+    }
+  };
+
+  return (
+    <div className="my-6 rounded-2xl border border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-200 dark:border-white/[0.06] bg-gray-100/70 dark:bg-white/[0.02]">
+        <div className="flex items-center gap-2 min-w-0 text-gray-500 dark:text-white/40">
+          <Mail size={15} className="shrink-0" />
+          <span className="text-[11px] uppercase tracking-[0.14em] font-semibold">Draft reply</span>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-white/40 hover:text-gray-700 dark:hover:text-white/80 transition-colors select-none"
+          type="button"
+        >
+          {copied ? <Check size={16} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2} />}
+          <span>{copied ? "Copied" : "Copy"}</span>
+        </button>
+      </div>
+
+      {/* Subject / recipients */}
+      {(subject || to) && (
+        <div className="px-5 pt-4 space-y-1">
+          {to && (
+            <div className="text-[13px] text-gray-500 dark:text-white/45">
+              <span className="text-gray-400 dark:text-white/30">To: </span>{to}
+            </div>
+          )}
+          {subject && (
+            <div className="text-[15px] font-semibold text-gray-900 dark:text-white leading-snug">
+              {subject}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Body */}
+      <pre className="px-5 py-4 whitespace-pre-wrap break-words font-sans text-[15px] leading-relaxed text-gray-800 dark:text-gray-200">
+        {body}
+      </pre>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function MarkdownRenderer({ content }) {
   return (
@@ -191,7 +266,11 @@ export default function MarkdownRenderer({ content }) {
   );
 },
 
-        code({ inline, children }) {
+        code({ inline, className, children }) {
+          const lang = /language-(\w+)/.exec(className || "")?.[1];
+          if (lang === "email") {
+            return <EmailCard>{children}</EmailCard>;
+          }
           if (inline) {
             return (
               <code className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm text-blue-600 dark:text-blue-300">
