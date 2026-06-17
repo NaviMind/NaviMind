@@ -24,18 +24,12 @@ export async function POST(req) {
 
     const buffer = Buffer.from(fileBase64, "base64");
 
-    // pdf-parse v2 API: instantiate PDFParse with the buffer, then getText().
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: buffer });
-    let parsed;
-    try {
-      parsed = await parser.getText();
-    } finally {
-      await parser.destroy?.();
-    }
+    // Import the inner module directly — pdf-parse's index.js runs a debug block
+    // on load that reads a bundled test PDF, which throws when bundled.
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+    const parsed = await pdfParse(buffer);
 
     let text = (parsed?.text || "")
-      .replace(/\n*-- \d+ of \d+ --\n*/g, "\n") // strip pdf-parse v2 page markers
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Paperclip, FileText, X, Loader2 } from "lucide-react";
 import { auth, storage } from "@/firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -20,7 +20,6 @@ function fileToBase64(file) {
 // is extracted once and stored in the profile so the assistant can use the real
 // vessel specifics in every answer. The original file is kept in Storage.
 export default function ShipParticulars({ form, setForm }) {
-  const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -99,20 +98,13 @@ export default function ShipParticulars({ form, setForm }) {
 
   return (
     <div className="pt-1">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="application/pdf,.pdf"
-        onChange={handleFile}
-        className="sr-only"
-      />
-
       {!hasFile ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-white/15 text-gray-600 dark:text-gray-300 hover:border-blue-400 dark:hover:border-blue-500 hover:text-gray-900 dark:hover:text-white transition disabled:opacity-60"
+        <label
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-white/15 text-gray-600 dark:text-gray-300 transition ${
+            busy
+              ? "opacity-60 cursor-default"
+              : "cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:text-gray-900 dark:hover:text-white"
+          }`}
         >
           {busy ? (
             <Loader2 size={18} className="animate-spin shrink-0" />
@@ -122,7 +114,14 @@ export default function ShipParticulars({ form, setForm }) {
           <span className="text-sm text-left">
             {busy ? "Reading ship particulars…" : "Attach ship particulars (PDF, optional)"}
           </span>
-        </button>
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handleFile}
+            disabled={busy}
+            className="sr-only"
+          />
+        </label>
       ) : (
         <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03]">
           <FileText size={18} className="shrink-0 text-blue-500 dark:text-blue-400" />

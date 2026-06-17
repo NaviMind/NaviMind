@@ -158,15 +158,8 @@ export async function POST(req) {
       try {
         const buffer = Buffer.from(docFile.data, "base64");
         if (docFile.type === "application/pdf" || docFile.name?.endsWith(".pdf")) {
-          // pdf-parse v2 API
-          const { PDFParse } = await import("pdf-parse");
-          const parser = new PDFParse({ data: buffer });
-          let parsed;
-          try {
-            parsed = await parser.getText();
-          } finally {
-            await parser.destroy?.();
-          }
+          const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+          const parsed = await pdfParse(buffer);
           extractedDocs.push(`[Document: ${docFile.name}]\n${parsed?.text || ""}`);
         } else if (
           docFile.type?.includes("wordprocessingml") ||
