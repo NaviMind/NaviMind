@@ -185,12 +185,7 @@ if (!chat.title) return null;
               e.stopPropagation();
               setOpenMenu({ chatId: chat.chatId, anchorRef });
             }}
-            className="
-              peer flex-shrink-0 ml-1 p-1.5
-              text-gray-400 hover:text-gray-700 dark:hover:text-gray-200
-              transition-all
-              flex items-center justify-center
-            "
+            className="peer flex-shrink-0 ml-1 p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all flex items-center justify-center"
             aria-label="Show menu"
             type="button"
           >
