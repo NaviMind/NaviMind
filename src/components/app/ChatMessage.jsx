@@ -107,6 +107,52 @@ function UserMessage({ content, attachments = [], copied, onCopy }) {
   );
 }
 
+// Extract a trailing ```followups ... ``` block into clickable suggestions.
+// Returns the body without the block plus the parsed option strings.
+function splitFollowups(text) {
+  if (!text) return { body: text, followups: [] };
+  const re = /```followups\s*([\s\S]*?)```/i;
+  const m = text.match(re);
+  if (!m) return { body: text, followups: [] };
+  const followups = m[1]
+    .split("\n")
+    .map((l) => l.replace(/^\s*[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const body = text.replace(re, "").trim();
+  return { body, followups };
+}
+
+function FollowupChips({ options, onPick }) {
+  if (!options?.length) return null;
+  return (
+    <div className="flex flex-col items-start gap-2 pt-2">
+      {options.map((opt, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onPick(opt)}
+          className="
+            group flex items-center gap-2 text-left
+            max-w-full px-3.5 py-2 rounded-xl
+            text-[14px] sm:text-sm leading-snug
+            bg-gray-50 dark:bg-white/[0.03]
+            border border-gray-200 dark:border-white/[0.08]
+            text-gray-700 dark:text-white/75
+            hover:bg-gray-100 dark:hover:bg-white/[0.07]
+            hover:border-gray-300 dark:hover:border-white/20
+            hover:text-gray-900 dark:hover:text-white
+            transition-all duration-200
+          "
+        >
+          <span className="text-blue-500 dark:text-blue-400 shrink-0 select-none">+</span>
+          <span className="break-words">{opt}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function splitHighlight(text) {
   if (!text) return { main: text, highlight: null };
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
@@ -121,7 +167,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after typing is done
-function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions }) {
+function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups }) {
   const text = String(displayText ?? content ?? "");
 
   const isSyncing =
@@ -165,17 +211,29 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
             <ShareButton onShare={onShare} />
           </div>
         )}
+
+        {/* Follow-up suggestions — only under the last message, after typing */}
+        {showFollowups && (
+          <FollowupChips options={followups} onPick={onFollowup} />
+        )}
       </div>
     </div>
   );
 }
 
-export default function ChatMessage({ message }) {
+export default function ChatMessage({ message, isLast = false }) {
   const { role, content, attachments = [], sources = [] } = message;
-  useContext(UIContext);
+  const { setPendingPrompt } = useContext(UIContext);
 
   const isUser = role === "user";
   const isAssistant = role === "assistant";
+
+  // Pull follow-up suggestions out of the assistant text so the ```followups```
+  // block is rendered as clickable chips, not as raw text / a code block.
+  const rawContent = String(content || "");
+  const { body, followups } = isAssistant
+    ? splitFollowups(rawContent)
+    : { body: rawContent, followups: [] };
 
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -190,7 +248,7 @@ export default function ChatMessage({ message }) {
   useEffect(() => {
     if (!isClient || role !== "assistant") return;
 
-    const current = String(content || "");
+    const current = body;
     const prev = String(prevContentRef.current || "");
 
     const checkSyncing = (t) => {
@@ -235,12 +293,12 @@ export default function ChatMessage({ message }) {
     }
 
     prevContentRef.current = current;
-  }, [content, role, isClient]);
+  }, [body, role, isClient]);
 
   const handleCopy = () => {
     if (typeof window === "undefined") return;
     // User messages copy as-is; assistant messages strip markdown symbols
-    const text = isUser ? String(content || "") : stripMarkdown(String(content || ""));
+    const text = isUser ? String(content || "") : stripMarkdown(body);
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text)
         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
@@ -251,7 +309,7 @@ export default function ChatMessage({ message }) {
   };
 
   const handleShare = async () => {
-    const plainText = stripMarkdown(String(content || ""));
+    const plainText = stripMarkdown(body);
     if (navigator?.share) {
       try {
         await navigator.share({ title: "NaviMind", text: plainText });
@@ -296,12 +354,15 @@ export default function ChatMessage({ message }) {
   if (isAssistant) {
     return (
       <AssistantMessage
-        content={content}
+        content={body}
         displayText={typedText}
         copied={copied}
         onCopy={handleCopy}
         onShare={handleShare}
         showActions={typingDone}
+        followups={followups}
+        onFollowup={(text) => setPendingPrompt(text)}
+        showFollowups={isLast && typingDone && followups.length > 0}
       />
     );
   }

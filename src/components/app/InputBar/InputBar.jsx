@@ -47,7 +47,7 @@ function StopBtn({ onClick, className = "" }) {
 }
 
 export default function InputBar() {
-  const { isSidebarOpen, inputText, setInputText, vesselProfileData } = useContext(UIContext);
+  const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
   const pathname = usePathname();
   const topicIdFromURL =
     pathname && pathname.startsWith("/app/projects/")
@@ -189,23 +189,29 @@ export default function InputBar() {
   };
 
   /* ───────── HANDLERS ───────── */
-  const handleSend = async () => {
-    if (!inputValue.trim()) return;
+  // override — необязательный текст для прямой отправки (клик по followup).
+  // Когда вызывается как onClick кнопки, override приходит как событие — поэтому
+  // проверяем именно строку.
+  const handleSend = async (override) => {
+    const isOverride = typeof override === "string" && override.trim().length > 0;
+    const message = isOverride ? override.trim() : inputValue;
+    if (!message.trim()) return;
     if (!currentUser?.uid) return;
 
-    const message = inputValue;
-    setInputValue("");
-    setIsActive(false);
-    setIsExpanded(false);
-    setShowExpandBtn(false);
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+    let preparedAttachments = [];
+    if (!isOverride) {
+      setInputValue("");
+      setIsActive(false);
+      setIsExpanded(false);
+      setShowExpandBtn(false);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      setIsListening(false);
+      preparedAttachments = uploadedFiles;
+      setUploadedFiles([]);
     }
-    setIsListening(false);
-
-    const preparedAttachments = uploadedFiles;
-    setUploadedFiles([]);
 
     await sendChatMessage({
       message,
@@ -221,6 +227,16 @@ export default function InputBar() {
       vesselProfile: vesselProfileData || null,
     });
   };
+
+  /* ───────── SEND-NOW FROM FOLLOWUP CLICK ───────── */
+  useEffect(() => {
+    if (!pendingPrompt || !pendingPrompt.trim()) return;
+    if (!currentUser?.uid) return;
+    const prompt = pendingPrompt;
+    setPendingPrompt("");
+    handleSend(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPrompt, currentUser]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {

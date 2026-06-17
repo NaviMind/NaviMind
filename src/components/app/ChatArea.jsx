@@ -54,7 +54,7 @@ export default function ChatArea({ messages, children }) {
         {hasMessages ? (
           <div className="w-full max-w-4xl flex flex-col gap-2">
   {messages.map((msg, idx) => (
-    <ChatMessage key={idx} message={msg} />
+    <ChatMessage key={idx} message={msg} isLast={idx === messages.length - 1} />
   ))}
   <div ref={messagesEndRef} />
 </div>

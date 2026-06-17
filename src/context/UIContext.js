@@ -105,6 +105,10 @@ export function UIProvider({ children }) {
   // 🔹 Новый inputText и setter
   const [inputText, setInputText] = useState("");
 
+  // 🔹 pendingPrompt — текст для НЕМЕДЛЕННОЙ отправки
+  // (клик по followup-подсказке под последним ответом)
+  const [pendingPrompt, setPendingPrompt] = useState("");
+
   useEffect(() => {
     localStorage.setItem("sidebarOpen", isSidebarOpen);
   }, [isSidebarOpen]);
@@ -130,8 +134,10 @@ export function UIProvider({ children }) {
         setTheme,
         language,
         setLanguage,
-        inputText,        
-        setInputText, 
+        inputText,
+        setInputText,
+        pendingPrompt,
+        setPendingPrompt,
         isFullscreen,
         advancedTouched,
         setAdvancedTouched,
