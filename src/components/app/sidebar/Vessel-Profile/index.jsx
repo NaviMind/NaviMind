@@ -47,9 +47,6 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAdvancedSuccess, setShowAdvancedSuccess] = useState(false);
 
-  // Track whether the authoritative Firestore data has been applied once
-  const syncedRef = useRef(false);
-
   const applyProfile = (data) => {
     setForm({ ...emptyForm, ...data });
     setSavedForm({ ...emptyForm, ...data });
@@ -71,15 +68,17 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     } catch {}
   }, []);
 
-  // When UIContext receives Firestore data, overwrite stale localStorage cache once
+  // Whenever authoritative data arrives/changes (incl. cross-device Firestore
+  // sync), mirror it — unless the user has unsaved edits in progress. This must
+  // NOT be a one-shot: the first value can be a stale localStorage cache that is
+  // later replaced by fresh Firestore data.
   useEffect(() => {
-    if (!vesselProfileData || syncedRef.current) return;
-    syncedRef.current = true;
+    if (!vesselProfileData) return;
+    const hasUnsavedEdits =
+      savedForm && Object.keys(emptyForm).some((k) => form[k] !== savedForm[k]);
+    if (hasUnsavedEdits) return;
     applyProfile(vesselProfileData);
-    try {
-      const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
-      if (savedDept === "engine" || savedDept === "deck") setDepartment(savedDept);
-    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vesselProfileData]);
 
   const isSaved = Boolean(savedForm);
