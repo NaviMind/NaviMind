@@ -111,15 +111,17 @@ function UserMessage({ content, attachments = [], copied, onCopy }) {
 // Returns the body without the block plus the parsed option strings.
 function splitFollowups(text) {
   if (!text) return { body: text, followups: [] };
-  const re = /```followups\s*([\s\S]*?)```/i;
+  // Tolerant: accept followups / follow-ups / suggestions / next steps, optional
+  // closing fence (model may omit it at the very end).
+  const re = /```(?:followups|follow-ups|suggestions|next[-\s]?steps)\b[ \t]*\n?([\s\S]*?)(?:```|$)/i;
   const m = text.match(re);
   if (!m) return { body: text, followups: [] };
   const followups = m[1]
     .split("\n")
-    .map((l) => l.replace(/^\s*[-*•]\s*/, "").trim())
-    .filter(Boolean)
+    .map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+    .filter((l) => l && l !== "`" && !l.startsWith("```"))
     .slice(0, 4);
-  const body = text.replace(re, "").trim();
+  const body = text.replace(m[0], "").trim();
   return { body, followups };
 }
 
