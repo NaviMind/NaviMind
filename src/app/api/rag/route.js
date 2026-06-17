@@ -119,14 +119,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Main chat model. Override via env to switch to a reasoning-class model
-// (e.g. set OPENAI_MODEL to your account's reasoning model). Falls back to
-// the previous known-good model so nothing breaks if the env is unset.
-const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
+// Main chat model. Defaults to gpt-5.5; override via the OPENAI_MODEL env
+// var if the account needs a different id (e.g. a dated suffix).
+const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
 
-// When set ("low" | "medium" | "high"), enables reasoning on models that
-// support it. Left null for non-reasoning models like gpt-4.1.
-const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || null;
+// Reasoning effort ("low" | "medium" | "high") for reasoning-class models.
+// Defaults to "medium"; override via OPENAI_REASONING_EFFORT.
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "medium";
 
 // ===== SSE helper =====
 
