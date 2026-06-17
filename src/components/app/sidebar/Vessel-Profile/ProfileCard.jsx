@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import DeckDepartment from "./departments/Deck";
 import EngineDepartment from "./departments/Engine";
+import ShipParticulars from "./ShipParticulars";
 
 export default function ProfileCard({
   form,
@@ -106,6 +107,9 @@ export default function ProfileCard({
           {department === "engine" && (
             <EngineDepartment form={form} setForm={setForm} />
           )}
+
+          {/* Ship particulars (optional) — vessel-wide, shown in both departments */}
+          <ShipParticulars form={form} setForm={setForm} />
         </div>
 
         <button

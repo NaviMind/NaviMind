@@ -25,6 +25,7 @@ const emptyForm = {
   engThrusters: "", engShaftGen: "", engFuelSystem: "", engScrubber: "",
   engBoiler: "", engIncinerator: "", engInertSystem: "", engCargoCompressor: "",
   engNotes: "",
+  shipParticularsFileName: "", shipParticularsText: "", shipParticularsFileUrl: "",
 };
 
 export default function VesselProfileModal({ open, onClose, onSave }) {

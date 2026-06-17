@@ -268,6 +268,9 @@ export async function POST(req) {
         line("Cargo Compressors", vp.engCargoCompressor),
         line("Deck Notes", vp.specialNotes),
         line("Engine Notes", vp.engNotes),
+        vp.shipParticularsText
+          ? `\nSHIP PARTICULARS (from the vessel's uploaded particulars document — treat as authoritative vessel-specific data; use silently, do not dump back):\n${String(vp.shipParticularsText).slice(0, 8000)}`
+          : null,
         "═══════════════════════════════════════════",
       ].filter(Boolean);
       return rows.join("\n");
