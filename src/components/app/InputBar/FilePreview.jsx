@@ -1,12 +1,39 @@
 import React, { useRef } from "react";
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function getFileExt(name = "") {
+  return name.split(".").pop()?.toLowerCase() || "";
+}
+
+function getDocLabel(ext) {
+  if (ext === "pdf") return "PDF";
+  if (["doc", "docx"].includes(ext)) return "Word";
+  if (["xls", "xlsx"].includes(ext)) return "Excel";
+  if (["ppt", "pptx"].includes(ext)) return "PPT";
+  if (["txt", "csv", "log", "md"].includes(ext)) return "Text";
+  return ext.toUpperCase() || "File";
+}
+
+function RemoveBtn({ onClick, className = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Delete file"
+      tabIndex={0}
+      className={`z-10 bg-black/50 text-white rounded-full hover:bg-black/80 flex items-center justify-center transition ${className}`}
+    >
+      ✕
+    </button>
+  );
+}
+
 export default function FilePreview({ files, onRemove }) {
   const scrollRef = useRef(null);
 
   // Прокручиваем горизонтально при вращении колесика
   const handleWheel = (e) => {
     if (scrollRef.current) {
-      // Только если прокрутка по оси X возможна
       if (scrollRef.current.scrollWidth > scrollRef.current.clientWidth) {
         e.preventDefault();
         scrollRef.current.scrollLeft += e.deltaY;
@@ -19,67 +46,64 @@ export default function FilePreview({ files, onRemove }) {
     <div
       ref={scrollRef}
       onWheel={handleWheel}
-      className="
-        filepreview-hidden-scrollbar
-        flex flex-nowrap gap-2 mt-2 px-5 overflow-x-auto
-      "
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className="filepreview-hidden-scrollbar flex flex-nowrap items-center gap-2 mt-2 px-5 overflow-x-auto"
+      style={{ WebkitOverflowScrolling: "touch" }}
     >
       {files.map((file, idx) => {
-        const isImage = file.type.startsWith("image/");
-        const previewUrl = isImage ? URL.createObjectURL(file) : null;
+        const isImage = file.type?.startsWith("image/");
 
-        return (
-          <div
-            key={file.name + idx}
-            className={`
-              relative flex items-center justify-center
-              w-[90px] h-[90px]
-              sm:w-[75px] sm:h-[75px]
-              xs:w-[60px] xs:h-[60px]
-              min-w-[60px] min-h-[60px]
-              bg-gray-200 dark:bg-gray-700
-              rounded overflow-hidden
-              flex-shrink-0
-            `}
-          >
-            {isImage ? (
+        // ── Image thumbnail ──────────────────────────────────────────
+        if (isImage) {
+          const previewUrl = URL.createObjectURL(file);
+          return (
+            <div
+              key={file.name + idx}
+              className="relative flex items-center justify-center w-[72px] h-[72px] min-w-[72px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0"
+            >
               <img
                 src={previewUrl}
                 alt={file.name}
                 className="object-cover w-full h-full"
                 draggable={false}
               />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-xs p-2 text-center select-none">
-                <svg
-                  className="w-6 h-6 mb-1 text-gray-700 dark:text-gray-300"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="truncate">{file.name}</span>
-              </div>
-            )}
-            <button
-              type="button"
+              <RemoveBtn
+                onClick={() => onRemove(file.name)}
+                className="absolute top-1 right-1 text-xs px-1 min-w-[20px] min-h-[20px]"
+              />
+            </div>
+          );
+        }
+
+        // ── Document pill (matches the in-chat DocPill) ───────────────
+        const ext = getFileExt(file.name);
+        const label = getDocLabel(ext);
+        return (
+          <div
+            key={file.name + idx}
+            className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0"
+          >
+            {/* Type badge */}
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
+              <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+
+            {/* Name + type */}
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
+                {file.name}
+              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
+                {label}
+              </p>
+            </div>
+
+            <RemoveBtn
               onClick={() => onRemove(file.name)}
-              className="
-                absolute top-1 right-1 z-10
-                bg-black bg-opacity-50 text-white text-xs px-1 rounded
-                hover:bg-opacity-80
-                min-w-[20px] min-h-[20px]
-                flex items-center justify-center
-                transition
-              "
-              tabIndex={0}
-              aria-label="Delete file"
-            >
-              ✕
-            </button>
+              className="absolute top-1 right-1 text-[10px] w-[18px] h-[18px]"
+            />
           </div>
         );
       })}
