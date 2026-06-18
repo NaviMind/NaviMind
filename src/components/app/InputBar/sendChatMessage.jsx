@@ -219,6 +219,19 @@ if (imageFiles.length > 0) {
   });
 }
 
+// Upload documents to Storage too, so they get a URL and can be opened in the
+// in-chat viewer (same as images). The base64 payload below is still used for
+// text extraction on this request.
+let uploadedDocs = [];
+if (documentFiles.length > 0) {
+  uploadedDocs = await uploadAttachments({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+    files: documentFiles,
+  });
+}
+
 const documentPayloads = await Promise.all(
   documentFiles.map(async (file) => ({
     name: file.name,
@@ -229,7 +242,7 @@ const documentPayloads = await Promise.all(
 
 const uploadedAttachments = [
   ...uploadedImages,
-  ...documentFiles.map((f) => ({ name: f.name, type: f.type })),
+  ...uploadedDocs,
 ];
 
 const userMessagePayload = {
