@@ -294,10 +294,42 @@ export default function InputBar() {
     }
   };
 
-  // Long pastes (e.g. an entire email thread) become a .txt attachment so the
-  // input stays clean and the assistant processes it as a document.
+  // Handles two special paste cases:
+  //  1) Screenshots / images from the clipboard (Ctrl+V or right-click → Paste)
+  //     are attached as image files — no need to save them first.
+  //  2) Very long text pastes become a .txt attachment so the input stays clean.
   const handlePaste = (e) => {
-    const text = e.clipboardData?.getData("text") ?? "";
+    const cd = e.clipboardData;
+    if (!cd) return;
+
+    // ── 1) Image / screenshot paste ──
+    const pastedImages = [];
+    for (const item of Array.from(cd.items || [])) {
+      if (item.kind === "file" && item.type?.startsWith("image/")) {
+        const blob = item.getAsFile();
+        if (blob) pastedImages.push(blob);
+      }
+    }
+
+    if (pastedImages.length > 0) {
+      e.preventDefault();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const named = pastedImages.map((blob, i) => {
+        const ext = (blob.type.split("/")[1] || "png").split("+")[0];
+        // Clipboard screenshots usually arrive unnamed or as "image.png";
+        // give them a unique, recognizable name so previews/uploads stay clean.
+        const hasRealName = blob.name && blob.name !== "image.png";
+        const name = hasRealName
+          ? blob.name
+          : `screenshot-${stamp}${pastedImages.length > 1 ? `-${i + 1}` : ""}.${ext}`;
+        return new File([blob], name, { type: blob.type });
+      });
+      addFiles(named);
+      return;
+    }
+
+    // ── 2) Long text paste → .txt attachment ──
+    const text = cd.getData("text") ?? "";
     if (text.length <= PASTE_TO_FILE_THRESHOLD) return; // normal paste
 
     e.preventDefault();
