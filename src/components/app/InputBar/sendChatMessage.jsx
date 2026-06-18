@@ -344,11 +344,47 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 
+  // ── Source file citations (Level 1) ──
+  // The model ends its answer with a marker listing which attached documents it
+  // used: "[[CITED_FILES: a.pdf | b.docx]]". Parse it, map the names back to the
+  // uploaded document metadata (name/type/url), strip the marker from the
+  // visible answer, and store the matched files so the UI can show source pills.
+  let fileSources = [];
+  if (uploadedDocs.length > 0) {
+    const marker = finalText.match(/\[\[\s*CITED_FILES\s*:\s*([^\]]*?)\]\]/i);
+    if (marker) {
+      const names = marker[1].split("|").map((s) => s.trim()).filter(Boolean);
+      const findDoc = (n) => {
+        const low = n.toLowerCase();
+        return (
+          uploadedDocs.find((d) => d.name.toLowerCase() === low) ||
+          uploadedDocs.find(
+            (d) =>
+              d.name.toLowerCase().endsWith(low) ||
+              low.endsWith(d.name.toLowerCase())
+          )
+        );
+      };
+      const seen = new Set();
+      for (const n of names) {
+        const docMeta = findDoc(n);
+        if (docMeta && !seen.has(docMeta.url)) {
+          seen.add(docMeta.url);
+          fileSources.push(docMeta);
+        }
+      }
+      // Remove only the marker itself (keep anything after it, e.g. a trailing
+      // followups block), then tidy up leftover blank lines.
+      finalText = finalText.replace(marker[0], "").replace(/\n{3,}/g, "\n\n").trim();
+    }
+  }
+
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
   content: finalText || " ",
   sources: streamedSources,
+  fileSources,
 };
     if (inTopic) {
       await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);

@@ -180,6 +180,28 @@ export async function POST(req) {
     const hasImages = imageUrls.length > 0;
     const hasDocs = extractedDocs.length > 0;
 
+    // Citation instruction — asks the model to mark which attached files it
+    // actually used, so the client can render clickable source pills (Level 1).
+    const docNames = documentFiles.map((d) => d?.name).filter(Boolean);
+    const fileCitationBlock = hasDocs
+      ? [
+          "═══════════════════════════════════════════",
+          "SOURCE FILE CITATION — REQUIRED WHEN USING ATTACHED DOCUMENTS",
+          "═══════════════════════════════════════════",
+          "The user attached the following document file(s):",
+          ...docNames.map((n) => `- ${n}`),
+          "",
+          "When any part of your answer draws on these attached document(s), you MUST end your ENTIRE response with a single citation line, on its own final line, with NOTHING after it, in EXACTLY this format:",
+          "[[CITED_FILES: filename1 | filename2]]",
+          "Rules:",
+          "- List ONLY the attached files you actually drew information from, using the EXACT filenames shown above.",
+          "- Separate multiple files with ' | '.",
+          "- If your answer did not use any attached document, do NOT output the line at all.",
+          "- Never mention, explain, or describe this line in your prose — it is parsed by the app to show source pills and must not appear anywhere else.",
+          "═══════════════════════════════════════════",
+        ].join("\n")
+      : null;
+
     // Build vessel profile context block — only include non-empty fields
     function buildVesselBlock(vp) {
       if (!vp?.rank || !vp?.vesselType) return null;
@@ -310,6 +332,7 @@ const contextualBlocks = [
   vesselBlock,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
+  fileCitationBlock,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
   needsWebSearch(question, vesselProfile) ? webAutonomyPolicy : null,
 ].filter(Boolean);

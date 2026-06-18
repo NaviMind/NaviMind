@@ -16,12 +16,12 @@ function getDocLabel(ext) {
 
 const OFFICE_EXTS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
 
-function getFileUrl(file) {
+export function getFileUrl(file) {
   return file.previewUrl || file.url || file.downloadURL || "";
 }
 
 // Build a viewer URL that can be embedded in an <iframe> for in-app viewing.
-function getViewerSrc(file) {
+export function getViewerSrc(file) {
   const url = getFileUrl(file);
   if (!url) return null;
   const ext = getFileExt(file.name);
@@ -72,6 +72,59 @@ function DocPill({ file, onClick }) {
         </p>
       </div>
     </button>
+  );
+}
+
+// ─── Document viewer modal (PDF / Word / Excel / PPT) ───────────────────────────
+// Shared so both user attachments and assistant source pills can open files.
+export function DocViewerModal({ doc, onClose }) {
+  if (!doc) return null;
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition z-10"
+        aria-label="Close"
+      >
+        ✕
+      </button>
+
+      <div
+        className="flex flex-col w-[92vw] md:w-[70vw] h-[90vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with file name + open-in-new-tab fallback */}
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
+          <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
+            {doc.name}
+          </span>
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
+          >
+            Open in new tab
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+              <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </div>
+
+        {/* Embedded viewer */}
+        <iframe
+          src={doc.src}
+          className="w-full flex-1 bg-white"
+          title={doc.name}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -166,53 +219,7 @@ export default function MessageAttachments({ attachments = [] }) {
       )}
 
       {/* ── Document viewer (PDF / Word / Excel / PPT) ──────────── */}
-      {activeDoc && (
-        <div
-          onClick={() => setActiveDoc(null)}
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-        >
-          {/* Close */}
-          <button
-            onClick={() => setActiveDoc(null)}
-            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition z-10"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-
-          <div
-            className="flex flex-col w-[92vw] md:w-[70vw] h-[90vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header with file name + open-in-new-tab fallback */}
-            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
-              <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
-                {activeDoc.name}
-              </span>
-              <a
-                href={activeDoc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
-              >
-                Open in new tab
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
-                  <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
-                  <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Embedded viewer */}
-            <iframe
-              src={activeDoc.src}
-              className="w-full flex-1 bg-white"
-              title={activeDoc.name}
-            />
-          </div>
-        </div>
-      )}
+      <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { useContext, useState, useEffect, useRef } from "react";
 import { UIContext } from "@/context/UIContext";
 import { Check, Copy, Share2 } from "lucide-react";
 import MessageAttachments from "./MessageAttachments";
+import SourceFilePills from "./SourceFilePills";
 import MarkdownRenderer from "@/components/app/chat/MarkdownRenderer";
 
 const USER_MESSAGE_WIDTH = "max-w-[70%]";
@@ -168,7 +169,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after typing is done
-function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups }) {
+function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, fileSources = [] }) {
   const text = String(displayText ?? content ?? "");
 
   const isSyncing =
@@ -205,6 +206,11 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
           </div>
         )}
 
+        {/* Source file pills — files the answer drew from, click to open */}
+        {showActions && fileSources.length > 0 && (
+          <SourceFilePills files={fileSources} />
+        )}
+
         {/* Copy + Share — only after typing finishes */}
         {showActions && (
           <div className="flex items-center gap-4 pt-1">
@@ -223,7 +229,7 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
 }
 
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [] } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [] } = message;
   const { setPendingPrompt } = useContext(UIContext);
 
   const isUser = role === "user";
@@ -364,6 +370,7 @@ export default function ChatMessage({ message, isLast = false }) {
         followups={followups}
         onFollowup={(text) => setPendingPrompt(text)}
         showFollowups={isLast && typingDone && followups.length > 0}
+        fileSources={fileSources}
       />
     );
   }
