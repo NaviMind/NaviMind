@@ -153,10 +153,15 @@ export async function POST(req) {
     } = body;
 
     // ── Extract text from uploaded documents ──
+    // Documents are passed as Storage URLs (not base64) — fetch them on the
+    // server and parse. This keeps the request body tiny and avoids
+    // re-uploading the files. Older callers may still send base64 in `data`.
     const extractedDocs = [];
     for (const docFile of documentFiles) {
       try {
-        const buffer = Buffer.from(docFile.data, "base64");
+        const buffer = docFile.url
+          ? Buffer.from(await (await fetch(docFile.url)).arrayBuffer())
+          : Buffer.from(docFile.data, "base64");
         if (docFile.type === "application/pdf" || docFile.name?.endsWith(".pdf")) {
           const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
           const parsed = await pdfParse(buffer);

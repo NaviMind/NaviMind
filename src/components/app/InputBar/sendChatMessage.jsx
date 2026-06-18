@@ -19,38 +19,23 @@ import { storage } from "@/firebase/config";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 async function uploadAttachments({ uid, chatId, topicId, files }) {
-  const uploaded = [];
+  // Upload all files in parallel — much faster than one-by-one for several
+  // files. Promise.all preserves order, so the returned array matches `files`.
+  return Promise.all(
+    files.map(async (file) => {
+      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      const uniqueFileName = `${uniqueSuffix}-${file.name}`;
+      const path = topicId
+        ? `users/${uid}/topics/${topicId}/chats/${chatId}/${uniqueFileName}`
+        : `users/${uid}/chats/${chatId}/${uniqueFileName}`;
 
-  for (const file of files) {
-    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-    const uniqueFileName = `${uniqueSuffix}-${file.name}`;
-    const path = topicId
-      ? `users/${uid}/topics/${topicId}/chats/${chatId}/${uniqueFileName}`
-      : `users/${uid}/chats/${chatId}/${uniqueFileName}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
 
-    const storageRef = ref(storage, path);
-
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-
-    uploaded.push({
-      name: file.name,
-      type: file.type,
-      url: downloadURL,
-      path,
-    });
-  }
-
-  return uploaded;
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+      return { name: file.name, type: file.type, url: downloadURL, path };
+    })
+  );
 }
 
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
@@ -94,6 +79,7 @@ export async function sendChatMessage({
   setIsLoadingMessages,
   setStreamingMessage,
   clearStreamingMessage,
+  setPendingSend,
   vesselProfile = null,
 }) {
   if (!message?.trim()) return;
@@ -180,6 +166,18 @@ sendLocks.add(sendKey);
     }
   }
 
+  // ───────── OPTIMISTIC RENDER ─────────
+  // Show the outgoing message instantly (with local image previews and a
+  // "thinking" bubble) so the chat never looks frozen while files upload.
+  if (setPendingSend) {
+    const previews = (attachments || []).map((f) => ({
+      name: f.name,
+      type: f.type,
+      previewUrl: f.type?.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+    }));
+    setPendingSend({ chatId, message, attachments: previews });
+  }
+
   // ───────── CONTEXT BUILD (before saving new messages) ─────────
   const previousMessages = await fetchLastMessages({
     uid: currentUser.uid,
@@ -234,13 +232,13 @@ if (documentFiles.length > 0) {
   });
 }
 
-const documentPayloads = await Promise.all(
-  documentFiles.map(async (file) => ({
-    name: file.name,
-    type: file.type,
-    data: await fileToBase64(file),
-  }))
-);
+// Send document references (URLs) — the API fetches & parses them server-side.
+// This avoids re-uploading the files as a huge base64 request body.
+const documentPayloads = uploadedDocs.map((d) => ({
+  name: d.name,
+  type: d.type,
+  url: d.url,
+}));
 
 const uploadedAttachments = [
   ...uploadedImages,
@@ -269,6 +267,9 @@ if (inTopic) {
       await addMessageToGlobalChat(chatId, "NaviMind syncing…", "assistant")
     )?.messageId;
   }
+
+  // Real user message + placeholder are now persisted — drop the optimistic one.
+  setPendingSend?.(null);
 
   // ───────── AI REQUEST ─────────
   const res = await fetch("/api/rag", {
@@ -483,7 +484,8 @@ if (!summaryLocks.has(summaryKey)) {
 
   } catch (err) {
     console.error("❌ sendChatMessage error:", err);
-    // Drop any live overlay so the UI falls back to the persisted message.
+    // Clear optimistic + live overlays so the UI falls back to persisted state.
+    setPendingSend?.(null);
     if (aiMessageId) clearStreamingMessage?.(aiMessageId);
     // Replace the stuck placeholder so the user isn't left with an infinite spinner
     if (aiMessageId && chatId) {

@@ -6,13 +6,31 @@ import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
-  const { activeChatId, streamingMessages } = useContext(ChatContext);
+  const { activeChatId, streamingMessages, pendingSend } = useContext(ChatContext);
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  const hasMessages = Array.isArray(messages) && messages.length > 0;
+  const baseMessages = Array.isArray(messages) ? messages : [];
+
+  // Optimistic outgoing message: show the user's text + file previews and a
+  // "thinking" bubble instantly while attachments upload, unless the real
+  // message has already been persisted (then Firestore drives it).
+  const showOptimistic =
+    pendingSend &&
+    pendingSend.chatId === activeChatId &&
+    !baseMessages.some((m) => m.role === "user" && m.content === pendingSend.message);
+
+  const displayMessages = showOptimistic
+    ? [
+        ...baseMessages,
+        { id: "__pending_user__", role: "user", content: pendingSend.message, attachments: pendingSend.attachments || [] },
+        { id: "__pending_ai__", role: "assistant", content: "NaviMind syncing…" },
+      ]
+    : baseMessages;
+
+  const hasMessages = displayMessages.length > 0;
 
   const lastMessage = hasMessages ? messages[messages.length - 1] : null;
   const isAssistantTyping = lastMessage?.role === "assistant" && lastMessage?.isStreaming === true;
@@ -42,7 +60,7 @@ export default function ChatArea({ messages, children }) {
     } else {
       setTimeout(scrollToBottom, 50);
     }
-  }, [messages, activeChatId]);
+  }, [messages, activeChatId, showOptimistic]);
 
   // Follow the live-streaming answer: keep pinned to the bottom as tokens
   // arrive, but only if the user is already near the bottom (don't yank them
@@ -83,8 +101,8 @@ export default function ChatArea({ messages, children }) {
       >
         {hasMessages ? (
           <div className="w-full max-w-4xl flex flex-col gap-2">
-  {messages.map((msg, idx) => (
-    <ChatMessage key={idx} message={msg} isLast={idx === messages.length - 1} />
+  {displayMessages.map((msg, idx) => (
+    <ChatMessage key={msg.id ?? idx} message={msg} isLast={idx === displayMessages.length - 1} />
   ))}
   <div ref={messagesEndRef} />
 </div>

@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import InstallPrompt from "@/components/common/InstallPrompt";
 
 export default function HomePage() {
-  const { messages } = useContext(ChatContext);
+  const { messages, pendingSend } = useContext(ChatContext);
 
   const [index, setIndex] = useState(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function HomePage() {
   return (
     <>
       {/* Карточка показывается, как и раньше, пока нет сообщений */}
-     {messages.length === 0 && current && !isKeyboardOpen && (
+     {messages.length === 0 && !pendingSend && current && !isKeyboardOpen && (
   <div className="flex flex-col items-center justify-center mt-6 px-4 animate-fade-in">
     <div className="w-full max-w-xl flex flex-col items-center space-y-6">
       {/* Баннер установки PWA */}

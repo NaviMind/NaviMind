@@ -28,6 +28,12 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  // Optimistic outgoing message: shown instantly (with local file previews and
+  // a "thinking" bubble) while attachments upload and the request is in flight,
+  // so the chat never looks frozen. Cleared once the real message is persisted.
+  // Shape: { chatId, message, attachments: [{ name, type, previewUrl }] }
+  const [pendingSend, setPendingSend] = useState(null);
+
   // Live-streaming overlay: maps an assistant messageId → the text streamed so
   // far. The UI renders this live while tokens arrive; Firestore still gets a
   // single final write. Cleared once the final content is persisted.
@@ -370,6 +376,8 @@ useEffect(() => {
     setMessages,
     isLoadingMessages,
     setIsLoadingMessages,
+    pendingSend,
+    setPendingSend,
     streamingMessages,
     setStreamingMessage,
     clearStreamingMessage,

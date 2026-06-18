@@ -66,6 +66,7 @@ export default function InputBar() {
     setIsLoadingMessages,
     setStreamingMessage,
     clearStreamingMessage,
+    setPendingSend,
   } = useContext(ChatContext);
 
   const [inputValue, setInputValue] = useState("");
@@ -277,6 +278,7 @@ export default function InputBar() {
       setIsLoadingMessages,
       setStreamingMessage,
       clearStreamingMessage,
+      setPendingSend,
       vesselProfile: vesselProfileData || null,
     });
   };
