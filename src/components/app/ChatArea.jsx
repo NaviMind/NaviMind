@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useContext } from "react";
+import { ChatContext } from "@/context/ChatContext";
 import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
+  const { activeChatId } = useContext(ChatContext);
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
+  const prevChatIdRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const hasMessages = Array.isArray(messages) && messages.length > 0;
@@ -18,11 +21,26 @@ export default function ChatArea({ messages, children }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Мгновенный переход вниз без анимации (при открытии/переключении чата)
+  const jumpToBottom = () => {
+    const el = mainRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  };
+
   useEffect(() => {
-  if (hasMessages) {
-    setTimeout(scrollToBottom, 50);
-  }
-}, [messages]);
+    if (!hasMessages) return;
+
+    // Сменился чат → открываем сразу внизу, без анимированного скролла.
+    // То же сообщение/стриминг в текущем чате → плавный скролл.
+    const isChatSwitch = prevChatIdRef.current !== activeChatId;
+    prevChatIdRef.current = activeChatId;
+
+    if (isChatSwitch) {
+      requestAnimationFrame(jumpToBottom);
+    } else {
+      setTimeout(scrollToBottom, 50);
+    }
+  }, [messages, activeChatId]);
 
   useEffect(() => {
     const ref = mainRef.current;
