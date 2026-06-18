@@ -76,7 +76,9 @@ export default function InputBar() {
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
+  const dragDepthRef = useRef(0);
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -147,6 +149,50 @@ export default function InputBar() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  /* ───────── DRAG & DROP FILES (desktop) ───────── */
+  useEffect(() => {
+    const hasFiles = (e) =>
+      Array.from(e.dataTransfer?.types || []).includes("Files");
+
+    const onDragEnter = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDragging(true);
+    };
+    const onDragOver = (e) => {
+      if (hasFiles(e)) e.preventDefault(); // allow drop
+    };
+    const onDragLeave = (e) => {
+      if (!hasFiles(e)) return;
+      dragDepthRef.current -= 1;
+      if (dragDepthRef.current <= 0) {
+        dragDepthRef.current = 0;
+        setIsDragging(false);
+      }
+    };
+    const onDrop = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragging(false);
+      const dropped = Array.from(e.dataTransfer?.files || []);
+      if (dropped.length) addFiles(dropped);
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedFiles]);
 
   /* ───────── SPEECH TOGGLE ───────── */
   const toggleListening = () => {
@@ -273,8 +319,9 @@ export default function InputBar() {
     setUploadedFiles((prev) => [...prev, file]);
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
+  // Shared validation/add used by both the file picker and drag-and-drop.
+  const addFiles = (files) => {
+    if (!files?.length) return;
 
     if (uploadedFiles.length + files.length > FILES_LIMIT) {
       setFileAlert(`You can upload up to ${FILES_LIMIT} files`);
@@ -313,7 +360,10 @@ export default function InputBar() {
     if (validFiles.length > 0) {
       setUploadedFiles((prev) => [...prev, ...validFiles]);
     }
+  };
 
+  const handleFileChange = (e) => {
+    addFiles(Array.from(e.target.files));
     e.target.value = "";
   };
 
@@ -324,6 +374,21 @@ export default function InputBar() {
   /* ───────── RENDER ───────── */
   return (
     <>
+      {/* ── Drag & drop overlay (desktop) ── */}
+      {isDragging && !isMobile && (
+        <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center bg-blue-950/40 backdrop-blur-[2px]">
+          <div className="m-6 px-10 py-12 rounded-3xl border-2 border-dashed border-blue-400/80 bg-white/90 dark:bg-gray-900/90 shadow-2xl flex flex-col items-center gap-3 text-center">
+            <Icon name="attach-file" size={32} />
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">
+              Drop files to attach
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Images, PDF, Word — up to {FILES_LIMIT} files
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Expanded fullscreen editor (mobile only) ── */}
       {isExpanded && (
         <div
