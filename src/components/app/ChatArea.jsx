@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useContext } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useContext } from "react";
 import { ChatContext } from "@/context/ChatContext";
 import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
@@ -27,7 +27,9 @@ export default function ChatArea({ messages, children }) {
     if (el) el.scrollTop = el.scrollHeight;
   };
 
-  useEffect(() => {
+  // useLayoutEffect ставит позицию ДО отрисовки кадра, поэтому при смене чата
+  // нет видимого рывка: контент сразу появляется внизу, а не прыгает туда.
+  useLayoutEffect(() => {
     if (!hasMessages) return;
 
     // Сменился чат → открываем сразу внизу, без анимированного скролла.
@@ -36,7 +38,7 @@ export default function ChatArea({ messages, children }) {
     prevChatIdRef.current = activeChatId;
 
     if (isChatSwitch) {
-      requestAnimationFrame(jumpToBottom);
+      jumpToBottom();
     } else {
       setTimeout(scrollToBottom, 50);
     }
