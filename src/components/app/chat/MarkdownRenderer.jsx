@@ -3,8 +3,36 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, Link, Mail } from "lucide-react";
+import { Copy, Check, Link, Mail, FileText } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+
+// Inline source citation pill — rendered right after the sentence it supports.
+// Shows the source file name; clicking opens the file so the user can verify.
+const CITE_HREF = "#navimind-cite-";
+function InlineCitation({ name, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`Source: ${name}`}
+      className="
+        inline-flex items-center gap-1 align-baseline
+        mx-0.5 px-1.5 py-0.5 rounded-md
+        text-[11px] leading-none font-medium
+        bg-blue-50 dark:bg-blue-500/10
+        border border-blue-200 dark:border-blue-500/30
+        text-blue-600 dark:text-blue-300
+        hover:bg-blue-100 dark:hover:bg-blue-500/20
+        hover:border-blue-300 dark:hover:border-blue-500/50
+        transition-colors duration-150 cursor-pointer
+        max-w-[180px]
+      "
+    >
+      <FileText size={10} className="shrink-0 opacity-70" />
+      <span className="truncate">{name}</span>
+    </button>
+  );
+}
 
 // ─── Table wrapper с умными фейдами ──────────────────────────────────────────
 function TableWrapper({ children }) {
@@ -181,7 +209,7 @@ function EmailCard({ children }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function MarkdownRenderer({ content }) {
+export default function MarkdownRenderer({ content, citations = [], onCite }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -238,6 +266,13 @@ export default function MarkdownRenderer({ content }) {
         ),
         
        a: ({ href, children }) => {
+  // Inline source citation: href is "navimind-cite:<index>" → small file pill.
+  if (typeof href === "string" && href.startsWith(CITE_HREF)) {
+    const idx = parseInt(href.slice(CITE_HREF.length), 10);
+    const cite = citations[idx];
+    if (!cite) return null;
+    return <InlineCitation name={cite.name} onClick={() => onCite?.(idx)} />;
+  }
   return (
     <a
       href={href}

@@ -308,7 +308,11 @@ if (res.body && contentType.includes("text/event-stream")) {
   const pushLive = () => {
     liveScheduled = false;
     if (!setStreamingMessage || !aiMessageId) return;
-    const live = finalText.replace(/\[\[\s*CITED_FILES[\s\S]*$/i, "");
+    // Hide citation markers while streaming (they resolve to pills only once the
+    // final message is saved): drop complete markers and any partial at the end.
+    const live = finalText
+      .replace(/\[\[\s*cite:[^\]]*\]\]/gi, "")
+      .replace(/\[\[\s*cite:[^\]]*$/i, "");
     setStreamingMessage(aiMessageId, live);
   };
   const scheduleLive = () => {
@@ -367,38 +371,33 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 
-  // ── Source file citations (Level 1) ──
-  // The model ends its answer with a marker listing which attached documents it
-  // used: "[[CITED_FILES: a.pdf | b.docx]]". Parse it, map the names back to the
-  // uploaded document metadata (name/type/url), strip the marker from the
-  // visible answer, and store the matched files so the UI can show source pills.
+  // ── Inline source citations ──
+  // The model places inline markers right after each claim it draws from an
+  // attached document: "[[cite:filename.pdf]]". We DON'T strip them (they're
+  // rendered inline as clickable pills); we only resolve the cited filenames to
+  // the uploaded document metadata so the pills know which file to open.
   let fileSources = [];
   if (uploadedDocs.length > 0) {
-    const marker = finalText.match(/\[\[\s*CITED_FILES\s*:\s*([^\]]*?)\]\]/i);
-    if (marker) {
-      const names = marker[1].split("|").map((s) => s.trim()).filter(Boolean);
-      const findDoc = (n) => {
-        const low = n.toLowerCase();
-        return (
-          uploadedDocs.find((d) => d.name.toLowerCase() === low) ||
-          uploadedDocs.find(
-            (d) =>
-              d.name.toLowerCase().endsWith(low) ||
-              low.endsWith(d.name.toLowerCase())
-          )
-        );
-      };
-      const seen = new Set();
-      for (const n of names) {
-        const docMeta = findDoc(n);
-        if (docMeta && !seen.has(docMeta.url)) {
-          seen.add(docMeta.url);
-          fileSources.push(docMeta);
-        }
+    const findDoc = (n) => {
+      const low = n.toLowerCase();
+      return (
+        uploadedDocs.find((d) => d.name.toLowerCase() === low) ||
+        uploadedDocs.find(
+          (d) =>
+            d.name.toLowerCase().endsWith(low) ||
+            low.endsWith(d.name.toLowerCase())
+        )
+      );
+    };
+    const seen = new Set();
+    const re = /\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi;
+    let m;
+    while ((m = re.exec(finalText)) !== null) {
+      const docMeta = findDoc(m[1].trim());
+      if (docMeta && !seen.has(docMeta.url)) {
+        seen.add(docMeta.url);
+        fileSources.push(docMeta);
       }
-      // Remove only the marker itself (keep anything after it, e.g. a trailing
-      // followups block), then tidy up leftover blank lines.
-      finalText = finalText.replace(marker[0], "").replace(/\n{3,}/g, "\n\n").trim();
     }
   }
 

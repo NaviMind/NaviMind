@@ -4,8 +4,7 @@ import { useContext, useState, useEffect } from "react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import { Check, Copy, Share2 } from "lucide-react";
-import MessageAttachments from "./MessageAttachments";
-import SourceFilePills from "./SourceFilePills";
+import MessageAttachments, { getViewerSrc, getFileUrl, DocViewerModal } from "./MessageAttachments";
 import MarkdownRenderer from "@/components/app/chat/MarkdownRenderer";
 
 const USER_MESSAGE_WIDTH = "max-w-[70%]";
@@ -156,6 +155,42 @@ function FollowupChips({ options, onPick }) {
   );
 }
 
+// Convert inline "[[cite:filename]]" markers into markdown links the renderer
+// turns into source pills. Returns the rewritten text + the ordered list of
+// cited files (resolved to metadata). Unresolved markers are dropped so raw
+// "[[cite:...]]" never leaks into the visible answer.
+function buildCitations(text, fileSources) {
+  const list = Array.isArray(fileSources) ? fileSources : [];
+  if (!text) return { text: "", citations: [] };
+
+  const resolve = (n) => {
+    const low = n.toLowerCase();
+    return (
+      list.find((d) => d.name?.toLowerCase() === low) ||
+      list.find(
+        (d) =>
+          d.name?.toLowerCase().endsWith(low) || low.endsWith(d.name?.toLowerCase())
+      )
+    );
+  };
+
+  const citations = [];
+  const indexByUrl = new Map();
+  const out = text.replace(/\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi, (_full, name) => {
+    const meta = resolve(name.trim());
+    if (!meta) return "";
+    let idx = indexByUrl.get(meta.url);
+    if (idx === undefined) {
+      idx = citations.length;
+      citations.push(meta);
+      indexByUrl.set(meta.url, idx);
+    }
+    return `[${idx}](#navimind-cite-${idx})`;
+  });
+
+  return { text: out, citations };
+}
+
 function splitHighlight(text) {
   if (!text) return { main: text, highlight: null };
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
@@ -170,7 +205,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after the answer is complete
-function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, fileSources = [], isWaiting = false }) {
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false }) {
   const text = String(content ?? "");
 
   const isSyncing =
@@ -196,7 +231,7 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
       <div className="max-w-full space-y-4">
         <div className="max-w-[72ch]" />
         <div className="text-[17px] sm:text-base font-normal leading-relaxed break-words text-gray-800 dark:text-gray-200">
-          <MarkdownRenderer content={main} />
+          <MarkdownRenderer content={main} citations={citations} onCite={onCite} />
         </div>
 
         {highlight && (
@@ -206,11 +241,6 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
               <div className="text-[15px] sm:text-base leading-relaxed text-gray-700 dark:text-gray-100">{highlight}</div>
             </div>
           </div>
-        )}
-
-        {/* Source file pills — files the answer drew from, click to open */}
-        {showActions && fileSources.length > 0 && (
-          <SourceFilePills files={fileSources} />
         )}
 
         {/* Copy + Share — only after typing finishes */}
@@ -254,15 +284,32 @@ export default function ChatMessage({ message, isLast = false }) {
   const done = isAssistant && !isStreaming;
   const isWaiting = isStreaming && body.trim() === "";
 
+  // Rewrite inline [[cite:...]] markers into source pills; keep a marker-free
+  // version for copy / share / highlight.
+  const { text: renderBody, citations } = isAssistant
+    ? buildCitations(body, fileSources)
+    : { text: body, citations: [] };
+  const cleanBody = isAssistant
+    ? body.replace(/\[\[\s*cite:[^\]]*\]\]/gi, "").trim()
+    : body;
+
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [activeDoc, setActiveDoc] = useState(null);
 
   useEffect(() => { setIsClient(true); }, []);
+
+  const handleCite = (idx) => {
+    const meta = citations[idx];
+    if (!meta) return;
+    const src = getViewerSrc(meta);
+    if (src) setActiveDoc({ src, url: getFileUrl(meta), name: meta.name });
+  };
 
   const handleCopy = () => {
     if (typeof window === "undefined") return;
     // User messages copy as-is; assistant messages strip markdown symbols
-    const text = isUser ? String(content || "") : stripMarkdown(body);
+    const text = isUser ? String(content || "") : stripMarkdown(cleanBody);
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text)
         .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
@@ -273,7 +320,7 @@ export default function ChatMessage({ message, isLast = false }) {
   };
 
   const handleShare = async () => {
-    const plainText = stripMarkdown(body);
+    const plainText = stripMarkdown(cleanBody);
     if (navigator?.share) {
       try {
         await navigator.share({ title: "NaviMind", text: plainText });
@@ -317,18 +364,22 @@ export default function ChatMessage({ message, isLast = false }) {
 
   if (isAssistant) {
     return (
-      <AssistantMessage
-        content={body}
-        copied={copied}
-        onCopy={handleCopy}
-        onShare={handleShare}
-        showActions={done}
-        followups={followups}
-        onFollowup={(text) => setPendingPrompt(text)}
-        showFollowups={isLast && done && followups.length > 0}
-        fileSources={fileSources}
-        isWaiting={isWaiting}
-      />
+      <>
+        <AssistantMessage
+          content={renderBody}
+          copied={copied}
+          onCopy={handleCopy}
+          onShare={handleShare}
+          showActions={done}
+          followups={followups}
+          onFollowup={(text) => setPendingPrompt(text)}
+          showFollowups={isLast && done && followups.length > 0}
+          citations={citations}
+          onCite={handleCite}
+          isWaiting={isWaiting}
+        />
+        <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
+      </>
     );
   }
 
