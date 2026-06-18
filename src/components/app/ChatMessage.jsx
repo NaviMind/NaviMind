@@ -1,7 +1,8 @@
 "use client";
 
-import { useContext, useState, useEffect, useRef } from "react";
+import { useContext, useState, useEffect } from "react";
 import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
 import { Check, Copy, Share2 } from "lucide-react";
 import MessageAttachments from "./MessageAttachments";
 import SourceFilePills from "./SourceFilePills";
@@ -168,16 +169,17 @@ function splitHighlight(text) {
   return { main: lines.slice(0, -1).join("\n\n"), highlight: lastLine };
 }
 
-// Assistant message — Copy + Share appear only after typing is done
-function AssistantMessage({ content, displayText, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, fileSources = [] }) {
-  const text = String(displayText ?? content ?? "");
+// Assistant message — Copy + Share appear only after the answer is complete
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, fileSources = [], isWaiting = false }) {
+  const text = String(content ?? "");
 
   const isSyncing =
     text.trim() === "NaviMind syncing…" ||
     text.trim() === "NaviMind syncing..." ||
     text.toLowerCase().includes("syncing");
 
-  if (isSyncing) {
+  // Waiting for the first streamed token, or still on the placeholder.
+  if (isWaiting || isSyncing) {
     return (
       <div className="w-full flex justify-start mt-6">
         <div className="flex items-center gap-2 select-none">
@@ -231,76 +233,31 @@ function AssistantMessage({ content, displayText, copied, onCopy, onShare, showA
 export default function ChatMessage({ message, isLast = false }) {
   const { role, content, attachments = [], sources = [], fileSources = [] } = message;
   const { setPendingPrompt } = useContext(UIContext);
+  const { streamingMessages } = useContext(ChatContext);
 
   const isUser = role === "user";
   const isAssistant = role === "assistant";
 
+  // While this assistant message is streaming, render the live overlay text
+  // (tokens as they arrive) instead of the persisted Firestore content.
+  const liveText = isAssistant ? streamingMessages?.[message.id] : undefined;
+  const isStreaming = liveText !== undefined;
+  const sourceText = isStreaming ? String(liveText || "") : String(content || "");
+
   // Pull follow-up suggestions out of the assistant text so the ```followups```
   // block is rendered as clickable chips, not as raw text / a code block.
-  const rawContent = String(content || "");
   const { body, followups } = isAssistant
-    ? splitFollowups(rawContent)
-    : { body: rawContent, followups: [] };
+    ? splitFollowups(sourceText)
+    : { body: sourceText, followups: [] };
+
+  // "Done" = not actively streaming. Actions / follow-ups appear once complete.
+  const done = isAssistant && !isStreaming;
+  const isWaiting = isStreaming && body.trim() === "";
 
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [typedText, setTypedText] = useState("");
-  const [typingDone, setTypingDone] = useState(false);
-
-  const typingTimerRef = useRef(null);
-  const prevContentRef = useRef(String(content || ""));
 
   useEffect(() => { setIsClient(true); }, []);
-
-  useEffect(() => {
-    if (!isClient || role !== "assistant") return;
-
-    const current = body;
-    const prev = String(prevContentRef.current || "");
-
-    const checkSyncing = (t) => {
-      const s = String(t || "");
-      return (
-        s.trim() === "NaviMind syncing…" ||
-        s.trim() === "NaviMind syncing..." ||
-        s.toLowerCase().includes("syncing")
-      );
-    };
-
-    const prevWasSyncing = checkSyncing(prev);
-    const nowIsSyncing = checkSyncing(current);
-
-    if (nowIsSyncing) {
-      setTypedText(current);
-      setTypingDone(false);
-      prevContentRef.current = current;
-      return;
-    }
-
-    if (prevWasSyncing && current) {
-      // New response arrived — start typing animation
-      setTypingDone(false);
-      setTypedText("");
-      if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-
-      let typed = 0;
-      typingTimerRef.current = setInterval(() => {
-        typed = Math.min(typed + 2, current.length);
-        setTypedText(current.slice(0, typed));
-        if (typed >= current.length) {
-          clearInterval(typingTimerRef.current);
-          typingTimerRef.current = null;
-          setTypingDone(true);
-        }
-      }, 16);
-    } else {
-      // Historical message — show immediately
-      setTypedText(current);
-      setTypingDone(true);
-    }
-
-    prevContentRef.current = current;
-  }, [body, role, isClient]);
 
   const handleCopy = () => {
     if (typeof window === "undefined") return;
@@ -362,15 +319,15 @@ export default function ChatMessage({ message, isLast = false }) {
     return (
       <AssistantMessage
         content={body}
-        displayText={typedText}
         copied={copied}
         onCopy={handleCopy}
         onShare={handleShare}
-        showActions={typingDone}
+        showActions={done}
         followups={followups}
         onFollowup={(text) => setPendingPrompt(text)}
-        showFollowups={isLast && typingDone && followups.length > 0}
+        showFollowups={isLast && done && followups.length > 0}
         fileSources={fileSources}
+        isWaiting={isWaiting}
       />
     );
   }

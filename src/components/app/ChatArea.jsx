@@ -6,7 +6,7 @@ import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
-  const { activeChatId } = useContext(ChatContext);
+  const { activeChatId, streamingMessages } = useContext(ChatContext);
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
@@ -43,6 +43,16 @@ export default function ChatArea({ messages, children }) {
       setTimeout(scrollToBottom, 50);
     }
   }, [messages, activeChatId]);
+
+  // Follow the live-streaming answer: keep pinned to the bottom as tokens
+  // arrive, but only if the user is already near the bottom (don't yank them
+  // back down if they scrolled up to read).
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 300) el.scrollTop = el.scrollHeight;
+  }, [streamingMessages]);
 
   useEffect(() => {
     const ref = mainRef.current;

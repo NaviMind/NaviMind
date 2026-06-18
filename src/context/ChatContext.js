@@ -28,6 +28,20 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  // Live-streaming overlay: maps an assistant messageId → the text streamed so
+  // far. The UI renders this live while tokens arrive; Firestore still gets a
+  // single final write. Cleared once the final content is persisted.
+  const [streamingMessages, setStreamingMessages] = useState({});
+  const setStreamingMessage = (id, text) =>
+    setStreamingMessages((prev) => (prev[id] === text ? prev : { ...prev, [id]: text }));
+  const clearStreamingMessage = (id) =>
+    setStreamingMessages((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
   const clearAllChats = () => {
     setProjectChatSessions({});
     setActiveChatId(null);
@@ -356,6 +370,9 @@ useEffect(() => {
     setMessages,
     isLoadingMessages,
     setIsLoadingMessages,
+    streamingMessages,
+    setStreamingMessage,
+    clearStreamingMessage,
     createNewChat,
     sendMessage,
   };

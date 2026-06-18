@@ -92,6 +92,8 @@ export async function sendChatMessage({
   setActiveProject,
   setActiveChatId,
   setIsLoadingMessages,
+  setStreamingMessage,
+  clearStreamingMessage,
   vesselProfile = null,
 }) {
   if (!message?.trim()) return;
@@ -297,7 +299,26 @@ if (res.body && contentType.includes("text/event-stream")) {
 
   let buffer = "";
   let streamedSources = [];
-  
+
+  // Live streaming → push tokens into the context overlay, throttled to one
+  // update per animation frame. The trailing [[CITED_FILES:...]] marker is
+  // hidden on the fly so it never flashes in the UI.
+  let liveScheduled = false;
+  const pushLive = () => {
+    liveScheduled = false;
+    if (!setStreamingMessage || !aiMessageId) return;
+    const live = finalText.replace(/\[\[\s*CITED_FILES[\s\S]*$/i, "");
+    setStreamingMessage(aiMessageId, live);
+  };
+  const scheduleLive = () => {
+    if (liveScheduled) return;
+    liveScheduled = true;
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(pushLive);
+    else pushLive();
+  };
+  // Enter "streaming" state immediately so the UI shows the thinking spinner.
+  if (setStreamingMessage && aiMessageId) setStreamingMessage(aiMessageId, "");
+
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -327,6 +348,7 @@ if (res.body && contentType.includes("text/event-stream")) {
 
       if (event === "token") {
         finalText += data.replace(/\\n/g, "\n");
+        scheduleLive();
       }
 
       if (event === "sources") {
@@ -391,6 +413,8 @@ if (res.body && contentType.includes("text/event-stream")) {
     } else {
       await updateGlobalChatMessage(chatId, aiMessageId, payload);
     }
+    // Persisted final text — drop the live overlay (Firestore now drives it).
+    clearStreamingMessage?.(aiMessageId);
   }
 }
 
@@ -459,6 +483,8 @@ if (!summaryLocks.has(summaryKey)) {
 
   } catch (err) {
     console.error("❌ sendChatMessage error:", err);
+    // Drop any live overlay so the UI falls back to the persisted message.
+    if (aiMessageId) clearStreamingMessage?.(aiMessageId);
     // Replace the stuck placeholder so the user isn't left with an infinite spinner
     if (aiMessageId && chatId) {
       try {
