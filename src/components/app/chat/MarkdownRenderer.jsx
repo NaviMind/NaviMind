@@ -31,10 +31,10 @@ function TableWrapper({ children }) {
   }, []);
 
   return (
-    <div className="relative my-12">
+    <div className="relative my-6">
       <div
         ref={scrollRef}
-        className="relative w-full overflow-x-auto rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-gray-50 dark:bg-[#0d1424] custom-scroll"
+        className="relative w-full overflow-x-auto rounded-2xl border border-gray-200 dark:border-white/[0.07] bg-white dark:bg-[#0d1424] custom-scroll"
         style={{ scrollbarWidth: "none" }}
       >
         <table className="w-full text-[13.5px] text-left border-collapse">
@@ -284,15 +284,15 @@ export default function MarkdownRenderer({ content }) {
         table: ({ children }) => <TableWrapper>{children}</TableWrapper>,
 
         thead: ({ children }) => (
-          <thead className="border-b border-white/[0.06]">{children}</thead>
+          <thead className="border-b border-gray-200 dark:border-white/[0.08] bg-gray-100/70 dark:bg-white/[0.02]">{children}</thead>
         ),
 
         tbody: ({ children }) => (
-          <tbody className="divide-y divide-white/[0.035]">{children}</tbody>
+          <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">{children}</tbody>
         ),
 
         tr: ({ children }) => (
-          <tr className="transition-colors duration-150 hover:bg-white/[0.025]">
+          <tr className="divide-x divide-gray-100 dark:divide-white/[0.04] transition-colors duration-150 even:bg-gray-50/60 dark:even:bg-white/[0.015] hover:bg-blue-50/40 dark:hover:bg-white/[0.04]">
             {children}
           </tr>
         ),
