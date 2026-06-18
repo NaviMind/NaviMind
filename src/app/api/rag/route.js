@@ -368,6 +368,7 @@ const assembledSystemPrompt = [
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,
+                  detail: "high",
                 })),
               ],
             },
