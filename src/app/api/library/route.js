@@ -58,11 +58,17 @@ export async function POST(req) {
       );
     }
 
-    const { vectorStoreId: incomingId, label = "NaviMind Library", files = [] } =
-      await req.json();
+    const {
+      vectorStoreId: incomingId,
+      label = "NaviMind Library",
+      files = [],
+      texts = [], // raw text snippets, e.g. topic conversation memory
+    } = await req.json();
 
-    if (!Array.isArray(files) || files.length === 0) {
-      return Response.json({ error: "No files to index" }, { status: 400 });
+    const hasFiles = Array.isArray(files) && files.length > 0;
+    const hasTexts = Array.isArray(texts) && texts.length > 0;
+    if (!hasFiles && !hasTexts) {
+      return Response.json({ error: "Nothing to index" }, { status: 400 });
     }
 
     // Ensure a vector store exists. Create lazily on first upload so we never
@@ -111,7 +117,36 @@ export async function POST(req) {
       }
     }
 
-    return Response.json({ vectorStoreId, files: results });
+    // Index raw text snippets (e.g. topic conversation memory). Each becomes a
+    // small .txt file in the same store.
+    const textResults = [];
+    for (const t of hasTexts ? texts : []) {
+      const name = t?.name || `memory-${Date.now()}.txt`;
+      if (!t?.content) {
+        textResults.push({ name, openaiFileId: null, status: "skipped:empty" });
+        continue;
+      }
+      try {
+        const uploadable = await toFile(
+          Buffer.from(String(t.content), "utf8"),
+          name.endsWith(".txt") ? name : `${name}.txt`,
+          { type: "text/plain" }
+        );
+        const uploaded = await openai.files.create({
+          file: uploadable,
+          purpose: "assistants",
+        });
+        await vectorStores.files.createAndPoll(vectorStoreId, {
+          file_id: uploaded.id,
+        });
+        textResults.push({ name, openaiFileId: uploaded.id, status: "indexed" });
+      } catch (e) {
+        console.error("library: failed to index text", name, e?.message);
+        textResults.push({ name, openaiFileId: null, status: "failed" });
+      }
+    }
+
+    return Response.json({ vectorStoreId, files: results, texts: textResults });
   } catch (error) {
     console.error("library route error:", error);
     return Response.json({ error: "Bad request" }, { status: 400 });

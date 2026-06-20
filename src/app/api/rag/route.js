@@ -181,6 +181,7 @@ export async function POST(req) {
           "- Different claims may come from different files — cite each claim to the file it actually came from.",
           "- Only cite a document when that specific claim genuinely comes from it. Do NOT cite for general knowledge.",
           "- Never mention, explain, or describe these markers in your prose — they are parsed by the app and rendered as small clickable source pills.",
+          "- NEVER cite internal conversation-memory files (filenames starting with \"memory-\"). Use them only as background context for continuity; they are not user-facing sources.",
           "═══════════════════════════════════════════",
         ].join("\n")
       : null;

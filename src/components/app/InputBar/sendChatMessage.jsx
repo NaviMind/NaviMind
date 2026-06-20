@@ -9,10 +9,12 @@ import {
   getTopicData,
   updateTopicMemory,
   getUserLibraryStoreId,
+  setTopicVectorStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
   deleteLibraryFileRecordsByIds,
 } from "@/firebase/chatStore";
+import { indexTextSnippet } from "./attachmentProcessing";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
 import { updateDoc } from "firebase/firestore";
@@ -562,6 +564,46 @@ if (!summaryLocks.has(summaryKey)) {
         .catch(() => {})
         .finally(() => summaryLocks.delete(topicMemoryKey));
     }
+  }
+
+  // ───────── TOPIC COLD MEMORY (fire & forget) ─────────
+  // Index this exchange into the topic's vector store so File Search can recall
+  // it later — the deep "cold memory" that complements the short topic summary.
+  // Topic-scoped, so it's exempt from the global library TTL and is cleaned up
+  // when the topic is deleted.
+  if (inTopic && !aborted && finalText && finalText.trim()) {
+    (async () => {
+      try {
+        const content = `User: ${message}\n\nAssistant: ${finalText}`;
+        const data = await indexTextSnippet({
+          vectorStoreId, // resolved earlier (may be "" → store created here)
+          label: `Topic ${topicId}`,
+          name: `memory-${chatId}-${Date.now()}`,
+          content,
+        });
+        const memStoreId = data?.vectorStoreId || vectorStoreId;
+        if (memStoreId && memStoreId !== vectorStoreId) {
+          await setTopicVectorStoreId(currentUser.uid, topicId, memStoreId);
+        }
+        // Record so topic deletion cleans up memory files too. No url → these
+        // never surface as citation pills.
+        const indexed = (data?.texts || []).filter((t) => t.status === "indexed");
+        if (indexed.length > 0) {
+          await addLibraryFileRecords({
+            uid: currentUser.uid,
+            topicId,
+            chatId,
+            files: indexed.map((t) => ({
+              name: t.name,
+              type: "text/plain",
+              url: "",
+              openaiFileId: t.openaiFileId,
+              vectorStoreId: memStoreId,
+            })),
+          });
+        }
+      } catch { /* silent — cold memory is best-effort */ }
+    })();
   }
 
   } catch (err) {

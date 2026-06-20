@@ -29,6 +29,22 @@ export async function indexDocuments({ vectorStoreId, label, docs }) {
   return res.json();
 }
 
+// Index a raw text snippet (e.g. a topic conversation exchange) into a vector
+// store — the "cold memory" layer. Returns { vectorStoreId, texts: [...] }.
+export async function indexTextSnippet({ vectorStoreId, label, name, content }) {
+  const res = await fetch("/api/library", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      vectorStoreId: vectorStoreId || undefined,
+      label,
+      texts: [{ name, content }],
+    }),
+  });
+  if (!res.ok) throw new Error("memory indexing failed");
+  return res.json();
+}
+
 // Detach + delete a single already-indexed file from OpenAI (used when the user
 // removes an attachment before sending). Best-effort, fire-and-forget.
 export function expireIndexedFile({ vectorStoreId, openaiFileId }) {
