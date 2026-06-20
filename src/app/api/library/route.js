@@ -1,6 +1,9 @@
 import OpenAI, { toFile } from "openai";
 
 export const runtime = "nodejs";
+// OCR of scanned PDFs (vision) can take a while for multi-page docs — allow a
+// generous duration so indexing-on-attach isn't cut off.
+export const maxDuration = 300;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,6 +12,9 @@ const openai = new OpenAI({
 // OpenAI vector stores moved out of `beta` in recent SDKs; fall back gracefully
 // so this keeps working regardless of the exact minor version installed.
 const vectorStores = openai.vectorStores || openai.beta?.vectorStores;
+
+// Vision-capable model used to OCR scanned/image-only PDFs.
+const OCR_MODEL = process.env.OPENAI_OCR_MODEL || process.env.OPENAI_MODEL || "gpt-5.5";
 
 // File Search can ingest text-like documents (PDF, Word, plain text, etc.) but
 // NOT spreadsheets or images. We screen here so unsupported types fail fast with
@@ -21,6 +27,53 @@ const SUPPORTED_EXTS = new Set([
 function isSupported(file) {
   const ext = (file?.name || "").split(".").pop()?.toLowerCase();
   return ext ? SUPPORTED_EXTS.has(ext) : false;
+}
+
+function isPdf(file) {
+  return (
+    file?.type === "application/pdf" ||
+    (file?.name || "").toLowerCase().endsWith(".pdf")
+  );
+}
+
+// Detect whether a PDF actually has an extractable text layer. Scanned/photo
+// PDFs come back with almost no text → those need OCR to be searchable.
+async function pdfTextDensity(buffer) {
+  try {
+    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+    const parsed = await pdfParse(buffer);
+    const dense = (parsed?.text || "").replace(/\s/g, "").length;
+    const numpages = parsed?.numpages || 1;
+    return { perPage: numpages ? dense / numpages : dense, numpages };
+  } catch {
+    return { perPage: 0, numpages: 0 };
+  }
+}
+
+// OCR a scanned PDF using a vision model. The PDF is passed inline (base64) so
+// the model renders + reads the pages itself — no local PDF→image step needed.
+async function ocrPdfToText(buffer, filename) {
+  const b64 = buffer.toString("base64");
+  const resp = await openai.responses.create({
+    model: OCR_MODEL,
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_file",
+            filename,
+            file_data: `data:application/pdf;base64,${b64}`,
+          },
+          {
+            type: "input_text",
+            text: "Extract ALL text from this document verbatim. Preserve structure and render any tables as readable text. Output ONLY the extracted text, with no commentary or explanation.",
+          },
+        ],
+      },
+    ],
+  });
+  return (resp.output_text || "").trim();
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -97,7 +150,40 @@ export async function POST(req) {
         const buffer = Buffer.from(
           await (await fetch(file.url)).arrayBuffer()
         );
-        const uploadable = await toFile(buffer, file.name, { type: file.type });
+
+        // Scanned PDFs have no text layer → File Search would index nothing.
+        // Detect that case and OCR the pages with a vision model, then index the
+        // recognised TEXT under the original filename (so citations still match).
+        let uploadable;
+        let ocrUsed = false;
+        if (isPdf(file)) {
+          const { perPage, numpages } = await pdfTextDensity(buffer);
+          const looksScanned = perPage < 50;
+          const ocrEligible =
+            looksScanned &&
+            buffer.length < 25 * 1024 * 1024 &&
+            (numpages === 0 || numpages <= 80);
+          if (ocrEligible) {
+            try {
+              const ocrText = await ocrPdfToText(buffer, file.name);
+              if (ocrText && ocrText.length > 20) {
+                uploadable = await toFile(
+                  Buffer.from(ocrText, "utf8"),
+                  file.name,
+                  { type: "text/plain" }
+                );
+                ocrUsed = true;
+              }
+            } catch (e) {
+              console.warn("library: OCR failed", file?.name, e?.message);
+            }
+          }
+        }
+
+        // Non-scanned files (and OCR fallbacks) index the original bytes.
+        if (!uploadable) {
+          uploadable = await toFile(buffer, file.name, { type: file.type });
+        }
 
         const uploaded = await openai.files.create({
           file: uploadable,
@@ -110,7 +196,12 @@ export async function POST(req) {
           file_id: uploaded.id,
         });
 
-        results.push({ ...base, openaiFileId: uploaded.id, status: "indexed" });
+        results.push({
+          ...base,
+          openaiFileId: uploaded.id,
+          status: "indexed",
+          ocr: ocrUsed,
+        });
       } catch (e) {
         console.error("library: failed to index", file?.name, e?.message);
         results.push({ ...base, openaiFileId: null, status: "failed" });
