@@ -93,14 +93,20 @@ function ConfirmRecordButton({ onClick }) {
   );
 }
 
-// Live voice indicator: neutral bars that react to the mic input level.
+// Live recording track: a real voice-memo style waveform that scrolls right→
+// left. Each tick samples the current mic loudness and pushes a new bar on the
+// right while older bars move left, so the track "runs" as you speak.
 function LiveWaveform({ stream }) {
   const barsRef = useRef([]);
+  const levelsRef = useRef([]);
   const rafRef = useRef(null);
-  const N = 48;
+  const N = 60;
+  const SAMPLE_MS = 60; // how fast the track scrolls
 
   useEffect(() => {
+    levelsRef.current = new Array(N).fill(0);
     if (!stream) return;
+
     let audioCtx, analyser, source, data;
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -108,28 +114,39 @@ function LiveWaveform({ stream }) {
       audioCtx.resume?.();
       source = audioCtx.createMediaStreamSource(stream);
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 1024;
       source.connect(analyser);
-      data = new Uint8Array(analyser.frequencyBinCount);
+      data = new Uint8Array(analyser.fftSize);
     } catch {
       return;
     }
 
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
+    let lastSample = 0;
+    const tick = (now) => {
+      rafRef.current = requestAnimationFrame(tick);
+      if (now - lastSample < SAMPLE_MS) return;
+      lastSample = now;
+
+      // Current loudness from the time-domain signal (peak deviation from 128).
+      analyser.getByteTimeDomainData(data);
+      let peak = 0;
+      for (let i = 0; i < data.length; i++) {
+        const d = Math.abs(data[i] - 128) / 128;
+        if (d > peak) peak = d;
+      }
+
+      const levels = levelsRef.current;
+      levels.push(Math.min(peak * 1.7, 1)); // newest sample on the right
+      if (levels.length > N) levels.shift();
+
       const bars = barsRef.current;
-      const bins = data.length;
       for (let i = 0; i < bars.length; i++) {
         const bar = bars[i];
         if (!bar) continue;
-        const v = (data[Math.floor((i / bars.length) * bins)] || 0) / 255;
-        const scale = Math.min(0.12 + v * 1.4, 1);
-        bar.style.transform = `scaleY(${scale})`;
+        bar.style.transform = `scaleY(${Math.max(levels[i] ?? 0, 0.05)})`;
       }
-      rafRef.current = requestAnimationFrame(tick);
     };
-    tick();
+    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
@@ -139,13 +156,13 @@ function LiveWaveform({ stream }) {
   }, [stream]);
 
   return (
-    <div className="flex-1 flex items-center justify-between gap-[2px] h-10 px-2 overflow-hidden">
+    <div className="flex-1 flex items-center gap-[2px] h-10 px-2 overflow-hidden">
       {Array.from({ length: N }).map((_, i) => (
         <span
           key={i}
           ref={(el) => (barsRef.current[i] = el)}
           className="flex-1 rounded-full bg-gray-700 dark:bg-white/90"
-          style={{ height: "24px", transformOrigin: "center", transform: "scaleY(0.1)", transition: "transform 70ms linear" }}
+          style={{ height: "26px", transformOrigin: "center", transform: "scaleY(0.05)", transition: "transform 90ms linear" }}
         />
       ))}
     </div>
