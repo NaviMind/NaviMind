@@ -312,10 +312,28 @@ export async function POST(req) {
 
 // Web policy is only relevant when a web search is actually likely. Loading it
 // conditionally keeps it out of the prompt on the majority of requests.
+
+// Tell the model it has a searchable library (docs + topic conversation memory)
+// so it actively consults File Search instead of answering from general
+// knowledge alone. Only included when a vector store is actually attached.
+const fileSearchGuidance = hasDocs
+  ? [
+      "═══════════════════════════════════════════",
+      "SEARCHABLE LIBRARY — USE FILE SEARCH",
+      "═══════════════════════════════════════════",
+      "You have a File Search tool connected to this conversation's library: the user's uploaded documents and, in topics, indexed memory of earlier discussion.",
+      "- BEFORE answering anything that could depend on the user's own documents, vessel paperwork, port/arrival requirements, or prior context, SEARCH the library first.",
+      "- Prefer specific facts found in the library over generic knowledge; the library reflects this user's actual vessel and situation.",
+      "- If the library has nothing relevant, answer normally — do not invent a source.",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 const contextualBlocks = [
   vesselBlock,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
+  fileSearchGuidance,
   fileCitationBlock,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
   needsWebSearch(question, vesselProfile) ? webAutonomyPolicy : null,
