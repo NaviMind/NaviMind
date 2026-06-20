@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from "openai";
+import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 // OCR of scanned PDFs (vision) can take a while for multi-page docs — allow a
@@ -41,6 +42,37 @@ function isImage(file) {
     (file?.type || "").startsWith("image/") ||
     /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file?.name || "")
   );
+}
+
+function isSpreadsheet(file) {
+  return /\.(xlsx|xls|csv)$/i.test(file?.name || "");
+}
+
+function isCsv(file) {
+  return /\.csv$/i.test(file?.name || "") || file?.type === "text/csv";
+}
+
+// Convert a spreadsheet to plain text so File Search can index it. CSV is
+// already text; xls/xlsx are rendered sheet-by-sheet as CSV with a header line
+// per sheet. Capped to avoid pathologically huge uploads.
+const SPREADSHEET_CHAR_CAP = 5_000_000;
+
+function spreadsheetToText(buffer, file) {
+  if (isCsv(file)) {
+    return buffer.toString("utf8").slice(0, SPREADSHEET_CHAR_CAP);
+  }
+  const wb = XLSX.read(buffer, { type: "buffer" });
+  const parts = [];
+  let total = 0;
+  for (const sheetName of wb.SheetNames) {
+    const csv = XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
+    if (!csv.trim()) continue;
+    const block = `# Sheet: ${sheetName}\n${csv}`;
+    parts.push(block);
+    total += block.length;
+    if (total >= SPREADSHEET_CHAR_CAP) break;
+  }
+  return parts.join("\n\n").slice(0, SPREADSHEET_CHAR_CAP);
 }
 
 // Detect whether a PDF actually has an extractable text layer. Scanned/photo
@@ -233,6 +265,37 @@ export async function POST(req) {
             status: "skipped:visual",
             visualRequired: true,
           });
+        }
+        continue;
+      }
+
+      // ── Spreadsheets: convert to text so File Search can index them ──────
+      if (isSpreadsheet(file)) {
+        try {
+          const buffer = Buffer.from(
+            await (await fetch(file.url)).arrayBuffer()
+          );
+          const text = spreadsheetToText(buffer, file);
+          if (text && text.trim().length > 0) {
+            const uploadable = await toFile(
+              Buffer.from(text, "utf8"),
+              file.name,
+              { type: "text/plain" }
+            );
+            const uploaded = await openai.files.create({
+              file: uploadable,
+              purpose: "assistants",
+            });
+            await vectorStores.files.createAndPoll(vectorStoreId, {
+              file_id: uploaded.id,
+            });
+            results.push({ ...base, openaiFileId: uploaded.id, status: "indexed" });
+          } else {
+            results.push({ ...base, openaiFileId: null, status: "skipped:empty" });
+          }
+        } catch (e) {
+          console.error("library: spreadsheet parse failed", file?.name, e?.message);
+          results.push({ ...base, openaiFileId: null, status: "failed" });
         }
         continue;
       }
