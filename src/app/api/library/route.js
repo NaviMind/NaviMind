@@ -36,6 +36,13 @@ function isPdf(file) {
   );
 }
 
+function isImage(file) {
+  return (
+    (file?.type || "").startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file?.name || "")
+  );
+}
+
 // Detect whether a PDF actually has an extractable text layer. Scanned/photo
 // PDFs come back with almost no text → those need OCR to be searchable.
 async function pdfTextDensity(buffer) {
@@ -74,6 +81,46 @@ async function ocrPdfToText(buffer, filename) {
     ],
   });
   return (resp.output_text || "").trim();
+}
+
+// Process an attached image in a single vision pass: extract all visible text
+// AND judge whether answering about the image needs the visual itself (diagram,
+// chart, photo) or whether the extracted text is enough (a plain-text
+// screenshot). Returns { text, visualRequired }.
+async function ocrAndClassifyImage(imageUrl) {
+  const resp = await openai.responses.create({
+    model: OCR_MODEL,
+    input: [
+      {
+        role: "user",
+        content: [
+          { type: "input_image", image_url: imageUrl, detail: "high" },
+          {
+            type: "input_text",
+            text:
+              "You are processing an attached image (often a screenshot). Do TWO things:\n" +
+              "1) On the FIRST line, output exactly 'VISUAL_REQUIRED: yes' or 'VISUAL_REQUIRED: no'. Answer 'yes' if correctly answering questions about this image requires SEEING it (diagrams, charts, photos, maps, layouts, anything beyond plain text). Answer 'no' if the extracted text alone fully captures the content (e.g. a screenshot of plain text, an email, a table).\n" +
+              "2) From the SECOND line onward, output ALL text visible in the image, verbatim, preserving structure (render tables as readable text). If there is no meaningful text, output nothing after the first line.\n" +
+              "No commentary.",
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = (resp.output_text || "").trim();
+  const firstNl = raw.indexOf("\n");
+  const firstLine = (firstNl === -1 ? raw : raw.slice(0, firstNl)).trim();
+  const m = firstLine.match(/VISUAL_REQUIRED:\s*(yes|no)/i);
+  if (m) {
+    return {
+      text: (firstNl === -1 ? "" : raw.slice(firstNl + 1)).trim(),
+      visualRequired: /yes/i.test(m[1]),
+    };
+  }
+  // Model didn't follow the format → keep everything as text and play it safe
+  // by assuming the visual is needed.
+  return { text: raw, visualRequired: true };
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -140,6 +187,56 @@ export async function POST(req) {
         results.push({ ...base, openaiFileId: null, status: "skipped:no-url" });
         continue;
       }
+
+      // ── Images: OCR + classify in one vision pass ──────────────────────
+      // Text-bearing screenshots get their text indexed (searchable) and, when
+      // the visual isn't needed, the client skips sending the image to vision
+      // (faster answers). Purely-visual images aren't indexed (no store junk).
+      if (isImage(file)) {
+        try {
+          const { text, visualRequired } = await ocrAndClassifyImage(file.url);
+          if (text && text.length > 20) {
+            const uploadable = await toFile(
+              Buffer.from(text, "utf8"),
+              file.name,
+              { type: "text/plain" }
+            );
+            const uploaded = await openai.files.create({
+              file: uploadable,
+              purpose: "assistants",
+            });
+            await vectorStores.files.createAndPoll(vectorStoreId, {
+              file_id: uploaded.id,
+            });
+            results.push({
+              ...base,
+              openaiFileId: uploaded.id,
+              status: "indexed",
+              ocr: true,
+              visualRequired,
+            });
+          } else {
+            // No meaningful text → keep it for vision only, nothing to index.
+            results.push({
+              ...base,
+              openaiFileId: null,
+              status: "skipped:visual",
+              visualRequired: true,
+            });
+          }
+        } catch (e) {
+          console.error("library: image OCR failed", file?.name, e?.message);
+          // Fall back to treating it as a visual image (vision at answer time).
+          results.push({
+            ...base,
+            openaiFileId: null,
+            status: "skipped:visual",
+            visualRequired: true,
+          });
+        }
+        continue;
+      }
+
       if (!isSupported(file)) {
         results.push({ ...base, openaiFileId: null, status: "skipped:unsupported" });
         continue;

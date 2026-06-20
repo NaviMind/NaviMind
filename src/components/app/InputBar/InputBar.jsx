@@ -552,19 +552,15 @@ export default function InputBar() {
       return;
     }
 
-    // 1) Upload all to Storage in parallel. Images are ready immediately;
-    //    documents move on to indexing.
+    // 1) Upload all to Storage in parallel, then everything (docs AND images)
+    //    goes through processing — images are OCR'd + classified server-side.
     await Promise.all(
       entries.map(async (e) => {
         try {
           const meta = await uploadFileToStorage({ uid, file: e.file });
           e.url = meta.url;
           e.path = meta.path;
-          patchEntry(e.id, {
-            url: meta.url,
-            path: meta.path,
-            status: e.isImage ? "ready" : "indexing",
-          });
+          patchEntry(e.id, { url: meta.url, path: meta.path, status: "indexing" });
         } catch {
           e.failed = true;
           patchEntry(e.id, { status: "error" });
@@ -572,16 +568,16 @@ export default function InputBar() {
       })
     );
 
-    // 2) Index the documents (one call for the batch).
-    const docs = entries.filter((e) => !e.isImage && !e.failed && e.url);
-    if (docs.length === 0) return;
+    // 2) Index the batch (docs + images) in one call.
+    const items = entries.filter((e) => !e.failed && e.url);
+    if (items.length === 0) return;
 
     const storeId = await resolveStoreId(uid);
     try {
       const data = await indexDocuments({
         vectorStoreId: storeId,
         label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
-        docs,
+        docs: items,
       });
 
       const newStoreId = data?.vectorStoreId || storeId;
@@ -593,18 +589,25 @@ export default function InputBar() {
         storeIdRef.current = newStoreId;
       }
 
-      // Results come back in the same order as `docs`.
+      // Results come back in the same order as `items`.
       const out = Array.isArray(data?.files) ? data.files : [];
-      docs.forEach((d, i) => {
+      items.forEach((d, i) => {
         const r = out[i];
         if (r?.status === "indexed") {
+          // Text extracted (doc, scanned-PDF OCR, or text-bearing image).
           d.openaiFileId = r.openaiFileId;
           d.vectorStoreId = newStoreId;
+          d.visualRequired = r.visualRequired; // undefined for non-images
           patchEntry(d.id, {
             status: "ready",
             openaiFileId: r.openaiFileId,
             vectorStoreId: newStoreId,
+            visualRequired: r.visualRequired,
           });
+        } else if (r?.status === "skipped:visual") {
+          // Purely-visual image: not indexed, answered via vision at query time.
+          d.visualRequired = true;
+          patchEntry(d.id, { status: "ready", visualRequired: true });
         } else if (r?.status?.startsWith("skipped")) {
           patchEntry(d.id, { status: "unsupported" });
         } else {
@@ -612,7 +615,7 @@ export default function InputBar() {
         }
       });
     } catch {
-      docs.forEach((d) => patchEntry(d.id, { status: "error" }));
+      items.forEach((d) => patchEntry(d.id, { status: "error" }));
     }
   };
 

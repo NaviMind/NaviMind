@@ -245,16 +245,22 @@ sendLocks.add(sendKey);
   }
 
   // ───────── SAVE USER MESSAGE ─────────
-  // Attachments are already uploaded AND indexed (processed on attach). We only
-  // consume the prepared metadata here — no Storage upload, no indexing. Any
-  // file that reached Storage (has a url) is attached & openable; only docs that
-  // were actually indexed (have openaiFileId) participate in File Search.
+  // Attachments are already uploaded AND processed (on attach). We only consume
+  // the prepared metadata here — no Storage upload, no indexing. Any file that
+  // reached Storage (has a url) is attached & openable.
   const usableAttachments = (attachments || []).filter((a) => a.url);
+
+  // Vision input = only images whose VISUAL is actually needed (diagrams,
+  // charts, photos). Text-only screenshots were OCR'd into the store on attach,
+  // so we skip vision for them → faster answers.
   const uploadedImages = usableAttachments
-    .filter((a) => a.isImage)
+    .filter((a) => a.isImage && a.visualRequired !== false)
     .map((a) => ({ name: a.name, type: a.type, url: a.url, path: a.path }));
-  const allDocs = usableAttachments
-    .filter((a) => !a.isImage)
+
+  // Searchable = anything that got indexed (docs, scanned-PDF OCR, and
+  // text-bearing images) — identified by an openaiFileId.
+  const searchableDocs = usableAttachments
+    .filter((a) => a.openaiFileId)
     .map((a) => ({
       name: a.name,
       type: a.type,
@@ -263,8 +269,6 @@ sendLocks.add(sendKey);
       openaiFileId: a.openaiFileId,
       vectorStoreId: a.vectorStoreId,
     }));
-  // Only searchable (indexed) docs feed the citation list & library records.
-  const searchableDocs = allDocs.filter((d) => d.openaiFileId);
 
   // Document names are sent so the model knows which files it may cite.
   const documentPayloads = searchableDocs.map((d) => ({
@@ -285,10 +289,14 @@ sendLocks.add(sendKey);
   }
   const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
 
-  const uploadedAttachments = [
-    ...uploadedImages,
-    ...allDocs.map((d) => ({ name: d.name, type: d.type, url: d.url, path: d.path })),
-  ];
+  // Everything attached is shown & openable in the message (regardless of how
+  // it's consumed: vision, File Search, or both).
+  const uploadedAttachments = usableAttachments.map((a) => ({
+    name: a.name,
+    type: a.type,
+    url: a.url,
+    path: a.path,
+  }));
 
 const userMessagePayload = {
   role: "user",
