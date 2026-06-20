@@ -13,6 +13,7 @@ import {
   setUserLibraryStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
+  deleteLibraryFileRecordsByIds,
 } from "@/firebase/chatStore";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
@@ -136,6 +137,53 @@ async function ensureDocumentsIndexed({ uid, chatId, topicId, newDocs }) {
   }
 }
 
+// ── Shared library TTL ──
+// Files uploaded in regular (non-topic) chats are short-lived: they expire from
+// the shared per-user library after this many days. Topic files are exempt —
+// they live until the topic is deleted. Cleanup is lazy & throttled (at most
+// once an hour per session) and runs fire-and-forget so it never blocks a send.
+const LIBRARY_TTL_DAYS = 7;
+const TTL_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+let lastTtlSweepAt = 0;
+
+async function sweepExpiredLibrary(uid) {
+  if (!uid) return;
+  const now = Date.now();
+  if (now - lastTtlSweepAt < TTL_SWEEP_INTERVAL_MS) return;
+  lastTtlSweepAt = now;
+
+  try {
+    const files = await getLibraryFiles({ uid, topicId: null });
+    if (!files.length) return;
+
+    const cutoff = now - LIBRARY_TTL_DAYS * 24 * 60 * 60 * 1000;
+    const expired = files.filter((f) => {
+      const ms = f.addedAt?.toMillis?.();
+      return typeof ms === "number" && ms < cutoff;
+    });
+    if (!expired.length) return;
+
+    const storeId = await getUserLibraryStoreId(uid);
+    const fileIds = expired.map((f) => f.openaiFileId).filter(Boolean);
+
+    if (fileIds.length > 0) {
+      await fetch("/api/library/expire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vectorStoreId: storeId, fileIds }),
+      }).catch(() => {});
+    }
+
+    await deleteLibraryFileRecordsByIds({
+      uid,
+      topicId: null,
+      ids: expired.map((f) => f.id),
+    });
+  } catch {
+    /* silent — cleanup is best-effort */
+  }
+}
+
 const summaryLocks = new Set();
 const sendLocks = new Set();
 
@@ -159,6 +207,9 @@ export async function sendChatMessage({
 }) {
   if (!message?.trim()) return;
   if (!currentUser?.uid) return;
+
+  // Opportunistic, throttled TTL cleanup of the shared library (fire & forget).
+  sweepExpiredLibrary(currentUser.uid);
 
   const topicId =
     topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;

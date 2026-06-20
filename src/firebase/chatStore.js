@@ -447,6 +447,20 @@ export async function deleteLibraryFileRecords({ uid, topicId = null }) {
   }
 }
 
+// Delete specific library file records by their Firestore doc ids (used by TTL
+// cleanup, which only removes the expired ones — not the whole library).
+export async function deleteLibraryFileRecordsByIds({ uid, topicId = null, ids = [] }) {
+  if (!uid || !Array.isArray(ids) || ids.length === 0) return;
+  const base = topicId
+    ? ["users", uid, "topics", topicId, "libraryFiles"]
+    : ["users", uid, "libraryFiles"];
+  try {
+    await Promise.all(ids.map((id) => deleteDoc(doc(db, ...base, id))));
+  } catch (e) {
+    console.error("❌ Failed to delete library file records by id:", e);
+  }
+}
+
 // Record each indexed file so we can map citations back to an openable file and
 // clean it up later. Topic files live under the topic; global chat files live
 // under the user (with a chatId tag) and are subject to TTL cleanup.
