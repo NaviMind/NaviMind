@@ -663,7 +663,7 @@ export default function InputBar() {
             <div className="flex items-end w-full gap-1 px-1">
               {/* 📎 Attach File */}
               <Tooltip content="Add photos & files" position="top">
-                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
+                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
                   <Icon name="attach-file" size={20} />
                   <input type="file" multiple onChange={handleFileChange} className="sr-only" />
                 </label>
@@ -706,7 +706,7 @@ export default function InputBar() {
                 )}
 
                 {isGenerating ? (
-                  <Tooltip content="Stop" position="top">
+                  <Tooltip content="Stop" position="top" align="right">
                     <SendStopButton generating onStop={stopGeneration} />
                   </Tooltip>
                 ) : isListening ? (
@@ -716,12 +716,12 @@ export default function InputBar() {
                 ) : (
                   <>
                     {speechSupported && (
-                      <Tooltip content="Voice input" position="top">
+                      <Tooltip content="Voice input" position="top" align="right">
                         <MicButton onClick={startRecording} />
                       </Tooltip>
                     )}
                     {inputValue.trim() && (
-                      <Tooltip content="Send" position="top">
+                      <Tooltip content="Send" position="top" align="right">
                         <SendStopButton onSend={handleSend} disabled={false} />
                       </Tooltip>
                     )}

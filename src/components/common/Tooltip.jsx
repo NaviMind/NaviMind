@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const MOBILE_BREAKPOINT = 900; 
 
-export default function Tooltip({ children, content, position = "top" }) {
+export default function Tooltip({ children, content, position = "top", align = "left" }) {
   const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function Tooltip({ children, content, position = "top" }) {
       {children}
       <div className={`absolute z-50
         ${position === 'top' ? 'bottom-[110%]' : 'top-full mt-2'}
-        left-[0.5px]
+        ${align === 'right' ? 'right-[0.5px]' : 'left-[0.5px]'}
         w-auto bg-blue-600 text-white text-xs
         px-3 py-1 rounded-md shadow-xl
         opacity-0 group-hover:opacity-100
