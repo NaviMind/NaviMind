@@ -10,6 +10,17 @@ import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
+import {
+  uploadFileToStorage,
+  indexDocuments,
+  expireIndexedFile,
+} from "./attachmentProcessing";
+import {
+  getTopicData,
+  getUserLibraryStoreId,
+  setTopicVectorStoreId,
+  setUserLibraryStoreId,
+} from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
 import { Maximize2, Minimize2, Mic, Check, X } from "lucide-react";
 
@@ -252,6 +263,16 @@ export default function InputBar() {
   const [isDragging, setIsDragging] = useState(false);
 
   const dragDepthRef = useRef(0);
+  // Attachment processing (upload + index on attach):
+  //  - filesRef mirrors uploadedFiles as an authoritative list (avoids stale
+  //    closures while async processing patches entry status).
+  //  - storeIdRef caches the scope's vector store id so concurrent batches don't
+  //    each create a duplicate store.
+  //  - indexChainRef serializes batches so a later one sees the store created by
+  //    an earlier one, and so send can await all in-flight processing.
+  const filesRef = useRef([]);
+  const storeIdRef = useRef("");
+  const indexChainRef = useRef(Promise.resolve());
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -481,6 +502,120 @@ export default function InputBar() {
     else startRecording();
   };
 
+  /* ───────── ATTACHMENT PROCESSING (upload + index on attach) ───────── */
+  // Reset the cached store id when the scope (topic vs global) changes.
+  useEffect(() => {
+    storeIdRef.current = "";
+  }, [topicIdFromURL]);
+
+  const topicId =
+    topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;
+  const inTopic = Boolean(topicId);
+
+  // Keep filesRef and the rendered state in lockstep.
+  const commitFiles = (next) => {
+    filesRef.current = next;
+    setUploadedFiles(next);
+  };
+  const patchEntry = (id, patch) => {
+    commitFiles(filesRef.current.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  };
+
+  // Resolve the scope's vector store id (cache → Firestore). Created lazily by
+  // the indexing call itself if none exists yet.
+  const resolveStoreId = async (uid) => {
+    if (storeIdRef.current) return storeIdRef.current;
+    let id = "";
+    try {
+      id = inTopic
+        ? (await getTopicData(uid, topicId))?.vectorStoreId || ""
+        : await getUserLibraryStoreId(uid);
+    } catch { /* silent */ }
+    if (id) storeIdRef.current = id;
+    return id;
+  };
+
+  // Process a freshly added batch: upload every file to Storage, then index the
+  // documents into the scope's vector store. Runs inside indexChainRef so
+  // batches are serialized (store created once) and send() can await everything.
+  const processBatch = (entries) => {
+    indexChainRef.current = indexChainRef.current
+      .then(() => runBatch(entries))
+      .catch(() => {});
+    return indexChainRef.current;
+  };
+
+  const runBatch = async (entries) => {
+    const uid = currentUser?.uid;
+    if (!uid) {
+      entries.forEach((e) => patchEntry(e.id, { status: "error" }));
+      return;
+    }
+
+    // 1) Upload all to Storage in parallel. Images are ready immediately;
+    //    documents move on to indexing.
+    await Promise.all(
+      entries.map(async (e) => {
+        try {
+          const meta = await uploadFileToStorage({ uid, file: e.file });
+          e.url = meta.url;
+          e.path = meta.path;
+          patchEntry(e.id, {
+            url: meta.url,
+            path: meta.path,
+            status: e.isImage ? "ready" : "indexing",
+          });
+        } catch {
+          e.failed = true;
+          patchEntry(e.id, { status: "error" });
+        }
+      })
+    );
+
+    // 2) Index the documents (one call for the batch).
+    const docs = entries.filter((e) => !e.isImage && !e.failed && e.url);
+    if (docs.length === 0) return;
+
+    const storeId = await resolveStoreId(uid);
+    try {
+      const data = await indexDocuments({
+        vectorStoreId: storeId,
+        label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
+        docs,
+      });
+
+      const newStoreId = data?.vectorStoreId || storeId;
+      if (newStoreId) {
+        if (newStoreId !== storeId) {
+          if (inTopic) await setTopicVectorStoreId(uid, topicId, newStoreId);
+          else await setUserLibraryStoreId(uid, newStoreId);
+        }
+        storeIdRef.current = newStoreId;
+      }
+
+      // Results come back in the same order as `docs`.
+      const out = Array.isArray(data?.files) ? data.files : [];
+      docs.forEach((d, i) => {
+        const r = out[i];
+        if (r?.status === "indexed") {
+          d.openaiFileId = r.openaiFileId;
+          d.vectorStoreId = newStoreId;
+          patchEntry(d.id, {
+            status: "ready",
+            openaiFileId: r.openaiFileId,
+            vectorStoreId: newStoreId,
+          });
+        } else if (r?.status?.startsWith("skipped")) {
+          patchEntry(d.id, { status: "unsupported" });
+        } else {
+          patchEntry(d.id, { status: "error" });
+        }
+      });
+    } catch {
+      docs.forEach((d) => patchEntry(d.id, { status: "error" }));
+    }
+  };
+
   /* ───────── HANDLERS ───────── */
   // override — необязательный текст для прямой отправки (клик по followup).
   // Когда вызывается как onClick кнопки, override приходит как событие — поэтому
@@ -498,8 +633,14 @@ export default function InputBar() {
       setIsExpanded(false);
       setShowExpandBtn(false);
       setIsListening(false);
-      preparedAttachments = uploadedFiles;
-      setUploadedFiles([]);
+
+      // Wait for any in-flight attachment processing (upload + index) to finish.
+      // Usually already done — it ran in the background while the user typed —
+      // so this resolves instantly. The file previews stay visible (with their
+      // status) until processing completes, then we clear them.
+      await indexChainRef.current;
+      preparedAttachments = filesRef.current;
+      commitFiles([]);
     }
 
     await sendChatMessage({
@@ -579,12 +720,6 @@ export default function InputBar() {
 
     e.preventDefault();
 
-    if (uploadedFiles.length >= FILES_LIMIT) {
-      setFileAlert(`You can upload up to ${FILES_LIMIT} files`);
-      setTimeout(() => setFileAlert(""), 7000);
-      return;
-    }
-
     const stamp = new Date()
       .toISOString()
       .slice(0, 16)
@@ -593,20 +728,22 @@ export default function InputBar() {
       type: "text/plain",
     });
 
-    setUploadedFiles((prev) => [...prev, file]);
+    addFiles([file]);
   };
 
   // Shared validation/add used by both the file picker and drag-and-drop.
+  // Valid files are wrapped in status-tracking entries and immediately start
+  // uploading + indexing in the background (processed on attach).
   const addFiles = (files) => {
     if (!files?.length) return;
 
-    if (uploadedFiles.length + files.length > FILES_LIMIT) {
+    if (filesRef.current.length + files.length > FILES_LIMIT) {
       setFileAlert(`You can upload up to ${FILES_LIMIT} files`);
       setTimeout(() => setFileAlert(""), 7000);
       return;
     }
 
-    let totalSize = uploadedFiles.reduce((acc, file) => acc + file.size, 0);
+    let totalSize = filesRef.current.reduce((acc, e) => acc + (e.file?.size || 0), 0);
     const validFiles = [];
 
     for (const file of files) {
@@ -634,9 +771,23 @@ export default function InputBar() {
       validFiles.push(file);
     }
 
-    if (validFiles.length > 0) {
-      setUploadedFiles((prev) => [...prev, ...validFiles]);
-    }
+    if (validFiles.length === 0) return;
+
+    const entries = validFiles.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      name: file.name,
+      type: file.type,
+      isImage: file.type.startsWith("image/"),
+      status: "uploading",
+      url: "",
+      path: "",
+      openaiFileId: null,
+      vectorStoreId: "",
+    }));
+
+    commitFiles([...filesRef.current, ...entries]);
+    processBatch(entries);
   };
 
   const handleFileChange = (e) => {
@@ -644,8 +795,17 @@ export default function InputBar() {
     e.target.value = "";
   };
 
-  const removeFile = (filename) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.name !== filename));
+  const removeFile = (id) => {
+    const entry = filesRef.current.find((e) => e.id === id);
+    commitFiles(filesRef.current.filter((e) => e.id !== id));
+    // If it was already indexed, detach + delete it from OpenAI so removing a
+    // file before sending doesn't leave an orphan in the store.
+    if (entry?.openaiFileId) {
+      expireIndexedFile({
+        vectorStoreId: entry.vectorStoreId,
+        openaiFileId: entry.openaiFileId,
+      });
+    }
   };
 
   /* ───────── RENDER ───────── */

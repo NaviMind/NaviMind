@@ -28,6 +28,37 @@ function RemoveBtn({ onClick, className = "" }) {
   );
 }
 
+// Tiny spinner shown while a file is uploading / being indexed.
+function Spinner({ className = "" }) {
+  return (
+    <span
+      className={`inline-block rounded-full border-2 border-white/30 border-t-white animate-spin ${className}`}
+    />
+  );
+}
+
+// Status line under a document pill: indexing / ready / failed / not searchable.
+function DocStatus({ status }) {
+  if (status === "uploading" || status === "indexing") {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-gray-400">
+        <Spinner className="w-2.5 h-2.5 !border-gray-400/40 !border-t-gray-500" />
+        {status === "uploading" ? "Uploading…" : "Indexing…"}
+      </span>
+    );
+  }
+  if (status === "ready") {
+    return <span className="text-[10px] text-emerald-500">✓ Ready</span>;
+  }
+  if (status === "unsupported") {
+    return <span className="text-[10px] text-amber-500">Not searchable</span>;
+  }
+  if (status === "error") {
+    return <span className="text-[10px] text-red-500">Failed</span>;
+  }
+  return null;
+}
+
 export default function FilePreview({ files, onRemove }) {
   const scrollRef = useRef(null);
 
@@ -49,25 +80,35 @@ export default function FilePreview({ files, onRemove }) {
       className="filepreview-hidden-scrollbar flex flex-nowrap items-center gap-2 mt-2 px-5 overflow-x-auto"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
-      {files.map((file, idx) => {
-        const isImage = file.type?.startsWith("image/");
+      {files.map((entry) => {
+        const isImage = entry.isImage ?? entry.type?.startsWith("image/");
+        const busy = entry.status === "uploading" || entry.status === "indexing";
 
         // ── Image thumbnail ──────────────────────────────────────────
         if (isImage) {
-          const previewUrl = URL.createObjectURL(file);
+          const previewUrl =
+            entry.url || (entry.file ? URL.createObjectURL(entry.file) : "");
           return (
             <div
-              key={file.name + idx}
+              key={entry.id}
               className="relative flex items-center justify-center w-[72px] h-[72px] min-w-[72px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0"
             >
-              <img
-                src={previewUrl}
-                alt={file.name}
-                className="object-cover w-full h-full"
-                draggable={false}
-              />
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt={entry.name}
+                  className="object-cover w-full h-full"
+                  draggable={false}
+                />
+              )}
+              {/* Uploading overlay */}
+              {busy && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Spinner className="w-5 h-5" />
+                </div>
+              )}
               <RemoveBtn
-                onClick={() => onRemove(file.name)}
+                onClick={() => onRemove(entry.id)}
                 className="absolute top-1 right-1 text-xs px-1 min-w-[20px] min-h-[20px]"
               />
             </div>
@@ -75,11 +116,11 @@ export default function FilePreview({ files, onRemove }) {
         }
 
         // ── Document pill (matches the in-chat DocPill) ───────────────
-        const ext = getFileExt(file.name);
+        const ext = getFileExt(entry.name);
         const label = getDocLabel(ext);
         return (
           <div
-            key={file.name + idx}
+            key={entry.id}
             className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0"
           >
             {/* Type badge */}
@@ -90,18 +131,21 @@ export default function FilePreview({ files, onRemove }) {
               </svg>
             </div>
 
-            {/* Name + type */}
+            {/* Name + type + status */}
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
-                {file.name}
+                {entry.name}
               </p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
-                {label}
-              </p>
+              <div className="flex items-center gap-2 mt-[1px]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
+                  {label}
+                </span>
+                <DocStatus status={entry.status} />
+              </div>
             </div>
 
             <RemoveBtn
-              onClick={() => onRemove(file.name)}
+              onClick={() => onRemove(entry.id)}
               className="absolute top-1 right-1 text-[10px] w-[18px] h-[18px]"
             />
           </div>

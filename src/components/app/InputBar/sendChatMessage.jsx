@@ -8,9 +8,7 @@ import {
   updateChatSummary,
   getTopicData,
   updateTopicMemory,
-  setTopicVectorStoreId,
   getUserLibraryStoreId,
-  setUserLibraryStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
   deleteLibraryFileRecordsByIds,
@@ -21,28 +19,6 @@ import { updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import { storage } from "@/firebase/config";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
-async function uploadAttachments({ uid, chatId, topicId, files }) {
-  // Upload all files in parallel — much faster than one-by-one for several
-  // files. Promise.all preserves order, so the returned array matches `files`.
-  return Promise.all(
-    files.map(async (file) => {
-      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      const uniqueFileName = `${uniqueSuffix}-${file.name}`;
-      const path = topicId
-        ? `users/${uid}/topics/${topicId}/chats/${chatId}/${uniqueFileName}`
-        : `users/${uid}/chats/${chatId}/${uniqueFileName}`;
-
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      return { name: file.name, type: file.type, url: downloadURL, path };
-    })
-  );
-}
 
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
   const ref = topicId
@@ -67,74 +43,6 @@ async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
 
   const snap = await getDocs(q);
   return snap.docs.reverse().map(d => d.data()).map(({ role, content }) => ({ role, content }));
-}
-
-// Index freshly uploaded documents into the right File Search vector store and
-// return the store id to search at query time.
-//
-//   • Topic chats  → the topic's own persistent store (isolated per topic).
-//   • Global chats → the user's shared library store (TTL-cleaned later).
-//
-// Returns "" if there is no store to search (no docs ever uploaded here). When
-// new docs are attached we create the store lazily, persist its id, and record
-// each indexed file for later citation-mapping / cleanup.
-async function ensureDocumentsIndexed({ uid, chatId, topicId, newDocs }) {
-  const inTopic = Boolean(topicId);
-
-  // Existing store for this scope (may be empty on the very first upload).
-  let storeId = "";
-  if (inTopic) {
-    try {
-      const topicData = await getTopicData(uid, topicId);
-      storeId = topicData?.vectorStoreId || "";
-    } catch { /* silent */ }
-  } else {
-    try {
-      storeId = await getUserLibraryStoreId(uid);
-    } catch { /* silent */ }
-  }
-
-  // Nothing new to index → just search whatever already exists (if anything).
-  if (!newDocs || newDocs.length === 0) return storeId;
-
-  try {
-    const res = await fetch("/api/library", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        vectorStoreId: storeId || undefined,
-        label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
-        files: newDocs.map((d) => ({ url: d.url, name: d.name, type: d.type })),
-      }),
-    });
-
-    if (!res.ok) return storeId;
-    const data = await res.json();
-    const newStoreId = data?.vectorStoreId || storeId;
-
-    // Persist a freshly created store id on its scope.
-    if (newStoreId && newStoreId !== storeId) {
-      if (inTopic) await setTopicVectorStoreId(uid, topicId, newStoreId);
-      else await setUserLibraryStoreId(uid, newStoreId);
-    }
-
-    // Record indexed files (openaiFileId) for citation-mapping & cleanup.
-    const indexed = (data?.files || [])
-      .filter((f) => f.status === "indexed")
-      .map((f) => ({ ...f, vectorStoreId: newStoreId }));
-    if (indexed.length > 0) {
-      await addLibraryFileRecords({
-        uid,
-        topicId: inTopic ? topicId : null,
-        chatId,
-        files: indexed,
-      });
-    }
-
-    return newStoreId;
-  } catch {
-    return storeId;
-  }
 }
 
 // ── Shared library TTL ──
@@ -294,13 +202,14 @@ sendLocks.add(sendKey);
   }
 
   // ───────── OPTIMISTIC RENDER ─────────
-  // Show the outgoing message instantly (with local image previews and a
-  // "thinking" bubble) so the chat never looks frozen while files upload.
+  // Show the outgoing message instantly (with image previews and a "thinking"
+  // bubble). Attachments arrive already uploaded (processed on attach), so we
+  // can preview straight from their Storage URL.
   if (setPendingSend) {
     const previews = (attachments || []).map((f) => ({
       name: f.name,
       type: f.type,
-      previewUrl: f.type?.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+      previewUrl: f.isImage ? (f.url || (f.file && URL.createObjectURL(f.file))) : undefined,
     }));
     setPendingSend({ chatId, message, attachments: previews });
   }
@@ -323,55 +232,61 @@ sendLocks.add(sendKey);
   // Fetch topic-level context when inside a topic
   let topicInstruction = "";
   let topicMemory = "";
+  let topicStoreId = "";
   if (inTopic) {
     try {
       const topicData = await getTopicData(currentUser.uid, topicId);
       topicInstruction = topicData?.description || "";
       topicMemory = topicData?.topicMemory || "";
+      topicStoreId = topicData?.vectorStoreId || "";
     } catch { /* silent */ }
   }
 
   // ───────── SAVE USER MESSAGE ─────────
+  // Attachments are already uploaded AND indexed (processed on attach). We only
+  // consume the prepared metadata here — no Storage upload, no indexing. Any
+  // file that reached Storage (has a url) is attached & openable; only docs that
+  // were actually indexed (have openaiFileId) participate in File Search.
+  const usableAttachments = (attachments || []).filter((a) => a.url);
+  const uploadedImages = usableAttachments
+    .filter((a) => a.isImage)
+    .map((a) => ({ name: a.name, type: a.type, url: a.url, path: a.path }));
+  const allDocs = usableAttachments
+    .filter((a) => !a.isImage)
+    .map((a) => ({
+      name: a.name,
+      type: a.type,
+      url: a.url,
+      path: a.path,
+      openaiFileId: a.openaiFileId,
+      vectorStoreId: a.vectorStoreId,
+    }));
+  // Only searchable (indexed) docs feed the citation list & library records.
+  const searchableDocs = allDocs.filter((d) => d.openaiFileId);
 
-const imageFiles = attachments.filter((f) => f.type.startsWith("image/"));
-const documentFiles = attachments.filter((f) => !f.type.startsWith("image/"));
+  // Document names are sent so the model knows which files it may cite.
+  const documentPayloads = searchableDocs.map((d) => ({
+    name: d.name,
+    type: d.type,
+    url: d.url,
+  }));
 
-let uploadedImages = [];
-if (imageFiles.length > 0) {
-  uploadedImages = await uploadAttachments({
-    uid: currentUser.uid,
-    chatId,
-    topicId: inTopic ? topicId : null,
-    files: imageFiles,
-  });
-}
+  // Resolve the vector store to search. New docs already carry their store id;
+  // otherwise fall back to the scope's persistent store so earlier uploads stay
+  // searchable.
+  let vectorStoreId =
+    searchableDocs.find((d) => d.vectorStoreId)?.vectorStoreId || "";
+  if (!vectorStoreId) {
+    vectorStoreId = inTopic
+      ? topicStoreId
+      : await getUserLibraryStoreId(currentUser.uid).catch(() => "");
+  }
+  const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
 
-// Upload documents to Storage too, so they get a URL and can be opened in the
-// in-chat viewer (same as images). The base64 payload below is still used for
-// text extraction on this request.
-let uploadedDocs = [];
-if (documentFiles.length > 0) {
-  uploadedDocs = await uploadAttachments({
-    uid: currentUser.uid,
-    chatId,
-    topicId: inTopic ? topicId : null,
-    files: documentFiles,
-  });
-}
-
-// Document names are still sent so the model knows which files it may cite
-// (the citation instruction lists them). The document *content* now reaches the
-// model via File Search, not inline text extraction.
-const documentPayloads = uploadedDocs.map((d) => ({
-  name: d.name,
-  type: d.type,
-  url: d.url,
-}));
-
-const uploadedAttachments = [
-  ...uploadedImages,
-  ...uploadedDocs,
-];
+  const uploadedAttachments = [
+    ...uploadedImages,
+    ...allDocs.map((d) => ({ name: d.name, type: d.type, url: d.url, path: d.path })),
+  ];
 
 const userMessagePayload = {
   role: "user",
@@ -399,18 +314,17 @@ if (inTopic) {
   // Real user message + placeholder are now persisted — drop the optimistic one.
   setPendingSend?.(null);
 
-  // ───────── INDEX DOCUMENTS (File Search) ─────────
-  // Index any new documents into the scope's vector store and resolve the store
-  // to search. Persistent: the topic store accumulates across chats; the global
-  // library store accumulates across regular chats. Runs after the placeholder
-  // is shown so the user already sees a "thinking" state during indexing.
-  const vectorStoreId = await ensureDocumentsIndexed({
-    uid: currentUser.uid,
-    chatId,
-    topicId: inTopic ? topicId : null,
-    newDocs: uploadedDocs,
-  });
-  const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
+  // ───────── RECORD LIBRARY FILES ─────────
+  // Indexing happened on attach; here we just persist a record of each indexed
+  // doc (now that chatId exists) for citation-mapping and TTL cleanup.
+  if (searchableDocs.length > 0) {
+    addLibraryFileRecords({
+      uid: currentUser.uid,
+      topicId: inTopic ? topicId : null,
+      chatId,
+      files: searchableDocs.map((d) => ({ ...d, vectorStoreId })),
+    }).catch(() => {});
+  }
 
   // ───────── AI REQUEST ─────────
   // AbortController lets the user stop generation; signal is passed to fetch.
@@ -538,7 +452,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // scope (so citations to earlier uploads still open).
   let fileSources = [];
   if (finalText.includes("[[cite:")) {
-    let candidates = [...uploadedDocs];
+    let candidates = [...searchableDocs];
     try {
       const prior = await getLibraryFiles({
         uid: currentUser.uid,
