@@ -11,7 +11,7 @@ import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
 import Icon from "@/components/common/Icon";
-import { Maximize2, Minimize2, Mic } from "lucide-react";
+import { Maximize2, Minimize2, Mic, Check, X } from "lucide-react";
 
 const FILES_LIMIT = 5;
 // Pasting more than this many characters turns the text into a .txt attachment
@@ -65,34 +65,87 @@ function MicButton({ onClick, className = "" }) {
   );
 }
 
-// Stop-recording button (active recording state) — blue round with a square.
-function RecordStopButton({ onClick }) {
+// Cancel-recording button (✕) — discards the recording, back to initial state.
+function CancelRecordButton({ onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Stop recording"
-      className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+      aria-label="Cancel recording"
+      className="flex items-center justify-center w-10 h-10 rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white transition-colors"
     >
-      <span className="block w-3 h-3 rounded-[3px] bg-white" />
+      <X size={20} strokeWidth={2.2} />
     </button>
   );
 }
 
-// Full-width voice indicator shown across the input bar while recording.
-function FullWaveform() {
-  const bars = Array.from({ length: 48 });
+// Confirm-recording button (✓) — stops recording and transcribes.
+function ConfirmRecordButton({ onClick }) {
   return (
-    <div className="flex-1 flex items-center justify-between gap-[2px] h-9 px-2 overflow-hidden">
-      {bars.map((_, i) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Confirm voice input"
+      className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+    >
+      <Check size={19} strokeWidth={2.6} />
+    </button>
+  );
+}
+
+// Live voice indicator: neutral bars that react to the mic input level.
+function LiveWaveform({ stream }) {
+  const barsRef = useRef([]);
+  const rafRef = useRef(null);
+  const N = 48;
+
+  useEffect(() => {
+    if (!stream) return;
+    let audioCtx, analyser, source, data;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctx();
+      audioCtx.resume?.();
+      source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      data = new Uint8Array(analyser.frequencyBinCount);
+    } catch {
+      return;
+    }
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const bars = barsRef.current;
+      const bins = data.length;
+      for (let i = 0; i < bars.length; i++) {
+        const bar = bars[i];
+        if (!bar) continue;
+        const v = (data[Math.floor((i / bars.length) * bins)] || 0) / 255;
+        const scale = Math.min(0.12 + v * 1.4, 1);
+        bar.style.transform = `scaleY(${scale})`;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      try { source.disconnect(); analyser.disconnect(); } catch { /* noop */ }
+      try { audioCtx.close(); } catch { /* noop */ }
+    };
+  }, [stream]);
+
+  return (
+    <div className="flex-1 flex items-center justify-between gap-[2px] h-10 px-2 overflow-hidden">
+      {Array.from({ length: N }).map((_, i) => (
         <span
           key={i}
-          className="flex-1 rounded-full bg-blue-400/80 dark:bg-blue-400"
-          style={{
-            height: "20px",
-            transformOrigin: "center",
-            animation: `waveform-full ${0.7 + ((i % 5) * 0.12)}s ease-in-out ${(i % 7) * 0.07}s infinite`,
-          }}
+          ref={(el) => (barsRef.current[i] = el)}
+          className="flex-1 rounded-full bg-gray-400 dark:bg-gray-400/80"
+          style={{ height: "22px", transformOrigin: "center", transform: "scaleY(0.12)", transition: "transform 60ms linear" }}
         />
       ))}
     </div>
@@ -176,6 +229,7 @@ export default function InputBar() {
   const [showExpandBtn, setShowExpandBtn] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingStream, setRecordingStream] = useState(null);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -186,6 +240,7 @@ export default function InputBar() {
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const cancelledRef = useRef(false);
   const speechBaseRef = useRef("");
 
   const { isFullscreen } = useContext(UIContext);
@@ -318,6 +373,7 @@ export default function InputBar() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
       audioChunksRef.current = [];
+      cancelledRef.current = false;
 
       const recorder = new MediaRecorder(stream);
       recorder.ondataavailable = (e) => {
@@ -328,19 +384,33 @@ export default function InputBar() {
 
       speechBaseRef.current = inputValue;
       recorder.start();
+      setRecordingStream(stream);
       setIsListening(true);
     } catch (err) {
       // Permission denied / no mic — just reset.
       setIsListening(false);
+      setRecordingStream(null);
       mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
   };
 
-  const stopRecording = () => {
+  // Confirm (✓): stop recording and transcribe.
+  const confirmRecording = () => {
+    cancelledRef.current = false;
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== "inactive") recorder.stop();
     setIsListening(false);
+    setRecordingStream(null);
+  };
+
+  // Cancel (✕): discard the recording and return to the initial state.
+  const cancelRecording = () => {
+    cancelledRef.current = true;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    setIsListening(false);
+    setRecordingStream(null);
   };
 
   const handleRecordingStop = async () => {
@@ -352,6 +422,12 @@ export default function InputBar() {
     audioChunksRef.current = [];
     const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
     mediaRecorderRef.current = null;
+
+    // Cancelled → drop everything, no transcription.
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      return;
+    }
 
     if (!chunks.length) return;
     const blob = new Blob(chunks, { type: mimeType });
@@ -384,7 +460,7 @@ export default function InputBar() {
   };
 
   const toggleListening = () => {
-    if (isListening) stopRecording();
+    if (isListening) confirmRecording();
     else startRecording();
   };
 
@@ -661,17 +737,21 @@ export default function InputBar() {
 
             {/* INPUT ROW */}
             <div className="flex items-end w-full gap-1 px-1">
-              {/* 📎 Attach File */}
-              <Tooltip content="Add photos & files" position="top">
-                <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
-                  <Icon name="attach-file" size={20} />
-                  <input type="file" multiple onChange={handleFileChange} className="sr-only" />
-                </label>
-              </Tooltip>
-
-              {/* Middle: full-width voice waveform while recording, else textarea */}
+              {/* Left: cancel-recording while recording, else 📎 attach */}
               {isListening ? (
-                <FullWaveform />
+                <CancelRecordButton onClick={cancelRecording} />
+              ) : (
+                <Tooltip content="Add photos & files" position="top">
+                  <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
+                    <Icon name="attach-file" size={20} />
+                    <input type="file" multiple onChange={handleFileChange} className="sr-only" />
+                  </label>
+                </Tooltip>
+              )}
+
+              {/* Middle: live voice waveform while recording, else textarea */}
+              {isListening ? (
+                <LiveWaveform stream={recordingStream} />
               ) : (
                 <textarea
                   ref={inputRef}
@@ -710,7 +790,7 @@ export default function InputBar() {
                     <SendStopButton generating onStop={stopGeneration} />
                   </Tooltip>
                 ) : isListening ? (
-                  <RecordStopButton onClick={stopRecording} />
+                  <ConfirmRecordButton onClick={confirmRecording} />
                 ) : isTranscribing ? (
                   <TranscribingBtn />
                 ) : (
