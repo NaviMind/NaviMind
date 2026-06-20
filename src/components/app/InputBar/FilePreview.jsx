@@ -90,9 +90,6 @@ function DocStatus({ status }) {
       </span>
     );
   }
-  if (status === "ready") {
-    return <span className="text-[10px] text-emerald-500">✓ Ready</span>;
-  }
   if (status === "unsupported") {
     return <span className="text-[10px] text-amber-500">Not searchable</span>;
   }
