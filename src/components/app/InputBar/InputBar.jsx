@@ -70,10 +70,10 @@ function SendStopButton({ generating, onSend, onStop, disabled }) {
       onClick={onSend}
       disabled={disabled}
       aria-label="Send"
-      className="flex items-center justify-center w-9 h-9 rounded-full transition-colors
-        bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300
-        hover:bg-blue-600 hover:text-white
-        disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-gray-100 dark:disabled:hover:bg-white/10 disabled:hover:text-gray-500"
+      className={`flex items-center justify-center w-9 h-9 rounded-full text-white transition-colors
+        ${disabled
+          ? "bg-blue-600/40 dark:bg-blue-500/40 cursor-default"
+          : "bg-blue-600 hover:bg-blue-500"}`}
     >
       <Icon name="arrow-send" size={18} />
     </button>
