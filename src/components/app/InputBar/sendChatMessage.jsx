@@ -8,6 +8,11 @@ import {
   updateChatSummary,
   getTopicData,
   updateTopicMemory,
+  setTopicVectorStoreId,
+  getUserLibraryStoreId,
+  setUserLibraryStoreId,
+  addLibraryFileRecords,
+  getLibraryFiles,
 } from "@/firebase/chatStore";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
@@ -61,6 +66,74 @@ async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
 
   const snap = await getDocs(q);
   return snap.docs.reverse().map(d => d.data()).map(({ role, content }) => ({ role, content }));
+}
+
+// Index freshly uploaded documents into the right File Search vector store and
+// return the store id to search at query time.
+//
+//   • Topic chats  → the topic's own persistent store (isolated per topic).
+//   • Global chats → the user's shared library store (TTL-cleaned later).
+//
+// Returns "" if there is no store to search (no docs ever uploaded here). When
+// new docs are attached we create the store lazily, persist its id, and record
+// each indexed file for later citation-mapping / cleanup.
+async function ensureDocumentsIndexed({ uid, chatId, topicId, newDocs }) {
+  const inTopic = Boolean(topicId);
+
+  // Existing store for this scope (may be empty on the very first upload).
+  let storeId = "";
+  if (inTopic) {
+    try {
+      const topicData = await getTopicData(uid, topicId);
+      storeId = topicData?.vectorStoreId || "";
+    } catch { /* silent */ }
+  } else {
+    try {
+      storeId = await getUserLibraryStoreId(uid);
+    } catch { /* silent */ }
+  }
+
+  // Nothing new to index → just search whatever already exists (if anything).
+  if (!newDocs || newDocs.length === 0) return storeId;
+
+  try {
+    const res = await fetch("/api/library", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vectorStoreId: storeId || undefined,
+        label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
+        files: newDocs.map((d) => ({ url: d.url, name: d.name, type: d.type })),
+      }),
+    });
+
+    if (!res.ok) return storeId;
+    const data = await res.json();
+    const newStoreId = data?.vectorStoreId || storeId;
+
+    // Persist a freshly created store id on its scope.
+    if (newStoreId && newStoreId !== storeId) {
+      if (inTopic) await setTopicVectorStoreId(uid, topicId, newStoreId);
+      else await setUserLibraryStoreId(uid, newStoreId);
+    }
+
+    // Record indexed files (openaiFileId) for citation-mapping & cleanup.
+    const indexed = (data?.files || [])
+      .filter((f) => f.status === "indexed")
+      .map((f) => ({ ...f, vectorStoreId: newStoreId }));
+    if (indexed.length > 0) {
+      await addLibraryFileRecords({
+        uid,
+        topicId: inTopic ? topicId : null,
+        chatId,
+        files: indexed,
+      });
+    }
+
+    return newStoreId;
+  } catch {
+    return storeId;
+  }
 }
 
 const summaryLocks = new Set();
@@ -235,8 +308,9 @@ if (documentFiles.length > 0) {
   });
 }
 
-// Send document references (URLs) — the API fetches & parses them server-side.
-// This avoids re-uploading the files as a huge base64 request body.
+// Document names are still sent so the model knows which files it may cite
+// (the citation instruction lists them). The document *content* now reaches the
+// model via File Search, not inline text extraction.
 const documentPayloads = uploadedDocs.map((d) => ({
   name: d.name,
   type: d.type,
@@ -274,6 +348,19 @@ if (inTopic) {
   // Real user message + placeholder are now persisted — drop the optimistic one.
   setPendingSend?.(null);
 
+  // ───────── INDEX DOCUMENTS (File Search) ─────────
+  // Index any new documents into the scope's vector store and resolve the store
+  // to search. Persistent: the topic store accumulates across chats; the global
+  // library store accumulates across regular chats. Runs after the placeholder
+  // is shown so the user already sees a "thinking" state during indexing.
+  const vectorStoreId = await ensureDocumentsIndexed({
+    uid: currentUser.uid,
+    chatId,
+    topicId: inTopic ? topicId : null,
+    newDocs: uploadedDocs,
+  });
+  const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
+
   // ───────── AI REQUEST ─────────
   // AbortController lets the user stop generation; signal is passed to fetch.
   genAbortController = new AbortController();
@@ -292,6 +379,7 @@ if (inTopic) {
       summary,
       imageUrls: uploadedImages.map((a) => a.url),
       documentFiles: documentPayloads,
+      vectorStoreIds,
       vesselProfile,
       topicInstruction,
       topicMemory,
@@ -391,20 +479,31 @@ if (res.body && contentType.includes("text/event-stream")) {
   }
 
   // ── Inline source citations ──
-  // The model places inline markers right after each claim it draws from an
-  // attached document: "[[cite:filename.pdf]]". We DON'T strip them (they're
-  // rendered inline as clickable pills); we only resolve the cited filenames to
-  // the uploaded document metadata so the pills know which file to open.
+  // The model places inline markers right after each claim it draws from a
+  // document: "[[cite:filename.pdf]]". We DON'T strip them (they're rendered
+  // inline as clickable pills); we only resolve the cited filenames to file
+  // metadata so the pills know which file to open. The candidate pool is the
+  // files attached in THIS message plus any previously-indexed files for this
+  // scope (so citations to earlier uploads still open).
   let fileSources = [];
-  if (uploadedDocs.length > 0) {
+  if (finalText.includes("[[cite:")) {
+    let candidates = [...uploadedDocs];
+    try {
+      const prior = await getLibraryFiles({
+        uid: currentUser.uid,
+        topicId: inTopic ? topicId : null,
+      });
+      candidates = [...candidates, ...prior];
+    } catch { /* silent */ }
+
     const findDoc = (n) => {
       const low = n.toLowerCase();
       return (
-        uploadedDocs.find((d) => d.name.toLowerCase() === low) ||
-        uploadedDocs.find(
+        candidates.find((d) => d.name?.toLowerCase() === low) ||
+        candidates.find(
           (d) =>
-            d.name.toLowerCase().endsWith(low) ||
-            low.endsWith(d.name.toLowerCase())
+            d.name?.toLowerCase().endsWith(low) ||
+            low.endsWith(d.name?.toLowerCase() || "")
         )
       );
     };
@@ -413,9 +512,9 @@ if (res.body && contentType.includes("text/event-stream")) {
     let m;
     while ((m = re.exec(finalText)) !== null) {
       const docMeta = findDoc(m[1].trim());
-      if (docMeta && !seen.has(docMeta.url)) {
+      if (docMeta?.url && !seen.has(docMeta.url)) {
         seen.add(docMeta.url);
-        fileSources.push(docMeta);
+        fileSources.push({ name: docMeta.name, type: docMeta.type, url: docMeta.url });
       }
     }
   }

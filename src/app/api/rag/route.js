@@ -147,60 +147,37 @@ export async function POST(req) {
       summary = "",
       imageUrls = [],
       documentFiles = [],
+      vectorStoreIds = [],
       vesselProfile = null,
       topicInstruction = "",
       topicMemory = "",
     } = body;
 
-    // ── Extract text from uploaded documents ──
-    // Documents are passed as Storage URLs (not base64) — fetch them on the
-    // server and parse. This keeps the request body tiny and avoids
-    // re-uploading the files. Older callers may still send base64 in `data`.
-    const extractedDocs = [];
-    for (const docFile of documentFiles) {
-      try {
-        const buffer = docFile.url
-          ? Buffer.from(await (await fetch(docFile.url)).arrayBuffer())
-          : Buffer.from(docFile.data, "base64");
-        if (docFile.type === "application/pdf" || docFile.name?.endsWith(".pdf")) {
-          const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-          const parsed = await pdfParse(buffer);
-          extractedDocs.push(`[Document: ${docFile.name}]\n${parsed?.text || ""}`);
-        } else if (
-          docFile.type?.includes("wordprocessingml") ||
-          docFile.name?.endsWith(".docx") ||
-          docFile.name?.endsWith(".doc")
-        ) {
-          const mammoth = await import("mammoth");
-          const result = await mammoth.extractRawText({ buffer });
-          extractedDocs.push(`[Document: ${docFile.name}]\n${result.value}`);
-        } else if (docFile.type === "text/plain" || docFile.name?.endsWith(".txt")) {
-          extractedDocs.push(`[Document: ${docFile.name}]\n${buffer.toString("utf8")}`);
-        }
-      } catch (e) {
-        extractedDocs.push(`[Document: ${docFile.name}] (failed to extract text)`);
-      }
-    }
-
+    // Documents are no longer parsed inline — their content reaches the model
+    // through the File Search tool over a vector store. `documentFiles` now only
+    // carries the filenames attached in THIS message, so the citation
+    // instruction can name them; the actual retrieval is `vectorStoreIds`.
     const hasImages = imageUrls.length > 0;
-    const hasDocs = extractedDocs.length > 0;
+    const hasDocs = Array.isArray(vectorStoreIds) && vectorStoreIds.length > 0;
 
-    // Citation instruction — asks the model to mark which attached files it
-    // actually used, so the client can render clickable source pills (Level 1).
+    // Citation instruction — asks the model to mark which document a claim came
+    // from, so the client can render clickable source pills (Level 1). Works for
+    // both files attached now and files retrieved from earlier uploads.
     const docNames = documentFiles.map((d) => d?.name).filter(Boolean);
     const fileCitationBlock = hasDocs
       ? [
           "═══════════════════════════════════════════",
-          "SOURCE FILE CITATION — REQUIRED WHEN USING ATTACHED DOCUMENTS",
+          "SOURCE FILE CITATION — REQUIRED WHEN USING DOCUMENTS",
           "═══════════════════════════════════════════",
-          "The user attached the following document file(s):",
-          ...docNames.map((n) => `- ${n}`),
-          "",
-          "When a sentence or claim in your answer is based on one of these attached documents, place an INLINE citation marker IMMEDIATELY AFTER that sentence, in EXACTLY this format:",
+          "You have access to the user's documents through the File Search tool.",
+          ...(docNames.length
+            ? ["Files attached in this message:", ...docNames.map((n) => `- ${n}`), ""]
+            : []),
+          "When a sentence or claim in your answer is based on a document returned by File Search, place an INLINE citation marker IMMEDIATELY AFTER that sentence, in EXACTLY this format:",
           "[[cite:EXACT_FILENAME]]",
           "Rules:",
           "- Put each marker right after the specific sentence/claim it supports — NOT all bunched at the end.",
-          "- Use the EXACT filename from the list above (including extension).",
+          "- Use the EXACT source filename of the retrieved document (including its extension).",
           "- Different claims may come from different files — cite each claim to the file it actually came from.",
           "- Only cite a document when that specific claim genuinely comes from it. Do NOT cite for general knowledge.",
           "- Never mention, explain, or describe these markers in your prose — they are parsed by the app and rendered as small clickable source pills.",
@@ -391,9 +368,6 @@ const assembledSystemPrompt = [
               role: "user",
               content: [
                 { type: "input_text", text: String(question) },
-                ...(hasDocs
-                  ? [{ type: "input_text", text: `\n\n[Attached Documents]\n${extractedDocs.join("\n\n---\n\n")}` }]
-                  : []),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,
@@ -405,14 +379,24 @@ const assembledSystemPrompt = [
 
           const useWebSearch = needsWebSearch(question, vesselProfile);
 
+          // Assemble tools: File Search over the scope's vector store(s) for
+          // document grounding, plus web search when the question warrants it.
+          const tools = [];
+          if (hasDocs) {
+            tools.push({ type: "file_search", vector_store_ids: vectorStoreIds });
+          }
+          if (useWebSearch) {
+            tools.push({ type: "web_search_preview" });
+          }
+
           const completion = await openai.responses.create({
             model: CHAT_MODEL,
             stream: true,
             ...(REASONING_EFFORT ? { reasoning: { effort: REASONING_EFFORT } } : {}),
-            ...(useWebSearch ? {
-              tools: [{ type: "web_search_preview" }],
-              tool_choice: "required",
-            } : {}),
+            ...(tools.length ? { tools } : {}),
+            // Force a tool only for pure web-search queries (preserves prior
+            // behaviour). When documents are in play, let the model decide.
+            ...(useWebSearch && !hasDocs ? { tool_choice: "required" } : {}),
             input: messages,
           });
 

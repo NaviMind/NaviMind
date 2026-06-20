@@ -388,6 +388,77 @@ export async function getTopicData(uid, topicId) {
   return snap.exists() ? snap.data() : {};
 }
 
+// ─────────── DOCUMENT LIBRARY (File Search vector stores) ───────────
+//
+// Topics keep their own persistent vector store (lives until the topic is
+// deleted). Regular (global) chats share one per-user library store with a
+// TTL-based cleanup. We only store *ids* here; the actual files live in the
+// OpenAI vector store. The per-file openaiFileId is what lets us delete files
+// later (topic deletion / TTL), so we keep a lightweight record of each.
+
+// Persist the vector store id on a topic doc (set once, on first upload).
+export async function setTopicVectorStoreId(uid, topicId, vectorStoreId) {
+  if (!uid || !topicId || !vectorStoreId) return;
+  const ref = doc(db, "users", uid, "topics", topicId);
+  await setDoc(ref, { vectorStoreId }, { merge: true });
+}
+
+// The per-user shared library store id (used by all regular, non-topic chats).
+export async function getUserLibraryStoreId(uid) {
+  if (!uid) return "";
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data()?.libraryVectorStoreId || "" : "";
+}
+
+export async function setUserLibraryStoreId(uid, vectorStoreId) {
+  if (!uid || !vectorStoreId) return;
+  const ref = doc(db, "users", uid);
+  await setDoc(ref, { libraryVectorStoreId: vectorStoreId }, { merge: true });
+}
+
+// Read previously-indexed file records for a scope, so citations that point at
+// files uploaded in earlier messages still resolve to an openable file.
+export async function getLibraryFiles({ uid, topicId = null }) {
+  if (!uid) return [];
+  const colRef = topicId
+    ? collection(db, "users", uid, "topics", topicId, "libraryFiles")
+    : collection(db, "users", uid, "libraryFiles");
+  try {
+    const snap = await getDocs(colRef);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+}
+
+// Record each indexed file so we can map citations back to an openable file and
+// clean it up later. Topic files live under the topic; global chat files live
+// under the user (with a chatId tag) and are subject to TTL cleanup.
+export async function addLibraryFileRecords({ uid, topicId = null, chatId, files = [] }) {
+  if (!uid || !Array.isArray(files) || files.length === 0) return;
+
+  const colRef = topicId
+    ? collection(db, "users", uid, "topics", topicId, "libraryFiles")
+    : collection(db, "users", uid, "libraryFiles");
+
+  await Promise.all(
+    files
+      .filter((f) => f?.openaiFileId)
+      .map((f) =>
+        addDoc(colRef, {
+          name: f.name || "",
+          type: f.type || "",
+          url: f.url || "",
+          openaiFileId: f.openaiFileId,
+          vectorStoreId: f.vectorStoreId || "",
+          chatId: chatId || null,
+          addedAt: serverTimestamp(),
+        })
+      )
+  );
+}
+
 export async function updateChatSummary({
   uid,
   chatId,
