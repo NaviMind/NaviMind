@@ -144,8 +144,8 @@ function LiveWaveform({ stream }) {
         <span
           key={i}
           ref={(el) => (barsRef.current[i] = el)}
-          className="flex-1 rounded-full bg-gray-400 dark:bg-gray-400/80"
-          style={{ height: "22px", transformOrigin: "center", transform: "scaleY(0.12)", transition: "transform 60ms linear" }}
+          className="flex-1 rounded-full bg-gray-700 dark:bg-white/90"
+          style={{ height: "24px", transformOrigin: "center", transform: "scaleY(0.1)", transition: "transform 70ms linear" }}
         />
       ))}
     </div>
@@ -480,10 +480,6 @@ export default function InputBar() {
       setIsActive(false);
       setIsExpanded(false);
       setShowExpandBtn(false);
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-      }
       setIsListening(false);
       preparedAttachments = uploadedFiles;
       setUploadedFiles([]);
