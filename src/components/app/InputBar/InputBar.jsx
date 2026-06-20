@@ -11,7 +11,7 @@ import Tooltip from "@/components/common/Tooltip";
 import FilePreview from "./FilePreview";
 import { sendChatMessage } from "./sendChatMessage";
 import Icon from "@/components/common/Icon";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Mic } from "lucide-react";
 
 const FILES_LIMIT = 5;
 // Pasting more than this many characters turns the text into a .txt attachment
@@ -46,6 +46,56 @@ function StopBtn({ onClick, className = "" }) {
     >
       <Icon name="stop-circle" size={20} />
     </button>
+  );
+}
+
+// Clean round mic button to start voice input.
+function MicButton({ onClick, className = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Voice input"
+      className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors
+        text-gray-500 dark:text-gray-300
+        hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white ${className}`}
+    >
+      <Mic size={19} strokeWidth={2} />
+    </button>
+  );
+}
+
+// Stop-recording button (active recording state) — blue round with a square.
+function RecordStopButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Stop recording"
+      className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+    >
+      <span className="block w-3 h-3 rounded-[3px] bg-white" />
+    </button>
+  );
+}
+
+// Full-width voice indicator shown across the input bar while recording.
+function FullWaveform() {
+  const bars = Array.from({ length: 48 });
+  return (
+    <div className="flex-1 flex items-center justify-between gap-[2px] h-9 px-2 overflow-hidden">
+      {bars.map((_, i) => (
+        <span
+          key={i}
+          className="flex-1 rounded-full bg-blue-400/80 dark:bg-blue-400"
+          style={{
+            height: "20px",
+            transformOrigin: "center",
+            animation: `waveform-full ${0.7 + ((i % 5) * 0.12)}s ease-in-out ${(i % 7) * 0.07}s infinite`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -563,14 +613,7 @@ export default function InputBar() {
                 ) : isListening ? (
                   <StopBtn onClick={toggleListening} />
                 ) : (
-                  <button
-                    onClick={toggleListening}
-                    type="button"
-                    aria-label="Start voice input"
-                    className="p-2 rounded flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
-                  >
-                    <Icon name="mic" size={20} />
-                  </button>
+                  <MicButton onClick={toggleListening} />
                 )
               )}
               <SendStopButton
@@ -626,73 +669,64 @@ export default function InputBar() {
                 </label>
               </Tooltip>
 
-              {/* ✍️ Textarea */}
-              <textarea
-                ref={inputRef}
-                rows={1}
-                value={inputValue}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  if (e.target.value.trim()) setIsActive(true);
-                }}
-                onFocus={() => setIsActive(true)}
-                onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
-                placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
-                style={{ minWidth: 0 }}
-              />
+              {/* Middle: full-width voice waveform while recording, else textarea */}
+              {isListening ? (
+                <FullWaveform />
+              ) : (
+                <textarea
+                  ref={inputRef}
+                  rows={1}
+                  value={inputValue}
+                  onChange={(e) => {
+                    setInputValue(e.target.value);
+                    if (e.target.value.trim()) setIsActive(true);
+                  }}
+                  onFocus={() => setIsActive(true)}
+                  onBlur={() => { if (!inputValue.trim()) setIsActive(false); }}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  className="flex-1 resize-none bg-transparent outline-none text-base placeholder-gray-400 dark:placeholder-gray-500 min-h-[40px] max-h-[168px] overflow-y-auto custom-scroll py-2.5 px-3"
+                  placeholder={isMobile ? "Ask NaviMind..." : "Ask NaviMind in your language..."}
+                  style={{ minWidth: 0 }}
+                />
+              )}
 
-              {/* Right column: top slot + bottom row */}
-              <div className="flex flex-col items-center self-stretch py-0.5">
-                {/* Top slot: waveform (recording) → expand btn (long text) → spacer */}
-                <div className="flex-1 flex items-start justify-center pt-0.5">
-                  {isListening ? (
-                    <div className="flex items-center justify-center min-h-[24px]">
-                      <Waveform />
-                    </div>
-                  ) : showExpandBtn ? (
-                    <button
-                      onClick={() => setIsExpanded(true)}
-                      className="md:hidden p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
-                      type="button"
-                      aria-label="Expand editor"
-                    >
-                      <Maximize2 size={15} />
-                    </button>
-                  ) : null}
-                </div>
+              {/* Right cluster: mic (default) → mic + send (typed) → stop/spinner */}
+              <div className="flex items-end gap-1 self-end pb-0.5">
+                {/* Expand editor (mobile, long text) */}
+                {!isListening && !isTranscribing && showExpandBtn && (
+                  <button
+                    onClick={() => setIsExpanded(true)}
+                    className="md:hidden p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
+                    type="button"
+                    aria-label="Expand editor"
+                  >
+                    <Maximize2 size={15} />
+                  </button>
+                )}
 
-                {/* Bottom row: mic↔stop toggle + send */}
-                <div className="flex items-center">
-                  {speechSupported && (
-                    isTranscribing ? (
-                      <TranscribingBtn />
-                    ) : isListening ? (
-                      <StopBtn onClick={toggleListening} />
-                    ) : (
-                      <Tooltip content="Voice input" position="top">
-                        <button
-                          onClick={toggleListening}
-                          type="button"
-                          aria-label="Start voice input"
-                          className="p-2 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                        >
-                          <Icon name="mic" size={20} />
-                        </button>
-                      </Tooltip>
-                    )
-                  )}
-                  <Tooltip content={isGenerating ? "Stop" : "Send"} position="top">
-                    <SendStopButton
-                      generating={isGenerating}
-                      onSend={handleSend}
-                      onStop={stopGeneration}
-                      disabled={!inputValue.trim()}
-                    />
+                {isGenerating ? (
+                  <Tooltip content="Stop" position="top">
+                    <SendStopButton generating onStop={stopGeneration} />
                   </Tooltip>
-                </div>
+                ) : isListening ? (
+                  <RecordStopButton onClick={stopRecording} />
+                ) : isTranscribing ? (
+                  <TranscribingBtn />
+                ) : (
+                  <>
+                    {speechSupported && (
+                      <Tooltip content="Voice input" position="top">
+                        <MicButton onClick={startRecording} />
+                      </Tooltip>
+                    )}
+                    {inputValue.trim() && (
+                      <Tooltip content="Send" position="top">
+                        <SendStopButton onSend={handleSend} disabled={false} />
+                      </Tooltip>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
