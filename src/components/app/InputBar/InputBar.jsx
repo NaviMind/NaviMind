@@ -49,6 +49,15 @@ function StopBtn({ onClick, className = "" }) {
   );
 }
 
+// Small spinner shown while the recorded audio is being transcribed.
+function TranscribingBtn() {
+  return (
+    <div className="p-2 flex items-center justify-center" aria-label="Transcribing">
+      <span className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-white/20 border-t-blue-500 dark:border-t-blue-400 animate-spin" />
+    </div>
+  );
+}
+
 // Round Send button that lights up blue on hover; while the assistant is
 // generating it turns into a solid-blue Stop button that aborts generation.
 function SendStopButton({ generating, onSend, onStop, disabled }) {
@@ -116,6 +125,7 @@ export default function InputBar() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showExpandBtn, setShowExpandBtn] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -123,7 +133,9 @@ export default function InputBar() {
   const dragDepthRef = useRef(0);
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const speechBaseRef = useRef("");
 
   const { isFullscreen } = useContext(UIContext);
@@ -176,12 +188,23 @@ export default function InputBar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  /* ───────── SPEECH RECOGNITION SUPPORT CHECK ───────── */
+  /* ───────── VOICE INPUT SUPPORT CHECK (mic recording) ───────── */
   useEffect(() => {
     setSpeechSupported(
       typeof window !== "undefined" &&
-      !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+      !!navigator?.mediaDevices?.getUserMedia &&
+      typeof window.MediaRecorder !== "undefined"
     );
+  }, []);
+
+  /* ───────── STOP MIC ON UNMOUNT ───────── */
+  useEffect(() => {
+    return () => {
+      try {
+        mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop();
+      } catch { /* noop */ }
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
   /* ───────── RESPONSIVE PLACEHOLDER ───────── */
@@ -236,47 +259,83 @@ export default function InputBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedFiles]);
 
-  /* ───────── SPEECH TOGGLE ───────── */
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
+  /* ───────── VOICE INPUT (OpenAI transcription) ───────── */
+  // Records mic audio, then sends it to /api/transcribe (OpenAI) and inserts the
+  // returned text into the input — replaces the browser's Web Speech API.
+  const startRecording = async () => {
+    if (isTranscribing || isListening) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
 
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = handleRecordingStop;
+      mediaRecorderRef.current = recorder;
 
-    const recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = navigator.language || "en-US";
-
-    speechBaseRef.current = inputValue;
-
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-      const base = speechBaseRef.current;
-      const sep = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
-      setInputValue(base + sep + transcript);
-      setIsActive(true);
-    };
-
-    recognition.onend = () => {
+      speechBaseRef.current = inputValue;
+      recorder.start();
+      setIsListening(true);
+    } catch (err) {
+      // Permission denied / no mic — just reset.
       setIsListening(false);
-      recognitionRef.current = null;
-    };
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+  };
 
-    recognition.onerror = (e) => {
-      if (e.error !== "aborted") setIsListening(false);
-      recognitionRef.current = null;
-    };
+  const stopRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    setIsListening(false);
+  };
 
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
+  const handleRecordingStop = async () => {
+    // Release the mic.
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+
+    const chunks = audioChunksRef.current;
+    audioChunksRef.current = [];
+    const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+    mediaRecorderRef.current = null;
+
+    if (!chunks.length) return;
+    const blob = new Blob(chunks, { type: mimeType });
+    if (blob.size === 0) return;
+
+    setIsTranscribing(true);
+    try {
+      const ext = mimeType.includes("mp4") || mimeType.includes("mpeg") ? "mp4" : "webm";
+      const fd = new FormData();
+      fd.append("file", blob, `audio.${ext}`);
+
+      const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      const text = (data?.text || "").trim();
+
+      if (text) {
+        const base = speechBaseRef.current;
+        const sep = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
+        const next = base + sep + text;
+        setInputValue(next);
+        speechBaseRef.current = next;
+        setIsActive(true);
+        inputRef.current?.focus();
+      }
+    } catch (err) {
+      /* silent */
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const toggleListening = () => {
+    if (isListening) stopRecording();
+    else startRecording();
   };
 
   /* ───────── HANDLERS ───────── */
@@ -499,7 +558,9 @@ export default function InputBar() {
             {/* Right: mic/stop + send */}
             <div className="flex items-center gap-1">
               {speechSupported && (
-                isListening ? (
+                isTranscribing ? (
+                  <TranscribingBtn />
+                ) : isListening ? (
                   <StopBtn onClick={toggleListening} />
                 ) : (
                   <button
@@ -606,7 +667,9 @@ export default function InputBar() {
                 {/* Bottom row: mic↔stop toggle + send */}
                 <div className="flex items-center">
                   {speechSupported && (
-                    isListening ? (
+                    isTranscribing ? (
+                      <TranscribingBtn />
+                    ) : isListening ? (
                       <StopBtn onClick={toggleListening} />
                     ) : (
                       <Tooltip content="Voice input" position="top">
