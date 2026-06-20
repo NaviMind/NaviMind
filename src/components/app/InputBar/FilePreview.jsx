@@ -1,4 +1,5 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
+import { getViewerSrc, getFileUrl, DocViewerModal } from "../MessageAttachments";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function getFileExt(name = "") {
@@ -101,6 +102,20 @@ function DocStatus({ status }) {
 
 export default function FilePreview({ files, onRemove }) {
   const scrollRef = useRef(null);
+  const [activeImage, setActiveImage] = useState(null);
+  const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
+
+  // Open an already-uploaded attachment in the same viewer used in messages.
+  const openDoc = (entry) => {
+    if (!entry.url) return;
+    const meta = { name: entry.name, type: entry.type, url: entry.url };
+    const src = getViewerSrc(meta);
+    if (src) setActiveDoc({ src, url: getFileUrl(meta), name: entry.name });
+  };
+  const openImage = (entry) => {
+    const url = entry.url || (entry.file ? URL.createObjectURL(entry.file) : "");
+    if (url) setActiveImage(url);
+  };
 
   // Прокручиваем горизонтально при вращении колесика
   const handleWheel = (e) => {
@@ -131,7 +146,8 @@ export default function FilePreview({ files, onRemove }) {
           return (
             <div
               key={entry.id}
-              className="relative flex items-center justify-center w-[72px] h-[72px] min-w-[72px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0"
+              onClick={() => openImage(entry)}
+              className="relative flex items-center justify-center w-[72px] h-[72px] min-w-[72px] bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer"
             >
               {previewUrl && (
                 <img
@@ -148,7 +164,7 @@ export default function FilePreview({ files, onRemove }) {
                 </div>
               )}
               <RemoveBtn
-                onClick={() => onRemove(entry.id)}
+                onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
                 className="absolute top-1 right-1 text-xs px-1 min-w-[20px] min-h-[20px]"
               />
             </div>
@@ -161,7 +177,8 @@ export default function FilePreview({ files, onRemove }) {
         return (
           <div
             key={entry.id}
-            className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0 overflow-hidden"
+            onClick={() => openDoc(entry)}
+            className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0 overflow-hidden cursor-pointer transition-colors"
           >
             {/* Processing overlay — % while uploading, spinner while indexing */}
             {busy && (
@@ -191,12 +208,37 @@ export default function FilePreview({ files, onRemove }) {
             </div>
 
             <RemoveBtn
-              onClick={() => onRemove(entry.id)}
+              onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
               className="absolute top-1 right-1 text-[10px] w-[18px] h-[18px]"
             />
           </div>
         );
       })}
+
+      {/* Image lightbox */}
+      {activeImage && (
+        <div
+          onClick={() => setActiveImage(null)}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        >
+          <button
+            onClick={() => setActiveImage(null)}
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+          <img
+            src={activeImage}
+            alt="preview"
+            className="max-w-[95vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Document viewer (PDF / Word / Excel / PPT / text) */}
+      <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
     </div>
   );
 }
