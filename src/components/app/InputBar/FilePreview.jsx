@@ -28,11 +28,54 @@ function RemoveBtn({ onClick, className = "" }) {
   );
 }
 
-// Tiny spinner shown while a file is uploading / being indexed.
+// Tiny spinner shown while a file is being indexed (no measurable progress).
 function Spinner({ className = "" }) {
   return (
     <span
       className={`inline-block rounded-full border-2 border-white/30 border-t-white animate-spin ${className}`}
+    />
+  );
+}
+
+// Circular progress ring with a percentage label — real byte-level upload %.
+function CircularProgress({ percent = 0, size = 30, tone = "dark" }) {
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(Math.max(percent, 0), 100);
+  const offset = circ - (pct / 100) * circ;
+  const trackClass = tone === "light" ? "text-white/30" : "text-gray-300 dark:text-white/20";
+  const textClass = tone === "light" ? "text-white" : "text-gray-700 dark:text-white";
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="currentColor" strokeWidth={stroke} fill="none" className={trackClass} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="currentColor"
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="text-blue-500 transition-[stroke-dashoffset] duration-200"
+        />
+      </svg>
+      <span className={`absolute text-[8px] font-semibold ${textClass}`}>{pct}%</span>
+    </div>
+  );
+}
+
+// Overlay content: real % while uploading, indeterminate spinner while indexing.
+function ProcessingIndicator({ status, progress, tone = "dark" }) {
+  if (status === "uploading") {
+    return <CircularProgress percent={progress || 0} tone={tone} />;
+  }
+  return (
+    <Spinner
+      className={tone === "light" ? "w-5 h-5" : "w-5 h-5 !border-blue-500/30 !border-t-blue-500"}
     />
   );
 }
@@ -101,10 +144,10 @@ export default function FilePreview({ files, onRemove }) {
                   draggable={false}
                 />
               )}
-              {/* Uploading overlay */}
+              {/* Processing overlay — % while uploading, spinner while indexing */}
               {busy && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <Spinner className="w-5 h-5" />
+                <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
+                  <ProcessingIndicator status={entry.status} progress={entry.progress} tone="light" />
                 </div>
               )}
               <RemoveBtn
@@ -123,10 +166,10 @@ export default function FilePreview({ files, onRemove }) {
             key={entry.id}
             className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0 overflow-hidden"
           >
-            {/* Processing overlay — spinner on top of the file card */}
+            {/* Processing overlay — % while uploading, spinner while indexing */}
             {busy && (
-              <div className="absolute inset-0 z-[5] bg-white/60 dark:bg-gray-900/60 backdrop-blur-[1px] flex items-center justify-center">
-                <Spinner className="w-5 h-5 !border-blue-500/30 !border-t-blue-500" />
+              <div className="absolute inset-0 z-[5] bg-white/70 dark:bg-gray-900/70 backdrop-blur-[1px] flex items-center justify-center">
+                <ProcessingIndicator status={entry.status} progress={entry.progress} tone="dark" />
               </div>
             )}
             {/* Type badge */}

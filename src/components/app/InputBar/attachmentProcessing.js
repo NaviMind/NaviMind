@@ -1,16 +1,34 @@
 import { storage } from "@/firebase/config";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 // Upload a file to Storage at attach time. The path is chat-independent (a new
 // chat may not exist yet when the user attaches) — the message stores the URL,
-// so folder layout doesn't matter functionally.
-export async function uploadFileToStorage({ uid, file }) {
+// so folder layout doesn't matter functionally. `onProgress(percent)` reports
+// real byte-level upload progress (0–100).
+export function uploadFileToStorage({ uid, file, onProgress }) {
   const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const path = `users/${uid}/uploads/${uniqueSuffix}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
-  return { name: file.name, type: file.type, url, path };
+  const task = uploadBytesResumable(ref(storage, path), file);
+
+  return new Promise((resolve, reject) => {
+    task.on(
+      "state_changed",
+      (snap) => {
+        if (onProgress && snap.totalBytes) {
+          onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100));
+        }
+      },
+      reject,
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          resolve({ name: file.name, type: file.type, url, path });
+        } catch (e) {
+          reject(e);
+        }
+      }
+    );
+  });
 }
 
 // Index already-uploaded documents into a scope's vector store via /api/library.

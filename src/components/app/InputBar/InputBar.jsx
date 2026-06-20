@@ -557,10 +557,16 @@ export default function InputBar() {
     await Promise.all(
       entries.map(async (e) => {
         try {
-          const meta = await uploadFileToStorage({ uid, file: e.file });
+          const meta = await uploadFileToStorage({
+            uid,
+            file: e.file,
+            onProgress: (percent) =>
+              patchEntry(e.id, { status: "uploading", progress: percent }),
+          });
           e.url = meta.url;
           e.path = meta.path;
-          patchEntry(e.id, { url: meta.url, path: meta.path, status: "indexing" });
+          // Upload done → indexing phase (no measurable %, indeterminate).
+          patchEntry(e.id, { url: meta.url, path: meta.path, status: "indexing", progress: 100 });
         } catch {
           e.failed = true;
           patchEntry(e.id, { status: "error" });
@@ -783,6 +789,7 @@ export default function InputBar() {
       type: file.type,
       isImage: file.type.startsWith("image/"),
       status: "uploading",
+      progress: 0,
       url: "",
       path: "",
       openaiFileId: null,
