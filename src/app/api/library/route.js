@@ -117,3 +117,50 @@ export async function POST(req) {
     return Response.json({ error: "Bad request" }, { status: 400 });
   }
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// DELETE /api/library
+//
+// Tears down a scope's documents from OpenAI. Deleting a vector store does NOT
+// delete the underlying files (they keep costing storage), so we delete both:
+// every file, then the store itself.
+//
+// Body: { vectorStoreId?: string, fileIds?: string[] }
+// Returns: { deletedFiles: number, deletedStore: boolean }
+// ───────────────────────────────────────────────────────────────────────────
+export async function DELETE(req) {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      return Response.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
+    }
+
+    const { vectorStoreId = "", fileIds = [] } = await req.json();
+
+    let deletedFiles = 0;
+    for (const id of Array.isArray(fileIds) ? fileIds : []) {
+      if (!id) continue;
+      try {
+        await openai.files.delete(id);
+        deletedFiles += 1;
+      } catch (e) {
+        // Already gone / not found — fine, keep going.
+        console.warn("library delete: file", id, e?.message);
+      }
+    }
+
+    let deletedStore = false;
+    if (vectorStoreId && vectorStores) {
+      try {
+        await vectorStores.delete(vectorStoreId);
+        deletedStore = true;
+      } catch (e) {
+        console.warn("library delete: store", vectorStoreId, e?.message);
+      }
+    }
+
+    return Response.json({ deletedFiles, deletedStore });
+  } catch (error) {
+    console.error("library delete route error:", error);
+    return Response.json({ error: "Bad request" }, { status: 400 });
+  }
+}

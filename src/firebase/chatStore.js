@@ -432,6 +432,21 @@ export async function getLibraryFiles({ uid, topicId = null }) {
   }
 }
 
+// Delete all library file records for a scope (used on topic deletion, after
+// the underlying OpenAI files/store have been torn down).
+export async function deleteLibraryFileRecords({ uid, topicId = null }) {
+  if (!uid) return;
+  const colRef = topicId
+    ? collection(db, "users", uid, "topics", topicId, "libraryFiles")
+    : collection(db, "users", uid, "libraryFiles");
+  try {
+    const snap = await getDocs(colRef);
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  } catch (e) {
+    console.error("❌ Failed to delete library file records:", e);
+  }
+}
+
 // Record each indexed file so we can map citations back to an openable file and
 // clean it up later. Topic files live under the topic; global chat files live
 // under the user (with a chatId tag) and are subject to TTL cleanup.

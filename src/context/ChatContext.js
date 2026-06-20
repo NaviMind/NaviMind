@@ -1,6 +1,6 @@
 "use client";
 
-import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats, renameTopicInFirestore } from "@/firebase/chatStore";
+import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats, renameTopicInFirestore, getTopicData, getLibraryFiles, deleteLibraryFileRecords } from "@/firebase/chatStore";
 import { createContext, useEffect, useState, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
@@ -245,6 +245,29 @@ useEffect(() => {
   if (!user) return;
 
   try {
+    // 🧹 Tear down the topic's File Search documents in OpenAI first (the
+    // vector store + every uploaded file), then drop the local records. Done
+    // before deleting the topic doc so we can still read the ids.
+    try {
+      const [topicData, libFiles] = await Promise.all([
+        getTopicData(user.uid, id),
+        getLibraryFiles({ uid: user.uid, topicId: id }),
+      ]);
+      const vectorStoreId = topicData?.vectorStoreId || "";
+      const fileIds = libFiles.map((f) => f.openaiFileId).filter(Boolean);
+
+      if (vectorStoreId || fileIds.length > 0) {
+        await fetch("/api/library", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vectorStoreId, fileIds }),
+        }).catch(() => {});
+        await deleteLibraryFileRecords({ uid: user.uid, topicId: id });
+      }
+    } catch (cleanupErr) {
+      console.warn("Topic library cleanup failed:", cleanupErr);
+    }
+
     // 🗑 Удаляем документ топика из Firestore
     await deleteDoc(doc(db, "users", user.uid, "topics", id));
 
