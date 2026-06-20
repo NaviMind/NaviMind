@@ -80,6 +80,8 @@ export async function sendChatMessage({
   setStreamingMessage,
   clearStreamingMessage,
   setPendingSend,
+  beginGeneration,
+  endGeneration,
   vesselProfile = null,
 }) {
   if (!message?.trim()) return;
@@ -91,6 +93,7 @@ export async function sendChatMessage({
   let chatId = activeChatId;
   const isNewChat = !chatId;
   let aiMessageId;
+  let genAbortController = null;
 
   const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}`;
 
@@ -272,6 +275,11 @@ if (inTopic) {
   setPendingSend?.(null);
 
   // ───────── AI REQUEST ─────────
+  // AbortController lets the user stop generation; signal is passed to fetch.
+  genAbortController = new AbortController();
+  beginGeneration?.(genAbortController, chatId);
+  let aborted = false;
+
   const res = await fetch("/api/rag", {
     method: "POST",
     headers: {
@@ -288,18 +296,19 @@ if (inTopic) {
       topicInstruction,
       topicMemory,
     }),
+    signal: genAbortController.signal,
   });
 
   const contentType = res.headers.get("content-type") || "";
   let finalText = "";
   let sources = [];
+  let streamedSources = [];
 
 if (res.body && contentType.includes("text/event-stream")) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
 
   let buffer = "";
-  let streamedSources = [];
 
   // Live streaming → push tokens into the context overlay, throttled to one
   // update per animation frame. The trailing [[CITED_FILES:...]] marker is
@@ -324,6 +333,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // Enter "streaming" state immediately so the UI shows the thinking spinner.
   if (setStreamingMessage && aiMessageId) setStreamingMessage(aiMessageId, "");
 
+  try {
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -370,6 +380,15 @@ if (res.body && contentType.includes("text/event-stream")) {
       }
     }
   }
+  } catch (streamErr) {
+    // User pressed Stop → keep whatever was generated so far (graceful).
+    if (genAbortController.signal.aborted) {
+      aborted = true;
+      try { await reader.cancel(); } catch { /* noop */ }
+    } else {
+      throw streamErr;
+    }
+  }
 
   // ── Inline source citations ──
   // The model places inline markers right after each claim it draws from an
@@ -404,7 +423,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
-  content: finalText || " ",
+  content: finalText || (aborted ? "⏹️ Stopped." : " "),
   sources: streamedSources,
   fileSources,
 };
@@ -482,22 +501,38 @@ if (!summaryLocks.has(summaryKey)) {
   }
 
   } catch (err) {
-    console.error("❌ sendChatMessage error:", err);
-    // Clear optimistic + live overlays so the UI falls back to persisted state.
     setPendingSend?.(null);
-    if (aiMessageId) clearStreamingMessage?.(aiMessageId);
-    // Replace the stuck placeholder so the user isn't left with an infinite spinner
-    if (aiMessageId && chatId) {
-      try {
-        const errPayload = { content: `⚠️ Error: ${err?.message || "Something went wrong. Please try again."}` };
-        if (inTopic && topicId) {
-          await updateTopicChatMessage(topicId, chatId, aiMessageId, errPayload);
-        } else {
-          await updateGlobalChatMessage(chatId, aiMessageId, errPayload);
-        }
-      } catch { /* silent */ }
+    // Stop pressed before any answer streamed → don't show an error, just tidy up.
+    if (genAbortController?.signal.aborted) {
+      if (aiMessageId) clearStreamingMessage?.(aiMessageId);
+      if (aiMessageId && chatId) {
+        try {
+          const stopPayload = { content: "⏹️ Stopped." };
+          if (inTopic && topicId) {
+            await updateTopicChatMessage(topicId, chatId, aiMessageId, stopPayload);
+          } else {
+            await updateGlobalChatMessage(chatId, aiMessageId, stopPayload);
+          }
+        } catch { /* silent */ }
+      }
+    } else {
+      console.error("❌ sendChatMessage error:", err);
+      // Clear live overlay so the UI falls back to persisted state.
+      if (aiMessageId) clearStreamingMessage?.(aiMessageId);
+      // Replace the stuck placeholder so the user isn't left with an infinite spinner
+      if (aiMessageId && chatId) {
+        try {
+          const errPayload = { content: `⚠️ Error: ${err?.message || "Something went wrong. Please try again."}` };
+          if (inTopic && topicId) {
+            await updateTopicChatMessage(topicId, chatId, aiMessageId, errPayload);
+          } else {
+            await updateGlobalChatMessage(chatId, aiMessageId, errPayload);
+          }
+        } catch { /* silent */ }
+      }
     }
   } finally {
+    endGeneration?.();
     sendLocks.delete(sendKey);
   }
 }

@@ -49,6 +49,37 @@ function StopBtn({ onClick, className = "" }) {
   );
 }
 
+// Round Send button that lights up blue on hover; while the assistant is
+// generating it turns into a solid-blue Stop button that aborts generation.
+function SendStopButton({ generating, onSend, onStop, disabled }) {
+  if (generating) {
+    return (
+      <button
+        type="button"
+        onClick={onStop}
+        aria-label="Stop generating"
+        className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+      >
+        <span className="block w-3 h-3 rounded-[3px] bg-white" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onSend}
+      disabled={disabled}
+      aria-label="Send"
+      className="flex items-center justify-center w-9 h-9 rounded-full transition-colors
+        bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300
+        hover:bg-blue-600 hover:text-white
+        disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-gray-100 dark:disabled:hover:bg-white/10 disabled:hover:text-gray-500"
+    >
+      <Icon name="arrow-send" size={18} />
+    </button>
+  );
+}
+
 export default function InputBar() {
   const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
   const pathname = usePathname();
@@ -67,7 +98,15 @@ export default function InputBar() {
     setStreamingMessage,
     clearStreamingMessage,
     setPendingSend,
+    generatingChatId,
+    beginGeneration,
+    endGeneration,
+    stopGeneration,
   } = useContext(ChatContext);
+
+  const isGenerating =
+    generatingChatId != null &&
+    (generatingChatId === activeChatId || generatingChatId === true);
 
   const [inputValue, setInputValue] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -279,6 +318,8 @@ export default function InputBar() {
       setStreamingMessage,
       clearStreamingMessage,
       setPendingSend,
+      beginGeneration,
+      endGeneration,
       vesselProfile: vesselProfileData || null,
     });
   };
@@ -471,15 +512,12 @@ export default function InputBar() {
                   </button>
                 )
               )}
-              <button
-                onClick={handleSend}
+              <SendStopButton
+                generating={isGenerating}
+                onSend={handleSend}
+                onStop={stopGeneration}
                 disabled={!inputValue.trim()}
-                className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white transition"
-                type="button"
-                aria-label="Send"
-              >
-                <Icon name="arrow-send" size={20} />
-              </button>
+              />
             </div>
           </div>
 
@@ -583,14 +621,13 @@ export default function InputBar() {
                       </Tooltip>
                     )
                   )}
-                  <Tooltip content="Send" position="top">
-                    <button
-                      onClick={handleSend}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  <Tooltip content={isGenerating ? "Stop" : "Send"} position="top">
+                    <SendStopButton
+                      generating={isGenerating}
+                      onSend={handleSend}
+                      onStop={stopGeneration}
                       disabled={!inputValue.trim()}
-                    >
-                      <Icon name="arrow-send" size={20} />
-                    </button>
+                    />
                   </Tooltip>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats, renameTopicInFirestore } from "@/firebase/chatStore";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { db } from "@/firebase/config";
@@ -47,6 +47,22 @@ export function ChatProvider({ children }) {
       delete next[id];
       return next;
     });
+
+  // Generation control: lets the UI show a Stop button and abort the in-flight
+  // answer. generatingChatId marks which chat is currently generating.
+  const generationAbortRef = useRef(null);
+  const [generatingChatId, setGeneratingChatId] = useState(null);
+  const beginGeneration = (controller, chatId) => {
+    generationAbortRef.current = controller;
+    setGeneratingChatId(chatId ?? true);
+  };
+  const endGeneration = () => {
+    generationAbortRef.current = null;
+    setGeneratingChatId(null);
+  };
+  const stopGeneration = () => {
+    try { generationAbortRef.current?.abort(); } catch { /* noop */ }
+  };
 
   const clearAllChats = () => {
     setProjectChatSessions({});
@@ -378,6 +394,10 @@ useEffect(() => {
     setIsLoadingMessages,
     pendingSend,
     setPendingSend,
+    generatingChatId,
+    beginGeneration,
+    endGeneration,
+    stopGeneration,
     streamingMessages,
     setStreamingMessage,
     clearStreamingMessage,
