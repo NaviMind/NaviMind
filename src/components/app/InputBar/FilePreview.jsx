@@ -83,7 +83,7 @@ function ProcessingIndicator({ status, progress, tone = "dark" }) {
 }
 
 // Status line under a document pill: indexing / ready / failed / not searchable.
-function DocStatus({ status }) {
+function DocStatus({ status, onRetry }) {
   if (status === "uploading" || status === "indexing") {
     return (
       <span className="flex items-center gap-1 text-[10px] text-gray-400">
@@ -96,12 +96,25 @@ function DocStatus({ status }) {
     return <span className="text-[10px] text-amber-500">Not searchable</span>;
   }
   if (status === "error") {
-    return <span className="text-[10px] text-red-500">Failed</span>;
+    return (
+      <span className="flex items-center gap-1.5 text-[10px] text-red-500">
+        Failed
+        {onRetry && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRetry(); }}
+            className="font-semibold text-blue-500 hover:text-blue-600 underline"
+          >
+            Retry
+          </button>
+        )}
+      </span>
+    );
   }
   return null;
 }
 
-export default function FilePreview({ files, onRemove }) {
+export default function FilePreview({ files, onRemove, onRetry }) {
   const scrollRef = useRef(null);
   const [activeImage, setActiveImage] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
@@ -172,6 +185,17 @@ export default function FilePreview({ files, onRemove }) {
                   <ProcessingIndicator status={entry.status} progress={entry.progress} tone="light" />
                 </div>
               )}
+              {/* Error overlay — tap to retry */}
+              {entry.status === "error" && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onRetry?.(entry.id); }}
+                  className="absolute inset-0 bg-red-900/55 flex flex-col items-center justify-center text-white text-[10px] font-semibold gap-0.5"
+                >
+                  <span>Failed</span>
+                  <span className="underline">Retry</span>
+                </button>
+              )}
               <RemoveBtn
                 onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
                 className="absolute top-1 right-1 text-xs px-1 min-w-[20px] min-h-[20px]"
@@ -212,7 +236,7 @@ export default function FilePreview({ files, onRemove }) {
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
                   {label}
                 </span>
-                <DocStatus status={entry.status} />
+                <DocStatus status={entry.status} onRetry={() => onRetry?.(entry.id)} />
               </div>
             </div>
 

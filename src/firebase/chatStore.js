@@ -481,6 +481,7 @@ export async function addLibraryFileRecords({ uid, topicId = null, chatId, files
           url: f.url || "",
           openaiFileId: f.openaiFileId,
           vectorStoreId: f.vectorStoreId || "",
+          hash: f.hash || "",
           chatId: chatId || null,
           addedAt: serverTimestamp(),
         })

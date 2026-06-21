@@ -280,6 +280,8 @@ sendLocks.add(sendKey);
       path: a.path,
       openaiFileId: a.openaiFileId,
       vectorStoreId: a.vectorStoreId,
+      hash: a.hash || "",
+      reused: !!a.reused,
     }));
 
   // Document names are sent so the model knows which files it may cite.
@@ -338,13 +340,15 @@ if (inTopic) {
 
   // ───────── RECORD LIBRARY FILES ─────────
   // Indexing happened on attach; here we just persist a record of each indexed
-  // doc (now that chatId exists) for citation-mapping and TTL cleanup.
-  if (searchableDocs.length > 0) {
+  // doc (now that chatId exists) for citation-mapping, dedup and TTL cleanup.
+  // Reused (deduped) files already have a record — don't duplicate it.
+  const docsToRecord = searchableDocs.filter((d) => !d.reused);
+  if (docsToRecord.length > 0) {
     addLibraryFileRecords({
       uid: currentUser.uid,
       topicId: inTopic ? topicId : null,
       chatId,
-      files: searchableDocs.map((d) => ({ ...d, vectorStoreId })),
+      files: docsToRecord.map((d) => ({ ...d, vectorStoreId })),
     }).catch(() => {});
   }
 

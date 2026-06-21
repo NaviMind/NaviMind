@@ -14,12 +14,15 @@ import {
   uploadFileToStorage,
   indexDocuments,
   expireIndexedFile,
+  hashFile,
+  withRetry,
 } from "./attachmentProcessing";
 import {
   getTopicData,
   getUserLibraryStoreId,
   setTopicVectorStoreId,
   setUserLibraryStoreId,
+  getLibraryFiles,
 } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
 import { Maximize2, Minimize2, Mic, Check, X } from "lucide-react";
@@ -552,17 +555,56 @@ export default function InputBar() {
       return;
     }
 
-    // 1) Upload all to Storage in parallel, then everything (docs AND images)
-    //    goes through processing — images are OCR'd + classified server-side.
+    // 0) Dedup by content hash — if an identical file already lives in this
+    //    scope's library, reuse it (no re-upload, no re-index, no re-OCR).
+    let priorByHash = new Map();
+    try {
+      const prior = await getLibraryFiles({ uid, topicId });
+      priorByHash = new Map(prior.filter((f) => f.hash).map((f) => [f.hash, f]));
+    } catch { /* silent */ }
+
     await Promise.all(
       entries.map(async (e) => {
-        try {
-          const meta = await uploadFileToStorage({
-            uid,
-            file: e.file,
-            onProgress: (percent) =>
-              patchEntry(e.id, { status: "uploading", progress: percent }),
+        e.hash = await hashFile(e.file);
+        const dup = e.hash && priorByHash.get(e.hash);
+        if (dup?.openaiFileId) {
+          e.url = dup.url;
+          e.openaiFileId = dup.openaiFileId;
+          e.vectorStoreId = dup.vectorStoreId;
+          e.visualRequired = dup.visualRequired;
+          e.reused = true;
+          if (dup.vectorStoreId) storeIdRef.current = dup.vectorStoreId;
+          patchEntry(e.id, {
+            url: dup.url,
+            openaiFileId: dup.openaiFileId,
+            vectorStoreId: dup.vectorStoreId,
+            visualRequired: dup.visualRequired,
+            status: "ready",
+            reused: true,
+            progress: 100,
           });
+        }
+      })
+    );
+
+    // 1) Upload the rest to Storage (with retry on transient failures).
+    const fresh = entries.filter((e) => !e.reused);
+    await Promise.all(
+      fresh.map(async (e) => {
+        // Already uploaded (e.g. retry after an indexing failure) → skip upload.
+        if (e.url) {
+          patchEntry(e.id, { status: "indexing", progress: 100 });
+          return;
+        }
+        try {
+          const meta = await withRetry(() =>
+            uploadFileToStorage({
+              uid,
+              file: e.file,
+              onProgress: (percent) =>
+                patchEntry(e.id, { status: "uploading", progress: percent }),
+            })
+          );
           e.url = meta.url;
           e.path = meta.path;
           // Upload done → indexing phase (no measurable %, indeterminate).
@@ -574,17 +616,19 @@ export default function InputBar() {
       })
     );
 
-    // 2) Index the batch (docs + images) in one call.
-    const items = entries.filter((e) => !e.failed && e.url);
+    // 2) Index the batch (docs + images) in one call (with retry).
+    const items = fresh.filter((e) => !e.failed && e.url);
     if (items.length === 0) return;
 
     const storeId = await resolveStoreId(uid);
     try {
-      const data = await indexDocuments({
-        vectorStoreId: storeId,
-        label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
-        docs: items,
-      });
+      const data = await withRetry(() =>
+        indexDocuments({
+          vectorStoreId: storeId,
+          label: inTopic ? `Topic ${topicId}` : `Library ${uid}`,
+          docs: items,
+        })
+      );
 
       const newStoreId = data?.vectorStoreId || storeId;
       if (newStoreId) {
@@ -623,6 +667,16 @@ export default function InputBar() {
     } catch {
       items.forEach((d) => patchEntry(d.id, { status: "error" }));
     }
+  };
+
+  // Manual retry for a file whose processing failed (instead of a silent fail).
+  const retryEntry = (id) => {
+    const entry = filesRef.current.find((e) => e.id === id);
+    if (!entry?.file) return;
+    entry.failed = false;
+    entry.reused = false;
+    patchEntry(id, { status: entry.url ? "indexing" : "uploading", progress: entry.url ? 100 : 0 });
+    processBatch([entry]);
   };
 
   /* ───────── HANDLERS ───────── */
@@ -918,7 +972,7 @@ export default function InputBar() {
               ${isActive ? "border-blue-400 dark:border-blue-500 animate-glow" : ""}`}
           >
             {/* Uploaded Files Preview */}
-            <FilePreview files={uploadedFiles} onRemove={removeFile} />
+            <FilePreview files={uploadedFiles} onRemove={removeFile} onRetry={retryEntry} />
 
             {/* INPUT ROW */}
             <div className="flex items-end w-full gap-1 px-1">

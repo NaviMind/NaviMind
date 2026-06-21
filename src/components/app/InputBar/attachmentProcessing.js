@@ -1,6 +1,36 @@
 import { storage } from "@/firebase/config";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
+// SHA-256 of the file's bytes — used to skip re-uploading/re-indexing (and
+// re-OCR'ing) a file that's already in the scope's library.
+export async function hashFile(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return "";
+  }
+}
+
+// Retry a flaky async op a few times with linear backoff (network blips).
+export async function withRetry(fn, attempts = 3, baseDelay = 600) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, baseDelay * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // Upload a file to Storage at attach time. The path is chat-independent (a new
 // chat may not exist yet when the user attaches) — the message stores the URL,
 // so folder layout doesn't matter functionally. `onProgress(percent)` reports
