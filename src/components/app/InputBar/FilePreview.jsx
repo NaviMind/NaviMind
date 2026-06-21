@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { getViewerSrc, getFileUrl, DocViewerModal } from "../MessageAttachments";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -104,6 +105,8 @@ export default function FilePreview({ files, onRemove }) {
   const scrollRef = useRef(null);
   const [activeImage, setActiveImage] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Open an already-uploaded attachment in the same viewer used in messages.
   const openDoc = (entry) => {
@@ -215,30 +218,38 @@ export default function FilePreview({ files, onRemove }) {
         );
       })}
 
-      {/* Image lightbox */}
-      {activeImage && (
-        <div
-          onClick={() => setActiveImage(null)}
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-        >
-          <button
-            onClick={() => setActiveImage(null)}
-            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-          <img
-            src={activeImage}
-            alt="preview"
-            className="max-w-[95vw] max-h-[90vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {/* Viewers are portalled to <body> so `position: fixed` escapes the input
+          bar's backdrop-blur containing block and covers the full viewport —
+          exactly like attachments opened from the chat area. */}
+      {mounted &&
+        createPortal(
+          <>
+            {activeImage && (
+              <div
+                onClick={() => setActiveImage(null)}
+                className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+              >
+                <button
+                  onClick={() => setActiveImage(null)}
+                  className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+                <img
+                  src={activeImage}
+                  alt="preview"
+                  className="max-w-[95vw] max-h-[90vh] object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
 
-      {/* Document viewer (PDF / Word / Excel / PPT / text) */}
-      <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
+            {/* Document viewer (PDF / Word / Excel / PPT / text) */}
+            <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
+          </>,
+          document.body
+        )}
     </div>
   );
 }
