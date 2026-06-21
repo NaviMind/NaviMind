@@ -1,12 +1,13 @@
 "use client";
 
 import { useContext, useState, createRef, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatItem from "./ChatItem";
 import Icon from "@/components/common/Icon";
-import { togglePinTopic, deleteChatFromFirestore } from "@/firebase/chatStore";
+import { togglePinTopic, deleteChatFromFirestore, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 
 export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = false }) {
@@ -40,6 +41,38 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
 
   const anchorRefs = useRef({});
   const router = useRouter();
+
+  // ── Topic instructions modal ──
+  const [instrTopic, setInstrTopic] = useState(null);
+  const [instrText, setInstrText] = useState("");
+  const [savingInstr, setSavingInstr] = useState(false);
+
+  // Open a fresh chat inside a topic (chat is created on first message).
+  const handleNewChatInTopic = (projId) => {
+    setActiveProject(projId);
+    setActiveChatId(null);
+    router.push(`/app/projects/${projId}`);
+    onSidebarItemClick?.();
+  };
+
+  const openInstructions = (projId) => {
+    setInstrText(customProjects?.[projId]?.description || "");
+    setInstrTopic(projId);
+  };
+
+  const saveInstructions = async () => {
+    const user = auth.currentUser;
+    if (!user || !instrTopic) return;
+    setSavingInstr(true);
+    try {
+      await updateTopicDescription(user.uid, instrTopic, instrText.trim());
+    } catch (e) {
+      console.error("Failed to save topic instructions:", e);
+    } finally {
+      setSavingInstr(false);
+      setInstrTopic(null);
+    }
+  };
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -367,6 +400,14 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                   isOpen={isDropdownOpen}
                   isTopic
                   initialIsPinned={!!proj.isPinned}
+                  onNewChat={() => {
+                    handleNewChatInTopic(projId);
+                    setOpenMenu(null);
+                  }}
+                  onEditInstructions={() => {
+                    openInstructions(projId);
+                    setOpenMenu(null);
+                  }}
                   onEnterSelectMode={() => {
                     enterTopicSelectMode(projId);
                     setOpenMenu(null);
@@ -470,6 +511,54 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
           {showAllTopics ? "Show less" : "Show more"}
         </button>
       )}
+
+      {/* ── Topic instructions modal ── */}
+      {instrTopic && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget && !savingInstr) setInstrTopic(null); }}
+          >
+            <div className="w-full max-w-md bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 flex flex-col gap-3">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                Topic instructions
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
+                Context the assistant applies to every chat in “{customProjects?.[instrTopic]?.name || "this topic"}”.
+              </p>
+              <textarea
+                value={instrText}
+                onChange={(e) => setInstrText(e.target.value)}
+                rows={6}
+                autoFocus
+                placeholder="e.g. We're a Panama-flagged LPG carrier preparing for a SIRE 2.0 inspection. Focus on cargo ops and respond in Russian."
+                className="w-full resize-none rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-400 dark:focus:border-blue-500 custom-scroll"
+              />
+              <div className="flex justify-end gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setInstrTopic(null)}
+                  disabled={savingInstr}
+                  className="px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/15 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-60 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveInstructions}
+                  disabled={savingInstr}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-60 transition-colors"
+                >
+                  {savingInstr && (
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  )}
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 }

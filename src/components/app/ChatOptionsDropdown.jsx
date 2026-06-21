@@ -11,7 +11,7 @@ import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
-import { Folder, ChevronRight } from "lucide-react";
+import { Folder, ChevronRight, Plus, FileText } from "lucide-react";
 
 
 // Мобайл‑детектор
@@ -40,6 +40,8 @@ export default function ChatOptionsDropdown({
   onRename,
   onDelete,
   onEnterSelectMode,
+  onNewChat,
+  onEditInstructions,
 }) {
   const { theme } = useContext(UIContext);
   const {
@@ -201,6 +203,26 @@ export default function ChatOptionsDropdown({
             }}
             className="bg-white/95 dark:bg-[#1a2235]/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-1 text-sm"
           >
+
+{onNewChat && (
+  <button
+    onClick={() => { onNewChat(); onClose(); }}
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+  >
+    <Plus size={19} className="opacity-80" />
+    <span>New chat</span>
+  </button>
+)}
+
+{onEditInstructions && (
+  <button
+    onClick={() => { onEditInstructions(); onClose(); }}
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+  >
+    <FileText size={19} className="opacity-80" />
+    <span>Instructions</span>
+  </button>
+)}
 
 <button
   onClick={async () => {
