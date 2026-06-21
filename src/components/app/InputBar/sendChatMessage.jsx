@@ -75,10 +75,10 @@ async function maybeSuggestTopic({ uid, chatId, summary, messages }) {
     if (!res.ok) return;
     const out = await res.json();
 
-    if (out.suggest && out.name) {
+    if (out.suggest && Array.isArray(out.names) && out.names.length > 0) {
       await setChatTopicSuggestion(uid, chatId, {
         state: "suggested",
-        suggestion: { name: out.name, description: out.description || "" },
+        suggestion: { names: out.names, description: out.description || "" },
         atCount: count,
       });
     } else {

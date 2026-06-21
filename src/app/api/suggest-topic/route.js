@@ -49,8 +49,8 @@ Recent messages:
 ${transcript}
 
 Respond with STRICT JSON only:
-{"suggest": boolean, "confidence": number (0-1), "name": "<=6 word topic name", "description": "1-2 sentence description of the topic's scope"}
-Set suggest=true only if confidence >= 0.7.`;
+{"suggest": boolean, "confidence": number (0-1), "names": ["2-3 distinct topic name options, each <=6 words"], "description": "1-2 sentence description of the topic's scope"}
+Set suggest=true only if confidence >= 0.7. Provide 2-3 varied, natural name options the user can choose from.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
@@ -68,11 +68,14 @@ Set suggest=true only if confidence >= 0.7.`;
       parsed = {};
     }
 
-    const suggest = parsed.suggest === true && Number(parsed.confidence) >= 0.7;
+    const names = Array.isArray(parsed.names)
+      ? parsed.names.map((n) => String(n || "").slice(0, 60)).filter(Boolean).slice(0, 3)
+      : [];
+    const suggest = parsed.suggest === true && Number(parsed.confidence) >= 0.7 && names.length > 0;
     return Response.json({
       suggest,
       confidence: Number(parsed.confidence) || 0,
-      name: String(parsed.name || "").slice(0, 60),
+      names,
       description: String(parsed.description || "").slice(0, 400),
     });
   } catch (e) {
