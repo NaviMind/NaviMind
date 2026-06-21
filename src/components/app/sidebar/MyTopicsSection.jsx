@@ -47,14 +47,6 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
   const [instrText, setInstrText] = useState("");
   const [savingInstr, setSavingInstr] = useState(false);
 
-  // Open a fresh chat inside a topic (chat is created on first message).
-  const handleNewChatInTopic = (projId) => {
-    setActiveProject(projId);
-    setActiveChatId(null);
-    router.push(`/app/projects/${projId}`);
-    onSidebarItemClick?.();
-  };
-
   const openInstructions = (projId) => {
     setInstrText(customProjects?.[projId]?.description || "");
     setInstrTopic(projId);
@@ -400,10 +392,6 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                   isOpen={isDropdownOpen}
                   isTopic
                   initialIsPinned={!!proj.isPinned}
-                  onNewChat={() => {
-                    handleNewChatInTopic(projId);
-                    setOpenMenu(null);
-                  }}
                   onEditInstructions={() => {
                     openInstructions(projId);
                     setOpenMenu(null);
