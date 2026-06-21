@@ -127,6 +127,14 @@ const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
 // Defaults to "medium"; override via OPENAI_REASONING_EFFORT.
 const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "medium";
 
+// File Search retrieval tuning. Capping results and dropping low-relevance
+// chunks keeps answers sharper and cheaper (fewer tokens). Overridable via env.
+const FILE_SEARCH_MAX_RESULTS = Number(process.env.OPENAI_FILE_SEARCH_MAX_RESULTS) || 8;
+const FILE_SEARCH_SCORE_THRESHOLD =
+  process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD !== undefined
+    ? Number(process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD)
+    : 0.3;
+
 // ===== SSE helper =====
 
 function sse(event, data) {
@@ -402,7 +410,15 @@ const assembledSystemPrompt = [
           // document grounding, plus web search when the question warrants it.
           const tools = [];
           if (hasDocs) {
-            tools.push({ type: "file_search", vector_store_ids: vectorStoreIds });
+            tools.push({
+              type: "file_search",
+              vector_store_ids: vectorStoreIds,
+              max_num_results: FILE_SEARCH_MAX_RESULTS,
+              ranking_options: {
+                ranker: "auto",
+                score_threshold: FILE_SEARCH_SCORE_THRESHOLD,
+              },
+            });
           }
           if (useWebSearch) {
             tools.push({ type: "web_search_preview" });
