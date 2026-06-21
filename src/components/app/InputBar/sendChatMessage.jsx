@@ -484,7 +484,9 @@ if (res.body && contentType.includes("text/event-stream")) {
     } catch { /* silent */ }
 
     const findDoc = (n) => {
-      const low = n.toLowerCase();
+      // Extracted text is indexed as "name.ext.txt"; map that back to the
+      // original attachment name so the pill opens the real file.
+      const low = n.toLowerCase().replace(/(\.[a-z0-9]+)\.txt$/i, "$1");
       return (
         candidates.find((d) => d.name?.toLowerCase() === low) ||
         candidates.find(

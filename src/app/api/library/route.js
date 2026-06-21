@@ -228,9 +228,10 @@ export async function POST(req) {
         try {
           const { text, visualRequired } = await ocrAndClassifyImage(file.url);
           if (text && text.length > 20) {
+            // Index OCR text as .txt (an image extension would be rejected).
             const uploadable = await toFile(
               Buffer.from(text, "utf8"),
-              file.name,
+              `${file.name}.txt`,
               { type: "text/plain" }
             );
             const uploaded = await openai.files.create({
@@ -277,9 +278,11 @@ export async function POST(req) {
           );
           const text = spreadsheetToText(buffer, file);
           if (text && text.trim().length > 0) {
+            // Index as .txt — OpenAI keys its parser off the extension, and a
+            // real ".xlsx" name would make it try (and fail) to parse binary.
             const uploadable = await toFile(
               Buffer.from(text, "utf8"),
-              file.name,
+              `${file.name}.txt`,
               { type: "text/plain" }
             );
             const uploaded = await openai.files.create({
@@ -327,9 +330,11 @@ export async function POST(req) {
             try {
               const ocrText = await ocrPdfToText(buffer, file.name);
               if (ocrText && ocrText.length > 20) {
+                // Index OCR text as .txt — a ".pdf" name would make OpenAI try
+                // to parse the plain text as a PDF binary and fail.
                 uploadable = await toFile(
                   Buffer.from(ocrText, "utf8"),
-                  file.name,
+                  `${file.name}.txt`,
                   { type: "text/plain" }
                 );
                 ocrUsed = true;

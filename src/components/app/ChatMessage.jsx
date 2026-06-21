@@ -164,7 +164,9 @@ function buildCitations(text, fileSources) {
   if (!text) return { text: "", citations: [] };
 
   const resolve = (n) => {
-    const low = n.toLowerCase();
+    // Extracted text is indexed as "name.ext.txt"; normalise back to the
+    // original filename so the citation resolves to the openable file.
+    const low = n.toLowerCase().replace(/(\.[a-z0-9]+)\.txt$/i, "$1");
     return (
       list.find((d) => d.name?.toLowerCase() === low) ||
       list.find(
