@@ -43,7 +43,6 @@ export default function ChatOptionsDropdown({
   const { theme } = useContext(UIContext);
   const {
     customProjects,
-    activeChatId,
     setActiveProject,
     setActiveChatId,
     setIsLoadingMessages,
@@ -91,18 +90,16 @@ export default function ChatOptionsDropdown({
     if (!user || moving) return;
     setMoving(true);
     try {
-      const wasActive = chatId === activeChatId;
       await moveChatToTopic({ uid: user.uid, chatId, fromTopicId: topicId, toTopicId });
       const name = (customProjects || {})[toTopicId]?.name || "topic";
       window.dispatchEvent(
         new CustomEvent("navimind-toast", { detail: { message: `Moved to topic: ${name}` } })
       );
-      if (wasActive) {
-        setIsLoadingMessages?.(true);
-        setActiveProject(toTopicId);
-        setActiveChatId(chatId);
-        router.push(`/app/projects/${toTopicId}`);
-      }
+      // Always open the destination topic on the moved chat.
+      setIsLoadingMessages?.(true);
+      setActiveProject(toTopicId);
+      setActiveChatId(chatId);
+      router.push(`/app/projects/${toTopicId}`);
       setSubmenuCoords(null);
       onClose();
     } catch (e) {

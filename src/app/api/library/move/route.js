@@ -43,9 +43,11 @@ export async function POST(req) {
 
     let moved = 0;
     for (const id of ids) {
-      // Attach to the destination store and wait until indexed there.
+      // Attach to the destination store. We DON'T poll — the file is already
+      // processed, so re-indexing in the new store finishes in the background
+      // while the user lands in the topic (keeps the move fast).
       try {
-        await vectorStores.files.createAndPoll(toStoreId, { file_id: id });
+        await vectorStores.files.create(toStoreId, { file_id: id });
       } catch (e) {
         console.warn("move: attach", id, e?.message);
         continue; // don't detach from source if attach failed
