@@ -15,6 +15,9 @@ function getDocLabel(ext) {
 }
 
 const OFFICE_EXTS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+// Formats we render to HTML ourselves (mammoth / SheetJS) — reliable, no
+// dependency on third-party online viewers.
+const SELF_PREVIEW_EXTS = ["docx", "xls", "xlsx", "csv"];
 
 export function getFileUrl(file) {
   return file.previewUrl || file.url || file.downloadURL || "";
@@ -29,12 +32,17 @@ export function getViewerSrc(file) {
   // PDF — browsers render it natively inside an iframe
   if (ext === "pdf" || file.type === "application/pdf") return url;
 
-  // Plain text / csv / markdown — browsers render these natively
-  if (["txt", "csv", "log", "md"].includes(ext) || file.type?.startsWith("text/")) {
+  // Word / Excel / CSV — render to HTML on our own server (stable, offline-safe).
+  if (SELF_PREVIEW_EXTS.includes(ext)) {
+    return `/api/preview?url=${encodeURIComponent(url)}&name=${encodeURIComponent(file.name)}`;
+  }
+
+  // Plain text / markdown — browsers render these natively
+  if (["txt", "log", "md"].includes(ext) || file.type?.startsWith("text/")) {
     return url;
   }
 
-  // Word / Excel / PowerPoint — Microsoft Office Online embed viewer
+  // Remaining Office types (PowerPoint, legacy .doc) — Microsoft Office embed
   if (OFFICE_EXTS.includes(ext)) {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   }
