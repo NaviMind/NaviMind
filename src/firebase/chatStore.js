@@ -110,6 +110,36 @@ export function subscribeToMessages(uid, chatId, callback) {
 
 export async function deleteChatFromFirestore(uid, chatId, topicId = null) {
   try {
+    // Regular (non-topic) chats own their library files in the shared user
+    // store — remove them from OpenAI on chat deletion. Topic chats keep their
+    // files (the topic owns them until the topic itself is deleted).
+    if (!topicId) {
+      try {
+        const [storeId, libFiles] = await Promise.all([
+          getUserLibraryStoreId(uid),
+          getLibraryFiles({ uid, topicId: null }),
+        ]);
+        const mine = libFiles.filter((f) => f.chatId === chatId);
+        const fileIds = mine.map((f) => f.openaiFileId).filter(Boolean);
+        if (fileIds.length > 0) {
+          await fetch("/api/library/expire", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vectorStoreId: storeId, fileIds }),
+          }).catch(() => {});
+        }
+        if (mine.length > 0) {
+          await deleteLibraryFileRecordsByIds({
+            uid,
+            topicId: null,
+            ids: mine.map((f) => f.id),
+          });
+        }
+      } catch (cleanupErr) {
+        console.warn("Chat library cleanup failed:", cleanupErr);
+      }
+    }
+
     const chatRef = topicId
       ? doc(db, "users", uid, "topics", topicId, "chats", chatId)
       : doc(db, "users", uid, "chats", chatId);
