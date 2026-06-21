@@ -45,7 +45,6 @@ export default function ChatOptionsDropdown({
     customProjects,
     setActiveProject,
     setActiveChatId,
-    setIsLoadingMessages,
   } = useContext(ChatContext);
   const router = useRouter();
   const menuRef = useRef(null);
@@ -95,10 +94,10 @@ export default function ChatOptionsDropdown({
       window.dispatchEvent(
         new CustomEvent("navimind-toast", { detail: { message: `Moved to topic: ${name}` } })
       );
-      // Always open the destination topic on the moved chat.
-      setIsLoadingMessages?.(true);
+      // Open the destination topic (its overview/chat list) — the moved chat
+      // shows up there; we don't drop the user straight into the chat.
       setActiveProject(toTopicId);
-      setActiveChatId(chatId);
+      setActiveChatId(null);
       router.push(`/app/projects/${toTopicId}`);
       setSubmenuCoords(null);
       onClose();
