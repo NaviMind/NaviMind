@@ -365,6 +365,7 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                   currentTitle={proj.name}
                   targetRef={anchorRef}
                   isOpen={isDropdownOpen}
+                  isTopic
                   initialIsPinned={!!proj.isPinned}
                   onEnterSelectMode={() => {
                     enterTopicSelectMode(projId);

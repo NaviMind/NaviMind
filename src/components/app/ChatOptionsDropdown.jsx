@@ -32,6 +32,7 @@ export default function ChatOptionsDropdown({
   targetRef,
   chatId,
   topicId = null,
+  isTopic = false,
   currentTitle = "",
   initialIsPinned = false,
   onPin,
@@ -217,7 +218,8 @@ export default function ChatOptionsDropdown({
   <span>{isPinned ? "Unpin" : "Pin"}</span>
 </button>
 
-            <button
+            {!isTopic && (
+              <button
   onClick={async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -231,6 +233,7 @@ export default function ChatOptionsDropdown({
               <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
             </button>
+            )}
 
             <button
               onClick={() => {
@@ -243,7 +246,7 @@ export default function ChatOptionsDropdown({
               <span>Rename</span>
             </button>
 
-            {topicEntries.length > 0 && (
+            {!isTopic && topicEntries.length > 0 && (
               <button
                 ref={moveRowRef}
                 onMouseEnter={openSubmenu}
