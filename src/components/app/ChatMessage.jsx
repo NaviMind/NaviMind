@@ -74,6 +74,7 @@ function ShareButton({ onShare, className = "" }) {
 
 // User message — Copy button lives BELOW the bubble
 function UserMessage({ content, attachments = [], copied, onCopy }) {
+  const hasText = String(content ?? "").trim().length > 0;
   return (
     <div className="w-full flex flex-col items-end mt-6 gap-1">
       {/* Attachment row — independently sized */}
@@ -83,27 +84,30 @@ function UserMessage({ content, attachments = [], copied, onCopy }) {
         </div>
       )}
 
-      {/* Text bubble — sized by content, not by attachment width */}
-      <div className={`group flex flex-col items-end ${USER_MESSAGE_WIDTH}`}>
-        <div
-          className={`
-            p-3 rounded-xl
-            text-[17px] sm:text-base font-normal
-            leading-relaxed whitespace-pre-wrap shadow-md break-words
-            w-fit max-w-full
-            bg-gray-100 dark:bg-gray-700/40 backdrop-blur-md border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white
-          `}
-        >
-          {content}
-        </div>
+      {/* Text bubble — only when there's actually text (file-only sends show
+          just the attachment, no empty bubble) */}
+      {hasText && (
+        <div className={`group flex flex-col items-end ${USER_MESSAGE_WIDTH}`}>
+          <div
+            className={`
+              p-3 rounded-xl
+              text-[17px] sm:text-base font-normal
+              leading-relaxed whitespace-pre-wrap shadow-md break-words
+              w-fit max-w-full
+              bg-gray-100 dark:bg-gray-700/40 backdrop-blur-md border border-gray-200 dark:border-white/5 text-gray-900 dark:text-white
+            `}
+          >
+            {content}
+          </div>
 
-        {/* Copy below the bubble — always visible on mobile, hover on desktop */}
-        <CopyButton
-          copied={copied}
-          onCopy={onCopy}
-          className="mt-1 mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
-        />
-      </div>
+          {/* Copy below the bubble — always visible on mobile, hover on desktop */}
+          <CopyButton
+            copied={copied}
+            onCopy={onCopy}
+            className="mt-1 mr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -158,7 +162,9 @@ function FollowupChips({ options, onPick }) {
 // Convert inline "[[cite:filename]]" markers into markdown links the renderer
 // turns into source pills. Returns the rewritten text + the ordered list of
 // cited files (resolved to metadata). Unresolved markers are dropped so raw
-// "[[cite:...]]" never leaks into the visible answer.
+// "[[cite:...]]" never leaks into the visible answer. Pills only add value when
+// the answer draws on MORE THAN ONE file — with a single source they're just
+// noise, so we strip them.
 function buildCitations(text, fileSources) {
   const list = Array.isArray(fileSources) ? fileSources : [];
   if (!text) return { text: "", citations: [] };
@@ -176,11 +182,30 @@ function buildCitations(text, fileSources) {
     );
   };
 
+  const CITE_RE = /\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi;
+
+  // Count how many DISTINCT files are actually cited. With 0–1, drop all markers
+  // (a single obvious source needs no pills).
+  const distinct = new Set();
+  let m;
+  while ((m = CITE_RE.exec(text)) !== null) {
+    const meta = resolve(m[1].trim());
+    if (meta?.url) distinct.add(meta.url);
+  }
+  if (distinct.size < 2) {
+    return { text: text.replace(CITE_RE, ""), citations: [] };
+  }
+
   const citations = [];
   const indexByUrl = new Map();
-  const out = text.replace(/\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi, (_full, name) => {
+  // Only surface a pill when the source CHANGES from the previous one — avoids a
+  // pill after every single line when consecutive claims share a source.
+  let lastUrl = null;
+  const out = text.replace(CITE_RE, (_full, name) => {
     const meta = resolve(name.trim());
     if (!meta) return "";
+    if (meta.url === lastUrl) return ""; // same source as previous → skip
+    lastUrl = meta.url;
     let idx = indexByUrl.get(meta.url);
     if (idx === undefined) {
       idx = citations.length;
