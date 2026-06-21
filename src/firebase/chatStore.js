@@ -687,3 +687,98 @@ export async function migrateChatToTopic({ uid, chatId, name, description }) {
 
   return { topicId, chatId };
 }
+
+// Move an existing chat into an EXISTING topic. Source may be a regular chat
+// (fromTopicId = null) or a chat already inside another topic. Messages and
+// library files come along; files are re-attached to the destination topic's
+// store without re-upload.
+export async function moveChatToTopic({ uid, chatId, fromTopicId = null, toTopicId }) {
+  if (!uid || !chatId || !toTopicId) throw new Error("uid, chatId, toTopicId required");
+  if (fromTopicId === toTopicId) return { topicId: toTopicId, chatId };
+
+  // 1) Read the source chat.
+  const srcChatRef = fromTopicId
+    ? doc(db, "users", uid, "topics", fromTopicId, "chats", chatId)
+    : doc(db, "users", uid, "chats", chatId);
+  const srcSnap = await getDoc(srcChatRef);
+  if (!srcSnap.exists()) throw new Error("chat not found");
+  const srcData = srcSnap.data() || {};
+
+  // 2) Create the chat under the destination topic.
+  const dstChatRef = doc(db, "users", uid, "topics", toTopicId, "chats", chatId);
+  await setDoc(dstChatRef, {
+    title: srcData.title || "Chat",
+    summary: srcData.summary || "",
+    createdAt: srcData.createdAt || serverTimestamp(),
+    ownerId: uid,
+    topicId: toTopicId,
+  });
+
+  // 3) Copy messages (batched).
+  const msgsSnap = await getDocs(
+    query(collection(srcChatRef, "messages"), orderBy("timestamp", "asc"))
+  );
+  const dstMsgsCol = collection(dstChatRef, "messages");
+  let batch = writeBatch(db);
+  let n = 0;
+  for (const d of msgsSnap.docs) {
+    batch.set(doc(dstMsgsCol, d.id), d.data());
+    if (++n >= 400) { await batch.commit(); batch = writeBatch(db); n = 0; }
+  }
+  if (n > 0) await batch.commit();
+
+  // 4) Move library files from the source store to the destination topic store.
+  try {
+    const [fromStoreId, libFiles, toTopicData] = await Promise.all([
+      fromTopicId
+        ? getTopicData(uid, fromTopicId).then((d) => d?.vectorStoreId || "")
+        : getUserLibraryStoreId(uid),
+      getLibraryFiles({ uid, topicId: fromTopicId }),
+      getTopicData(uid, toTopicId),
+    ]);
+    const mine = libFiles.filter((f) => f.chatId === chatId && f.openaiFileId);
+    if (mine.length > 0) {
+      const res = await fetch("/api/library/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromStoreId,
+          toStoreId: toTopicData?.vectorStoreId || "",
+          label: `Topic ${toTopicId}`,
+          fileIds: mine.map((f) => f.openaiFileId),
+        }),
+      });
+      const data = res.ok ? await res.json() : null;
+      const toStoreId = data?.vectorStoreId || toTopicData?.vectorStoreId || "";
+      if (toStoreId) {
+        await setTopicVectorStoreId(uid, toTopicId, toStoreId);
+        await addLibraryFileRecords({
+          uid,
+          topicId: toTopicId,
+          chatId,
+          files: mine.map((f) => ({
+            name: f.name, type: f.type, url: f.url,
+            openaiFileId: f.openaiFileId, vectorStoreId: toStoreId, hash: f.hash,
+          })),
+        });
+        await deleteLibraryFileRecordsByIds({
+          uid, topicId: fromTopicId, ids: mine.map((f) => f.id),
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("move: library move failed:", e);
+  }
+
+  // 5) Delete the source chat (messages + doc).
+  let delBatch = writeBatch(db);
+  let m = 0;
+  for (const d of msgsSnap.docs) {
+    delBatch.delete(doc(collection(srcChatRef, "messages"), d.id));
+    if (++m >= 400) { await delBatch.commit(); delBatch = writeBatch(db); m = 0; }
+  }
+  if (m > 0) await delBatch.commit();
+  await deleteDoc(srcChatRef);
+
+  return { topicId: toTopicId, chatId };
+}

@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState, useContext } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
-import { deleteChatFromFirestore } from "@/firebase/chatStore";
+import { ChatContext } from "@/context/ChatContext";
+import { deleteChatFromFirestore, moveChatToTopic } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
+import { Folder, ChevronRight } from "lucide-react";
 
 
 // Мобайл‑детектор
@@ -38,11 +41,75 @@ export default function ChatOptionsDropdown({
   onEnterSelectMode,
 }) {
   const { theme } = useContext(UIContext);
+  const {
+    customProjects,
+    activeChatId,
+    setActiveProject,
+    setActiveChatId,
+    setIsLoadingMessages,
+  } = useContext(ChatContext);
+  const router = useRouter();
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
   const [coords, setCoords] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(initialIsPinned);
+
+  // "Move to topic" flyout submenu state.
+  const [submenuCoords, setSubmenuCoords] = useState(null);
+  const [moving, setMoving] = useState(false);
+  const moveRowRef = useRef(null);
+  const submenuRef = useRef(null);
+  const submenuTimer = useRef(null);
+
+  // Topics the chat can be moved into (exclude the one it's already in).
+  const topicEntries = Object.entries(customProjects || {})
+    .filter(([id]) => id !== topicId)
+    .map(([id, p]) => ({ id, name: p?.name || "Untitled topic" }));
+
+  const openSubmenu = () => {
+    clearTimeout(submenuTimer.current);
+    const el = moveRowRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const w = 220;
+    const maxH = Math.min(280, topicEntries.length * 40 + 16);
+    let left = rect.right + 4;
+    if (left + w > window.innerWidth) left = rect.left - w - 4;
+    if (left < 8) left = 8;
+    let top = rect.top;
+    if (top + maxH > window.innerHeight) top = Math.max(8, window.innerHeight - maxH - 8);
+    setSubmenuCoords({ top, left, width: w, maxH });
+  };
+  const scheduleCloseSubmenu = () => {
+    clearTimeout(submenuTimer.current);
+    submenuTimer.current = setTimeout(() => setSubmenuCoords(null), 220);
+  };
+
+  const handleMove = async (toTopicId) => {
+    const user = auth.currentUser;
+    if (!user || moving) return;
+    setMoving(true);
+    try {
+      const wasActive = chatId === activeChatId;
+      await moveChatToTopic({ uid: user.uid, chatId, fromTopicId: topicId, toTopicId });
+      const name = (customProjects || {})[toTopicId]?.name || "topic";
+      window.dispatchEvent(
+        new CustomEvent("navimind-toast", { detail: { message: `Moved to topic: ${name}` } })
+      );
+      if (wasActive) {
+        setIsLoadingMessages?.(true);
+        setActiveProject(toTopicId);
+        setActiveChatId(chatId);
+        router.push(`/app/projects/${toTopicId}`);
+      }
+      setSubmenuCoords(null);
+      onClose();
+    } catch (e) {
+      console.error("Move chat to topic failed:", e);
+      setMoving(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) { setCoords(null); return; }
@@ -77,6 +144,7 @@ export default function ChatOptionsDropdown({
       if (
         !menuRef.current?.contains(e.target) &&
         !targetRef?.current?.contains(e.target) &&
+        !submenuRef.current?.contains(e.target) &&
         !confirmOpen
       ) {
         onClose();
@@ -115,6 +183,11 @@ export default function ChatOptionsDropdown({
   useEffect(() => {
     setIsPinned(initialIsPinned);
   }, [initialIsPinned]);
+
+  // Close the flyout whenever the menu closes.
+  useEffect(() => {
+    if (!isOpen) setSubmenuCoords(null);
+  }, [isOpen]);
 
   return (
     <>
@@ -174,6 +247,20 @@ export default function ChatOptionsDropdown({
               <span>Rename</span>
             </button>
 
+            {topicEntries.length > 0 && (
+              <button
+                ref={moveRowRef}
+                onMouseEnter={openSubmenu}
+                onMouseLeave={scheduleCloseSubmenu}
+                onClick={() => (submenuCoords ? setSubmenuCoords(null) : openSubmenu())}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+              >
+                <Folder size={19} className="opacity-80" />
+                <span className="flex-1 text-left">Move to topic</span>
+                <ChevronRight size={16} className="opacity-50" />
+              </button>
+            )}
+
             {onEnterSelectMode && (
               <button
                 onClick={() => {
@@ -197,6 +284,38 @@ export default function ChatOptionsDropdown({
               <Icon name="delete" size={20} className="opacity-80" />
               <span className="text-inherit">Delete</span>
             </button>
+          </div>,
+          document.body
+        )}
+
+      {/* "Move to topic" flyout — list of existing topics */}
+      {isOpen && !confirmOpen && submenuCoords &&
+        createPortal(
+          <div
+            ref={submenuRef}
+            onMouseEnter={() => clearTimeout(submenuTimer.current)}
+            onMouseLeave={scheduleCloseSubmenu}
+            style={{
+              position: "fixed",
+              top: submenuCoords.top,
+              left: submenuCoords.left,
+              width: submenuCoords.width,
+              maxHeight: submenuCoords.maxH,
+              zIndex: 10000,
+            }}
+            className="overflow-y-auto custom-scroll bg-white/95 dark:bg-[#1a2235]/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-1 text-sm"
+          >
+            {topicEntries.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleMove(t.id)}
+                disabled={moving}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition disabled:opacity-60"
+              >
+                <Folder size={16} className="opacity-70 shrink-0" />
+                <span className="truncate text-left flex-1">{t.name}</span>
+              </button>
+            ))}
           </div>,
           document.body
         )}
