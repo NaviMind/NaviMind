@@ -105,8 +105,14 @@ export default function FilePreview({ files, onRemove }) {
   const scrollRef = useRef(null);
   const [activeImage, setActiveImage] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null); // { src, url, name }
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [portalTarget, setPortalTarget] = useState(null);
+  // Portal the viewer into the main work area (not the input bar — its
+  // backdrop-blur would clip a fixed overlay; not <body> — that would cover the
+  // sidebar). The work-area div has a transform, so a fixed overlay inside it is
+  // constrained exactly to the chat area, matching attachments opened in chat.
+  useEffect(() => {
+    setPortalTarget(document.getElementById("nm-workarea") || document.body);
+  }, []);
 
   // Open an already-uploaded attachment in the same viewer used in messages.
   const openDoc = (entry) => {
@@ -221,7 +227,7 @@ export default function FilePreview({ files, onRemove }) {
       {/* Viewers are portalled to <body> so `position: fixed` escapes the input
           bar's backdrop-blur containing block and covers the full viewport —
           exactly like attachments opened from the chat area. */}
-      {mounted &&
+      {portalTarget &&
         createPortal(
           <>
             {activeImage && (
@@ -248,7 +254,7 @@ export default function FilePreview({ files, onRemove }) {
             {/* Document viewer (PDF / Word / Excel / PPT / text) */}
             <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
           </>,
-          document.body
+          portalTarget
         )}
     </div>
   );

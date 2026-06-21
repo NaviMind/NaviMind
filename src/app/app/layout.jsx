@@ -86,6 +86,7 @@ function AppShell({ children }) {
       <MiniSidebar />
 
       <div
+          id="nm-workarea"
           className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] border-l border-gray-200 dark:border-transparent sm:border-l-0 text-gray-900 dark:text-white"
           style={{
             zIndex: 30,
