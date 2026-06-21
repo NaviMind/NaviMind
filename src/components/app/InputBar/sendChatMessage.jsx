@@ -115,8 +115,20 @@ export async function sendChatMessage({
   endGeneration,
   vesselProfile = null,
 }) {
-  if (!message?.trim()) return;
   if (!currentUser?.uid) return;
+
+  // Allow sending with just attachments and no text.
+  const trimmedMessage = message?.trim() || "";
+  const hasAttachments = (attachments?.length || 0) > 0;
+  if (!trimmedMessage && !hasAttachments) return;
+
+  // When the user sends files without typing, give the model a sensible default
+  // instruction (it can't answer an empty question), and seed a title.
+  const firstAttachmentName = attachments?.[0]?.name || "";
+  const titleSeed = trimmedMessage || firstAttachmentName || "Shared file";
+  const ragQuestion =
+    trimmedMessage ||
+    "Please review the attached file(s) and give me the key points relevant to my vessel and situation.";
 
   // Opportunistic, throttled TTL cleanup of the shared library (fire & forget).
   sweepExpiredLibrary(currentUser.uid);
@@ -145,7 +157,7 @@ sendLocks.add(sendKey);
       const created = await createChatForTopic({
         uid: currentUser.uid,
         topicId,
-        messageText: message,
+        messageText: titleSeed,
       });
 
       chatId = created.chatId;
@@ -166,7 +178,7 @@ sendLocks.add(sendKey);
             chatId,
             createdAt: snap.data()?.createdAt?.toMillis?.() ?? Date.now(),
             messages: [],
-            title: message.slice(0, 60),
+            title: titleSeed.slice(0, 60),
           },
           ...(updated[topicId] || []),
         ];
@@ -175,7 +187,7 @@ sendLocks.add(sendKey);
     } else {
       const created = await createChatGlobal({
         uid: currentUser.uid,
-        messageText: message,
+        messageText: titleSeed,
       });
 
       chatId = created.chatId;
@@ -194,7 +206,7 @@ sendLocks.add(sendKey);
             chatId,
             createdAt: snap.data()?.createdAt?.toMillis?.() ?? Date.now(),
             messages: [],
-            title: message.slice(0, 60),
+            title: titleSeed.slice(0, 60),
           },
           ...(updated.global || []),
         ];
@@ -349,7 +361,7 @@ if (inTopic) {
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
-      question: message,
+      question: ragQuestion,
       chatHistory,
       summary,
       imageUrls: uploadedImages.map((a) => a.url),
@@ -513,7 +525,7 @@ if (res.body && contentType.includes("text/event-stream")) {
 
   // ───────── AI TITLE (new chats only, fire & forget) ─────────
   if (isNewChat) {
-    fetchChatTitle(message).then(async (aiTitle) => {
+    fetchChatTitle(titleSeed).then(async (aiTitle) => {
       if (!aiTitle) return;
       try {
         const chatDocRef = inTopic
@@ -558,7 +570,7 @@ if (!summaryLocks.has(summaryKey)) {
       fetchChatSummary({
         messages: [
           ...chatHistory,
-          { role: "user", content: message },
+          { role: "user", content: ragQuestion },
           { role: "assistant", content: finalText },
         ],
         previousSummary: topicMemory,
@@ -582,7 +594,7 @@ if (!summaryLocks.has(summaryKey)) {
   if (inTopic && !aborted && finalText && finalText.trim()) {
     (async () => {
       try {
-        const content = `User: ${message}\n\nAssistant: ${finalText}`;
+        const content = `User: ${ragQuestion}\n\nAssistant: ${finalText}`;
         const data = await indexTextSnippet({
           vectorStoreId, // resolved earlier (may be "" → store created here)
           label: `Topic ${topicId}`,

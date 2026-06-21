@@ -632,7 +632,9 @@ export default function InputBar() {
   const handleSend = async (override) => {
     const isOverride = typeof override === "string" && override.trim().length > 0;
     const message = isOverride ? override.trim() : inputValue;
-    if (!message.trim()) return;
+    // Allow sending with just attachments (no text).
+    const hasFiles = !isOverride && filesRef.current.length > 0;
+    if (!message.trim() && !hasFiles) return;
     if (!currentUser?.uid) return;
 
     let preparedAttachments = [];
@@ -879,7 +881,7 @@ export default function InputBar() {
                 generating={isGenerating}
                 onSend={handleSend}
                 onStop={stopGeneration}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() && uploadedFiles.length === 0}
               />
             </div>
           </div>
@@ -983,7 +985,7 @@ export default function InputBar() {
                         <MicButton onClick={startRecording} />
                       </Tooltip>
                     )}
-                    {inputValue.trim() && (
+                    {(inputValue.trim() || uploadedFiles.length > 0) && (
                       <Tooltip content="Send" position="top" align="right">
                         <SendStopButton onSend={handleSend} disabled={false} />
                       </Tooltip>
