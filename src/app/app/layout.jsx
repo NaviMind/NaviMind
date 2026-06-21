@@ -8,6 +8,7 @@ import MiniSidebar from "@/components/app/sidebar/MiniSidebar";
 import TopBar from "@/components/app/TopBar";
 import MobileSidebarOverlay from "@/components/app/MobileSidebarOverlay";
 import InputBar from "@/components/app/InputBar/InputBar";
+import TopicSuggestionBanner from "@/components/app/TopicSuggestionBanner";
 import WelcomeModal from "@/components/app/Welcome/WelcomeModal";
 import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
@@ -123,6 +124,7 @@ function AppShell({ children }) {
               </div>
             )}
           </div>
+          <TopicSuggestionBanner />
           <InputBar />
         </div>
       </div>

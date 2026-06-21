@@ -12,6 +12,8 @@ import {
   setTopicVectorStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
+  countChatMessages,
+  setChatTopicSuggestion,
 } from "@/firebase/chatStore";
 import { indexTextSnippet } from "./attachmentProcessing";
 import { fetchChatSummary } from "@/ai/chatSummary";
@@ -44,6 +46,45 @@ async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
 
   const snap = await getDocs(q);
   return snap.docs.reverse().map(d => d.data()).map(({ role, content }) => ({ role, content }));
+}
+
+// ── Topic suggestion (graduate a long focused chat into a Topic) ──
+// Gated hard: only for regular chats past a size threshold, checked at most once
+// per growth window, and cached on the chat doc so the LLM check runs rarely.
+const SUGGEST_MIN_MESSAGES = 10;
+const SUGGEST_RECHECK_GROWTH = 10;
+
+async function maybeSuggestTopic({ uid, chatId, summary, messages }) {
+  try {
+    const count = await countChatMessages(uid, chatId);
+    if (count < SUGGEST_MIN_MESSAGES) return;
+
+    const snap = await getDoc(doc(db, "users", uid, "chats", chatId));
+    const data = snap.exists() ? snap.data() : {};
+    const state = data.topicSuggestionState;
+    const atCount = data.topicSuggestionAtCount || 0;
+    // Already pending or accepted → leave it. Snoozed/checked → wait for growth.
+    if (state === "suggested" || state === "accepted") return;
+    if ((state === "dismissed" || state === "checked") && count < atCount + SUGGEST_RECHECK_GROWTH) return;
+
+    const res = await fetch("/api/suggest-topic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ summary, messages }),
+    });
+    if (!res.ok) return;
+    const out = await res.json();
+
+    if (out.suggest && out.name) {
+      await setChatTopicSuggestion(uid, chatId, {
+        state: "suggested",
+        suggestion: { name: out.name, description: out.description || "" },
+        atCount: count,
+      });
+    } else {
+      await setChatTopicSuggestion(uid, chatId, { state: "checked", atCount: count });
+    }
+  } catch { /* silent — suggestion is best-effort */ }
 }
 
 const summaryLocks = new Set();
@@ -579,6 +620,20 @@ if (!summaryLocks.has(summaryKey)) {
         }
       } catch { /* silent — cold memory is best-effort */ }
     })();
+  }
+
+  // ───────── TOPIC SUGGESTION (regular chats, fire & forget) ─────────
+  if (!inTopic && !aborted && finalText && finalText.trim()) {
+    maybeSuggestTopic({
+      uid: currentUser.uid,
+      chatId,
+      summary,
+      messages: [
+        ...chatHistory,
+        { role: "user", content: ragQuestion },
+        { role: "assistant", content: finalText },
+      ],
+    });
   }
 
   } catch (err) {

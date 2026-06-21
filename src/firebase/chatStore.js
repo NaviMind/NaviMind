@@ -13,6 +13,8 @@ import {
   deleteDoc,
   updateDoc,
   setDoc,
+  writeBatch,
+  getCountFromServer,
 } from "firebase/firestore";
 
 // ─────────── CHAT (GLOBAL) ───────────
@@ -553,4 +555,135 @@ export async function updateChatSummary({
   } catch (err) {
     console.error("❌ Failed to update chat summary:", err);
   }
+}
+
+// ─────────── TOPIC SUGGESTION (graduate a long chat into a Topic) ───────────
+
+// Count messages in a (global) chat — used to gate the suggestion check.
+export async function countChatMessages(uid, chatId) {
+  try {
+    const snap = await getCountFromServer(
+      collection(db, "users", uid, "chats", chatId, "messages")
+    );
+    return snap.data().count || 0;
+  } catch {
+    return 0;
+  }
+}
+
+// Persist the suggestion decision on the (global) chat doc.
+//   state: "suggested" | "checked" | "dismissed" | "accepted"
+export async function setChatTopicSuggestion(uid, chatId, { state, suggestion = null, atCount = 0 }) {
+  if (!uid || !chatId) return;
+  try {
+    await updateDoc(doc(db, "users", uid, "chats", chatId), {
+      topicSuggestionState: state,
+      topicSuggestion: suggestion,
+      topicSuggestionAtCount: atCount,
+    });
+  } catch (e) {
+    console.error("❌ Failed to set topic suggestion:", e);
+  }
+}
+
+// Graduate a regular chat into a new Topic: create the topic, move the chat and
+// its messages under it, re-attach its library files to the topic's store (no
+// re-upload), seed topic memory from the chat summary, then delete the original.
+export async function migrateChatToTopic({ uid, chatId, name, description }) {
+  if (!uid || !chatId) throw new Error("uid and chatId required");
+
+  // 1) Read the source chat.
+  const srcChatRef = doc(db, "users", uid, "chats", chatId);
+  const srcSnap = await getDoc(srcChatRef);
+  if (!srcSnap.exists()) throw new Error("chat not found");
+  const srcData = srcSnap.data() || {};
+  const summary = srcData.summary || "";
+
+  // 2) Create the topic (description = user instructions, memory seeded from summary).
+  const topicRef = await addDoc(collection(db, "users", uid, "topics"), {
+    name: name || srcData.title || "New Topic",
+    title: name || srcData.title || "New Topic",
+    description: description || "",
+    topicMemory: summary || "",
+    topicMemoryUpdatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+    ownerId: uid,
+  });
+  const topicId = topicRef.id;
+
+  // 3) Create the chat under the topic, preserving its identity.
+  const dstChatRef = doc(db, "users", uid, "topics", topicId, "chats", chatId);
+  await setDoc(dstChatRef, {
+    title: srcData.title || name || "Chat",
+    summary,
+    createdAt: srcData.createdAt || serverTimestamp(),
+    ownerId: uid,
+    topicId,
+  });
+
+  // 4) Copy all messages (batched, 400/batch to stay under the 500 limit).
+  const msgsSnap = await getDocs(
+    query(collection(srcChatRef, "messages"), orderBy("timestamp", "asc"))
+  );
+  const dstMsgsCol = collection(dstChatRef, "messages");
+  let batch = writeBatch(db);
+  let n = 0;
+  for (const d of msgsSnap.docs) {
+    batch.set(doc(dstMsgsCol, d.id), d.data());
+    if (++n >= 400) { await batch.commit(); batch = writeBatch(db); n = 0; }
+  }
+  if (n > 0) await batch.commit();
+
+  // 5) Move library files from the user store to the topic store (no re-upload).
+  try {
+    const [userStoreId, libFiles] = await Promise.all([
+      getUserLibraryStoreId(uid),
+      getLibraryFiles({ uid, topicId: null }),
+    ]);
+    const mine = libFiles.filter((f) => f.chatId === chatId && f.openaiFileId);
+    if (mine.length > 0) {
+      const res = await fetch("/api/library/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromStoreId: userStoreId,
+          label: `Topic ${topicId}`,
+          fileIds: mine.map((f) => f.openaiFileId),
+        }),
+      });
+      const data = res.ok ? await res.json() : null;
+      const topicStoreId = data?.vectorStoreId || "";
+      if (topicStoreId) {
+        await setTopicVectorStoreId(uid, topicId, topicStoreId);
+        // Re-record under the topic, then drop the global records.
+        await addLibraryFileRecords({
+          uid,
+          topicId,
+          chatId,
+          files: mine.map((f) => ({
+            name: f.name, type: f.type, url: f.url,
+            openaiFileId: f.openaiFileId, vectorStoreId: topicStoreId, hash: f.hash,
+          })),
+        });
+        await deleteLibraryFileRecordsByIds({
+          uid, topicId: null, ids: mine.map((f) => f.id),
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("migrate: library move failed:", e);
+  }
+
+  // 6) Delete the original chat (messages + doc). Library records are already
+  //    moved, so the raw delete leaves nothing dangling in the user store.
+  let delBatch = writeBatch(db);
+  let m = 0;
+  for (const d of msgsSnap.docs) {
+    delBatch.delete(doc(collection(srcChatRef, "messages"), d.id));
+    if (++m >= 400) { await delBatch.commit(); delBatch = writeBatch(db); m = 0; }
+  }
+  if (m > 0) await delBatch.commit();
+  await deleteDoc(srcChatRef);
+
+  return { topicId, chatId };
 }
