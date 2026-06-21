@@ -151,7 +151,7 @@ if (!chat.title) return null;
             flex items-center flex-shrink-0 transition-all duration-200
             ${openMenu?.chatId === chat.chatId
               ? "max-w-[72px] opacity-100"
-              : "md:max-w-0 md:overflow-hidden md:opacity-0 md:group-hover:max-w-[72px] md:group-hover:opacity-100"}
+              : "[@media(hover:hover)]:max-w-0 [@media(hover:hover)]:overflow-hidden [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:max-w-[72px] [@media(hover:hover)]:group-hover:opacity-100"}
           `}
         >
           {chat.isPinned && (
