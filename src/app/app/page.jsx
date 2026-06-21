@@ -7,7 +7,6 @@ import ChatArea from "@/components/app/ChatArea";
 import { quickChecks } from "@/data/quickChecks";
 import QuickCheckCard from "@/components/app/QuickCheckCard";
 import { AnimatePresence, motion } from "framer-motion";
-import InstallPrompt from "@/components/common/InstallPrompt";
 
 export default function HomePage() {
   const { messages, pendingSend } = useContext(ChatContext);
@@ -74,9 +73,6 @@ export default function HomePage() {
      {messages.length === 0 && !pendingSend && current && !isKeyboardOpen && (
   <div className="flex flex-col items-center justify-center mt-6 px-4 animate-fade-in">
     <div className="w-full max-w-xl flex flex-col items-center space-y-6">
-      {/* Баннер установки PWA */}
-      <InstallPrompt />
-
       {/* Quick Check */}
       <AnimatePresence mode="wait">
         <motion.div

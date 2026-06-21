@@ -12,6 +12,7 @@ import TopicSuggestionBanner from "@/components/app/TopicSuggestionBanner";
 import Toast from "@/components/app/Toast";
 import WelcomeModal from "@/components/app/Welcome/WelcomeModal";
 import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
+import InstallPrompt from "@/components/common/InstallPrompt";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 
 
@@ -103,16 +104,6 @@ function AppShell({ children }) {
           <TopBar />
         </div>
 
-        {showAdvancedReminder && (
-          <AdvancedReminderBubble
-            onOpen={() => {
-            setShowAdvancedReminder(false);
-            setOpenAdvancedDirectly(true);
-            setVesselProfileOpen(true);
-           }}
-          />
-        )}
-
         <div className="flex flex-col flex-1 min-h-0 w-full max-w-full">
           <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
@@ -125,7 +116,18 @@ function AppShell({ children }) {
               </div>
             )}
           </div>
+          {/* Reminder/suggestion banners — grouped just above the input bar */}
           <TopicSuggestionBanner />
+          {showAdvancedReminder && (
+            <AdvancedReminderBubble
+              onOpen={() => {
+                setShowAdvancedReminder(false);
+                setOpenAdvancedDirectly(true);
+                setVesselProfileOpen(true);
+              }}
+            />
+          )}
+          <InstallPrompt />
           <InputBar />
         </div>
       </div>
