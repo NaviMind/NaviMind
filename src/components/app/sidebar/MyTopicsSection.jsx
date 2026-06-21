@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
+import TopicLibraryModal from "./TopicLibraryModal";
 import ChatItem from "./ChatItem";
 import Icon from "@/components/common/Icon";
 import { togglePinTopic, deleteChatFromFirestore, updateTopicDescription } from "@/firebase/chatStore";
@@ -46,6 +47,9 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
   const [instrTopic, setInstrTopic] = useState(null);
   const [instrText, setInstrText] = useState("");
   const [savingInstr, setSavingInstr] = useState(false);
+
+  // ── Topic library modal ──
+  const [libraryTopic, setLibraryTopic] = useState(null);
 
   const openInstructions = (projId) => {
     setInstrText(customProjects?.[projId]?.description || "");
@@ -396,6 +400,10 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
                     openInstructions(projId);
                     setOpenMenu(null);
                   }}
+                  onOpenLibrary={() => {
+                    setLibraryTopic(projId);
+                    setOpenMenu(null);
+                  }}
                   onEnterSelectMode={() => {
                     enterTopicSelectMode(projId);
                     setOpenMenu(null);
@@ -547,6 +555,15 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
           </div>,
           document.body
         )}
+
+      {/* ── Topic library modal ── */}
+      {libraryTopic && (
+        <TopicLibraryModal
+          topicId={libraryTopic}
+          topicName={customProjects?.[libraryTopic]?.name || "Topic"}
+          onClose={() => setLibraryTopic(null)}
+        />
+      )}
     </>
   );
 }

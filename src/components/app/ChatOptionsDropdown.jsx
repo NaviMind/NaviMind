@@ -11,7 +11,7 @@ import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
-import { Folder, ChevronRight, Plus, FileText } from "lucide-react";
+import { Folder, ChevronRight, Plus, FileText, Library } from "lucide-react";
 
 
 // Мобайл‑детектор
@@ -42,6 +42,7 @@ export default function ChatOptionsDropdown({
   onEnterSelectMode,
   onNewChat,
   onEditInstructions,
+  onOpenLibrary,
 }) {
   const { theme } = useContext(UIContext);
   const {
@@ -221,6 +222,16 @@ export default function ChatOptionsDropdown({
   >
     <FileText size={19} className="opacity-80" />
     <span>Instructions</span>
+  </button>
+)}
+
+{onOpenLibrary && (
+  <button
+    onClick={() => { onOpenLibrary(); onClose(); }}
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+  >
+    <Library size={19} className="opacity-80" />
+    <span>Library</span>
   </button>
 )}
 
