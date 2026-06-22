@@ -296,6 +296,28 @@ useEffect(() => {
     </button>
   </div>
 
+  {/* Mobile: full-width "Create Topic" button (when topics already exist) —
+      replaces the tiny "+", which is hard to tap on a phone. */}
+  {Object.keys(customProjects || {}).length > 0 && (
+    <div className="sm:hidden -mx-2 px-1 py-0 mt-1">
+      <button
+        onClick={() => setIsTopicModalOpen(true)}
+        className="
+          w-full flex items-center gap-2 px-2.5 py-1 rounded-md
+          border border-transparent bg-transparent
+          hover:border-blue-500
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          transition-colors duration-200 min-h-[38px]
+        "
+      >
+        <Icon name="create-new" size={20} />
+        <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
+          Create Topic
+        </span>
+      </button>
+    </div>
+  )}
+
   {/* No topics yet — show a classic full-width "Create Topic" button.
       Once the first topic exists, switch to the "My Topics" header + list.
       Deleting all topics reverts to the button. */}
@@ -346,8 +368,8 @@ useEffect(() => {
           </svg>
         </button>
       </div>
-      {/* Create topic (+) — always visible, pushed to the right edge */}
-      <HoverTipRight label="Create topic" className="ml-auto items-center justify-center">
+      {/* Create topic (+) — desktop only; mobile uses the full-width button below */}
+      <HoverTipRight label="Create topic" className="ml-auto hidden sm:flex items-center justify-center">
         <button
           onClick={() => setIsTopicModalOpen(true)}
           className="
