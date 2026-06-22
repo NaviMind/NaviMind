@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Trash2, FileText } from "lucide-react";
+import { X, Trash2, FileText } from "lucide-react";
+import Tooltip from "@/components/common/Tooltip";
+import MaskIcon from "@/components/common/MaskIcon";
 import { auth } from "@/firebase/config";
 import {
   getLibraryFiles,
@@ -44,8 +46,14 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const [dragging, setDragging] = useState(false);
   const [activeDoc, setActiveDoc] = useState(null);
   const [activeImage, setActiveImage] = useState(null);
+  const [portalTarget, setPortalTarget] = useState(null);
   const storeIdRef = useRef("");
   const inputRef = useRef(null);
+
+  // Open over the main work area (not covering the sidebar), like file viewers.
+  useEffect(() => {
+    setPortalTarget(document.getElementById("nm-workarea") || document.body);
+  }, []);
 
   const refresh = async () => {
     const uid = auth.currentUser?.uid;
@@ -172,6 +180,8 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
 
   const empty = !loading && files.length === 0 && pending.length === 0;
 
+  if (!portalTarget) return null;
+
   return createPortal(
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
@@ -193,12 +203,15 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
               Files in this topic, searchable by the assistant.
             </p>
           </div>
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors shrink-0"
-          >
-            <Plus size={16} /> Add files
-          </button>
+          <Tooltip content="Add files" position="top" align="right">
+            <button
+              onClick={() => inputRef.current?.click()}
+              aria-label="Add files"
+              className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+            >
+              <MaskIcon src="/library_add.svg" size={20} />
+            </button>
+          </Tooltip>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -302,6 +315,13 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           onClick={() => setActiveImage(null)}
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-[310] p-4"
         >
+          <button
+            onClick={() => setActiveImage(null)}
+            aria-label="Close"
+            className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
+          >
+            ✕
+          </button>
           <img
             src={activeImage}
             alt="preview"
@@ -312,6 +332,6 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
       )}
       <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
     </div>,
-    document.body
+    portalTarget
   );
 }
