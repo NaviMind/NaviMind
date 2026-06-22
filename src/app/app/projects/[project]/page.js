@@ -14,6 +14,7 @@ import { auth } from "@/firebase/config";
 import { sendChatMessage } from "@/components/app/InputBar/sendChatMessage";
 import TopicLibraryModal from "@/components/app/sidebar/TopicLibraryModal";
 import MaskIcon from "@/components/common/MaskIcon";
+import { FileText } from "lucide-react";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -412,6 +413,7 @@ export default function DynamicProjectPage() {
               focus:outline-none focus:ring-2 focus:ring-blue-500/50
               transition-colors duration-200 flex-shrink-0"
           >
+            <FileText size={16} className="opacity-80" />
             {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
           </button>
         </div>
