@@ -10,7 +10,7 @@ export default function ChatArea({ messages, children }) {
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
-  const switchingRef = useRef(false);
+  const pinTimerRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const baseMessages = Array.isArray(messages) ? messages : [];
@@ -40,42 +40,47 @@ export default function ChatArea({ messages, children }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Мгновенный переход вниз без анимации (при открытии/переключении чата).
-  // Через нижний якорь — так же надёжно, как плавный scrollToBottom, просто
-  // instant (mainRef.scrollTop не всегда работает: скроллится родитель).
-  const jumpToBottom = () => {
+  // Мгновенный переход в самый низ (двумя способами — какой сработает).
+  const pinBottom = () => {
+    const el = mainRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   };
 
-  // useLayoutEffect ставит позицию ДО отрисовки кадра, поэтому при смене чата
-  // нет видимого рывка: контент сразу появляется внизу, а не прыгает туда.
+  // Держим низ мгновенно ~800мс: контент (markdown/картинки/код) дорисовывается
+  // асинхронно и наращивает высоту уже после первого прыжка. Таймер живёт в ref,
+  // поэтому ре-рендеры/смена сообщений его НЕ убивают.
+  const startPinning = (durationMs = 800) => {
+    if (pinTimerRef.current) clearInterval(pinTimerRef.current);
+    pinBottom();
+    const start = Date.now();
+    pinTimerRef.current = setInterval(() => {
+      pinBottom();
+      if (Date.now() - start > durationMs) {
+        clearInterval(pinTimerRef.current);
+        pinTimerRef.current = null;
+      }
+    }, 50);
+  };
+
+  useEffect(() => () => { if (pinTimerRef.current) clearInterval(pinTimerRef.current); }, []);
+
+  // useLayoutEffect ставит позицию ДО отрисовки кадра.
   useLayoutEffect(() => {
     if (!hasMessages) return;
 
     const isChatSwitch = prevChatIdRef.current !== activeChatId;
 
     if (isChatSwitch) {
-      // Сменили чат → держим низ мгновенно. Контент (markdown/картинки/код)
-      // дорисовывается асинхронно и наращивает высоту уже после первого прыжка,
-      // поэтому пиним низ каждый кадр ~600мс — без видимой анимации.
+      // Открыли/сменили чат → пиним низ мгновенно, пока контент досчитается.
       prevChatIdRef.current = activeChatId;
-      switchingRef.current = true;
-      jumpToBottom();
-
-      let raf;
-      const start = performance.now();
-      const loop = () => {
-        jumpToBottom();
-        if (performance.now() - start < 600) raf = requestAnimationFrame(loop);
-        else switchingRef.current = false;
-      };
-      raf = requestAnimationFrame(loop);
-      return () => cancelAnimationFrame(raf);
+      startPinning(800);
+      return;
     }
 
-    if (switchingRef.current) {
-      // Тот же (только что открытый) чат догружает сообщения → остаёмся внизу.
-      jumpToBottom();
+    if (pinTimerRef.current) {
+      // Тот же только что открытый чат догружает сообщения → остаёмся внизу.
+      pinBottom();
       return;
     }
 
