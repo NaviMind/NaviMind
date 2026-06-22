@@ -10,6 +10,7 @@ export default function ChatArea({ messages, children }) {
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
+  const switchingRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const baseMessages = Array.isArray(messages) ? messages : [];
@@ -50,16 +51,27 @@ export default function ChatArea({ messages, children }) {
   useLayoutEffect(() => {
     if (!hasMessages) return;
 
-    // Сменился чат → открываем сразу внизу, без анимированного скролла.
-    // То же сообщение/стриминг в текущем чате → плавный скролл.
     const isChatSwitch = prevChatIdRef.current !== activeChatId;
-    prevChatIdRef.current = activeChatId;
 
     if (isChatSwitch) {
+      // Сменили чат → мгновенно вниз. Сообщения подгружаются асинхронно, поэтому
+      // держим низ мгновенно (без анимации), пока они дозагружаются.
+      prevChatIdRef.current = activeChatId;
+      switchingRef.current = true;
       jumpToBottom();
-    } else {
-      setTimeout(scrollToBottom, 50);
+      const t = setTimeout(() => { switchingRef.current = false; }, 500);
+      return () => clearTimeout(t);
     }
+
+    if (switchingRef.current) {
+      // Тот же (только что открытый) чат догружает сообщения → остаёмся внизу
+      // мгновенно, без видимой прокрутки.
+      jumpToBottom();
+      return;
+    }
+
+    // Новое сообщение в текущем чате → плавный скролл вниз.
+    setTimeout(scrollToBottom, 50);
   }, [messages, activeChatId, showOptimistic]);
 
   // Follow the live-streaming answer: keep pinned to the bottom as tokens
