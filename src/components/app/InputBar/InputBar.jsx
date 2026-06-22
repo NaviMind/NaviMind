@@ -946,13 +946,25 @@ export default function InputBar() {
       >
         <div className="w-full md:max-w-[896px] mx-auto">
           <div
-            className={`rounded-2xl p-1 md:p-2 flex flex-col transition duration-500
+            className={`relative rounded-2xl p-1 md:p-2 flex flex-col transition duration-500
               border border-gray-200 dark:border-white/10
               shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.4)]
               bg-white dark:bg-transparent
               backdrop-blur-sm
               ${isActive ? "border-blue-400 dark:border-blue-500 animate-glow" : ""}`}
           >
+            {/* Expand editor (mobile, long text) — top-right corner */}
+            {!isListening && !isTranscribing && showExpandBtn && (
+              <button
+                onClick={() => setIsExpanded(true)}
+                className="md:hidden absolute top-1.5 right-2 z-10 p-1 rounded text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
+                type="button"
+                aria-label="Expand editor"
+              >
+                <Maximize2 size={15} />
+              </button>
+            )}
+
             {/* Uploaded Files Preview */}
             <FilePreview files={uploadedFiles} onRemove={removeFile} onRetry={retryEntry} />
 
@@ -994,18 +1006,6 @@ export default function InputBar() {
 
               {/* Right cluster: mic (default) → mic + send (typed) → stop/spinner */}
               <div className="flex items-end gap-1 self-end pb-0.5">
-                {/* Expand editor (mobile, long text) */}
-                {!isListening && !isTranscribing && showExpandBtn && (
-                  <button
-                    onClick={() => setIsExpanded(true)}
-                    className="md:hidden p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition flex items-center justify-center"
-                    type="button"
-                    aria-label="Expand editor"
-                  >
-                    <Maximize2 size={15} />
-                  </button>
-                )}
-
                 {isGenerating ? (
                   <Tooltip content="Stop" position="top" align="right">
                     <SendStopButton generating onStop={stopGeneration} />
