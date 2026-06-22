@@ -36,13 +36,22 @@ export default function TopBar() {
     theme,
   } = useContext(UIContext);
 
-  const { activeProject, customProjects, setActiveChatId, activeChatId } = useContext(ChatContext);
+  const { activeProject, customProjects, setActiveChatId, activeChatId, projectChatSessions } = useContext(ChatContext);
+  const router = useRouter();
   const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
+
+  // Title of the chat currently open (for the desktop breadcrumb).
+  const activeChatTitle = activeChatId
+    ? (projectChatSessions?.[activeProject || "global"] || []).find((c) => c.chatId === activeChatId)?.title || ""
+    : "";
+
+  const goToTopic = () => {
+    setActiveChatId(null);
+    router.push(`/app/projects/${activeProject}`);
+  };
 
   // На мобилке показываем таблетку только когда открыт чат топика (не просто страница топика)
   const showMobileTopicPill = !!(activeProjectName && activeChatId);
-
-  const router = useRouter();
 
   return (
     <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30">
@@ -65,6 +74,30 @@ export default function TopBar() {
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
+
+        {/* Desktop breadcrumb — where am I: Topic › Chat (works with the sidebar
+            open or collapsed). */}
+        {activeChatId && (
+          <div className="hidden md:flex items-center gap-1.5 min-w-0 max-w-[460px] text-sm">
+            {activeProjectName && (
+              <>
+                <button
+                  onClick={goToTopic}
+                  className="flex items-center gap-1 min-w-0 max-w-[200px] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                  aria-label={`Go to topic ${activeProjectName}`}
+                >
+                  <Icon name="folder-open" size={15} className="text-emerald-400/70 flex-shrink-0" />
+                  <span className="truncate">{activeProjectName}</span>
+                </button>
+                <span className="text-gray-300 dark:text-white/25 flex-shrink-0">/</span>
+              </>
+            )}
+            <span className="flex items-center gap-1 min-w-0 text-gray-800 dark:text-white/85">
+              <Icon name="chat" size={15} className="opacity-50 flex-shrink-0" />
+              <span className="truncate font-medium">{activeChatTitle || "New chat"}</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
@@ -103,26 +136,6 @@ export default function TopBar() {
 
       {/* ── Правый блок ── */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Topic pill — только десктоп, только внутри чата топика */}
-        {activeProjectName && activeChatId && (
-          <button
-            onClick={() => {
-              setActiveChatId(null);
-              router.push(`/app/projects/${activeProject}`);
-            }}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs
-              border border-emerald-500/40 bg-emerald-500/[0.07]
-              hover:border-emerald-400/65 hover:bg-emerald-500/[0.13]
-              focus:outline-none focus:ring-2 focus:ring-emerald-500/30
-              transition-all duration-200 max-w-[200px]"
-            style={{ boxShadow: "0 0 10px rgba(16,185,129,0.12)" }}
-            aria-label={`Go to topic ${activeProjectName}`}
-          >
-            <Icon name="folder-open" size={14} className="text-emerald-400/70 flex-shrink-0" />
-            <span className="text-gray-700 dark:text-white/70 truncate">{activeProjectName}</span>
-          </button>
-        )}
-
         {/* Vessel profile pill — только десктоп */}
         {vesselProfileData && (
           <button
