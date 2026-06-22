@@ -61,7 +61,7 @@ export default function TopBar() {
         {/* Мобилка: гамбургер — открывает/закрывает sidebar */}
         <button
           onClick={toggleSidebar}
-          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 sm:hidden"
+          className="p-2.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 [@media(hover:hover)]:hidden"
           aria-label={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           <svg
@@ -78,7 +78,7 @@ export default function TopBar() {
         {/* Desktop breadcrumb — where am I: Topic › Chat (works with the sidebar
             open or collapsed). */}
         {activeChatId && (
-          <div className="hidden md:flex items-center gap-1.5 min-w-0 max-w-[460px] text-sm">
+          <div className="hidden [@media(hover:hover)]:flex items-center gap-1.5 min-w-0 max-w-[460px] text-sm">
             {activeProjectName && (
               <>
                 <button
@@ -101,7 +101,7 @@ export default function TopBar() {
       </div>
 
       {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
-      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 sm:hidden ${
+      <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 [@media(hover:hover)]:hidden ${
         showMobileTopicPill ? "opacity-0" : "opacity-100"
       }`}>
         <img
@@ -113,7 +113,7 @@ export default function TopBar() {
 
       {/* ── Центр: Таблетка топика — только мобилка, только внутри чата топика ── */}
       {showMobileTopicPill && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [@media(hover:hover)]:hidden">
           <button
             onClick={() => {
               setActiveChatId(null);
@@ -140,7 +140,7 @@ export default function TopBar() {
         {vesselProfileData && (
           <button
             onClick={() => setVesselProfileOpen(true)}
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
+            className="hidden [@media(hover:hover)]:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
               border border-blue-500/35 bg-blue-500/[0.07]
               hover:border-blue-400/60 hover:bg-blue-500/[0.13]
               focus:outline-none focus:ring-2 focus:ring-blue-500/50
@@ -159,7 +159,7 @@ export default function TopBar() {
         )}
 
         {/* NewChatButton — только мобилка */}
-        <div className="flex sm:hidden">
+        <div className="flex [@media(hover:hover)]:hidden">
           <NewChatButton />
         </div>
       </div>
