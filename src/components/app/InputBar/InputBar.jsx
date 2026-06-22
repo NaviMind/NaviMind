@@ -894,12 +894,9 @@ export default function InputBar() {
 
       {/* ── Expanded fullscreen editor (mobile only) ── */}
       {isExpanded && (
-        <div
-          className="fixed inset-0 z-[200] flex flex-col md:hidden"
-          style={{ background: "#0b1220" }}
-        >
+        <div className="fixed inset-0 z-[200] flex flex-col md:hidden bg-white dark:bg-[#0b1220]">
           {/* Top bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-white/10 flex-shrink-0">
             <button
               onClick={() => setIsExpanded(false)}
               className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition py-1 px-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
@@ -909,35 +906,20 @@ export default function InputBar() {
               <Minimize2 size={18} />
             </button>
 
-            {/* Center: waveform while recording, else char count */}
+            {/* Center: char count */}
             <div className="flex items-center justify-center min-w-[60px]">
-              {isListening ? (
-                <Waveform />
-              ) : (
-                <span className="text-xs text-gray-500 select-none">
-                  {inputValue.length > 0 ? `${inputValue.length} chars` : ""}
-                </span>
-              )}
+              <span className="text-xs text-gray-500 select-none">
+                {inputValue.length > 0 ? `${inputValue.length} chars` : ""}
+              </span>
             </div>
 
-            {/* Right: mic/stop + send */}
-            <div className="flex items-center gap-1">
-              {speechSupported && (
-                isTranscribing ? (
-                  <TranscribingBtn />
-                ) : isListening ? (
-                  <StopBtn onClick={toggleListening} />
-                ) : (
-                  <MicButton onClick={toggleListening} />
-                )
-              )}
-              <SendStopButton
-                generating={isGenerating}
-                onSend={handleSend}
-                onStop={stopGeneration}
-                disabled={!inputValue.trim() && uploadedFiles.length === 0}
-              />
-            </div>
+            {/* Right: send only — the expanded view is for editing, not dictation */}
+            <SendStopButton
+              generating={isGenerating}
+              onSend={handleSend}
+              onStop={stopGeneration}
+              disabled={!inputValue.trim() && uploadedFiles.length === 0}
+            />
           </div>
 
           {/* Full textarea */}
@@ -1039,11 +1021,12 @@ export default function InputBar() {
                         <MicButton onClick={startRecording} />
                       </Tooltip>
                     )}
-                    {(inputValue.trim() || uploadedFiles.length > 0) && (
-                      <Tooltip content="Send" position="top" align="right">
-                        <SendStopButton onSend={handleSend} disabled={false} />
-                      </Tooltip>
-                    )}
+                    <Tooltip content="Send" position="top" align="right">
+                      <SendStopButton
+                        onSend={handleSend}
+                        disabled={!inputValue.trim() && uploadedFiles.length === 0}
+                      />
+                    </Tooltip>
                   </>
                 )}
               </div>
