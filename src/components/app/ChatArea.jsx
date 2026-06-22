@@ -54,18 +54,26 @@ export default function ChatArea({ messages, children }) {
     const isChatSwitch = prevChatIdRef.current !== activeChatId;
 
     if (isChatSwitch) {
-      // Сменили чат → мгновенно вниз. Сообщения подгружаются асинхронно, поэтому
-      // держим низ мгновенно (без анимации), пока они дозагружаются.
+      // Сменили чат → держим низ мгновенно. Контент (markdown/картинки/код)
+      // дорисовывается асинхронно и наращивает высоту уже после первого прыжка,
+      // поэтому пиним низ каждый кадр ~600мс — без видимой анимации.
       prevChatIdRef.current = activeChatId;
       switchingRef.current = true;
       jumpToBottom();
-      const t = setTimeout(() => { switchingRef.current = false; }, 500);
-      return () => clearTimeout(t);
+
+      let raf;
+      const start = performance.now();
+      const loop = () => {
+        jumpToBottom();
+        if (performance.now() - start < 600) raf = requestAnimationFrame(loop);
+        else switchingRef.current = false;
+      };
+      raf = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(raf);
     }
 
     if (switchingRef.current) {
-      // Тот же (только что открытый) чат догружает сообщения → остаёмся внизу
-      // мгновенно, без видимой прокрутки.
+      // Тот же (только что открытый) чат догружает сообщения → остаёмся внизу.
       jumpToBottom();
       return;
     }
