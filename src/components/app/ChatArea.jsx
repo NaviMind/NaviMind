@@ -40,10 +40,11 @@ export default function ChatArea({ messages, children }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Мгновенный переход вниз без анимации (при открытии/переключении чата)
+  // Мгновенный переход вниз без анимации (при открытии/переключении чата).
+  // Через нижний якорь — так же надёжно, как плавный scrollToBottom, просто
+  // instant (mainRef.scrollTop не всегда работает: скроллится родитель).
   const jumpToBottom = () => {
-    const el = mainRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
   };
 
   // useLayoutEffect ставит позицию ДО отрисовки кадра, поэтому при смене чата
