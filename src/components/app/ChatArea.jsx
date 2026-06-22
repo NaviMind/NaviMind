@@ -6,14 +6,11 @@ import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
-  const { activeChatId, streamingMessages, pendingSend, generatingChatId } = useContext(ChatContext);
+  const { activeChatId, streamingMessages, pendingSend } = useContext(ChatContext);
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
-  const prevLastUserIdRef = useRef(null);
-  const lastUserRef = useRef(null);     // DOM node of the most recent user message
-  const switchingRef = useRef(false);   // keep scrolling instant while a switched chat loads
-  const [scrolledUp, setScrolledUp] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const baseMessages = Array.isArray(messages) ? messages : [];
 
@@ -35,85 +32,58 @@ export default function ChatArea({ messages, children }) {
 
   const hasMessages = displayMessages.length > 0;
 
-  // Index + id of the most recent user message (used to anchor on send).
-  let lastUserIndex = -1;
-  for (let i = displayMessages.length - 1; i >= 0; i--) {
-    if (displayMessages[i].role === "user") { lastUserIndex = i; break; }
-  }
-  const lastUserId = lastUserIndex >= 0 ? (displayMessages[lastUserIndex].id ?? lastUserIndex) : null;
+  const lastMessage = hasMessages ? messages[messages.length - 1] : null;
+  const isAssistantTyping = lastMessage?.role === "assistant" && lastMessage?.isStreaming === true;
 
-  const isGenerating =
-    generatingChatId != null &&
-    (generatingChatId === activeChatId || generatingChatId === true);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
+  // Мгновенный переход вниз без анимации (при открытии/переключении чата)
   const jumpToBottom = () => {
     const el = mainRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-  // Bring the latest question to the top of the viewport so the answer reads
-  // from the top — the user scrolls down themselves, no auto-follow.
-  const scrollQuestionToTop = () => {
-    const el = lastUserRef.current;
-    const c = mainRef.current;
-    if (!el || !c) return;
-    requestAnimationFrame(() => {
-      const top = c.scrollTop + (el.getBoundingClientRect().top - c.getBoundingClientRect().top) - 12;
-      c.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-    });
-  };
 
-  // Position on chat switch / new message. Runs before paint to avoid a visible
-  // jump.
+  // useLayoutEffect ставит позицию ДО отрисовки кадра, поэтому при смене чата
+  // нет видимого рывка: контент сразу появляется внизу, а не прыгает туда.
   useLayoutEffect(() => {
     if (!hasMessages) return;
 
-    const switched = prevChatIdRef.current !== activeChatId;
-    if (switched) {
-      prevChatIdRef.current = activeChatId;
-      prevLastUserIdRef.current = lastUserId; // don't treat the load as a new send
+    // Сменился чат → открываем сразу внизу, без анимированного скролла.
+    // То же сообщение/стриминг в текущем чате → плавный скролл.
+    const isChatSwitch = prevChatIdRef.current !== activeChatId;
+    prevChatIdRef.current = activeChatId;
+
+    if (isChatSwitch) {
       jumpToBottom();
-      // Keep it pinned to the bottom (instantly) while the rest of the messages
-      // stream in from Firestore right after the switch.
-      switchingRef.current = true;
-      const t = setTimeout(() => { switchingRef.current = false; }, 400);
-      return () => clearTimeout(t);
+    } else {
+      setTimeout(scrollToBottom, 50);
     }
+  }, [messages, activeChatId, showOptimistic]);
 
-    if (switchingRef.current) {
-      jumpToBottom();
-      return;
-    }
-
-    // Same chat: a brand-new question → anchor it to the top.
-    if (lastUserId && lastUserId !== prevLastUserIdRef.current) {
-      prevLastUserIdRef.current = lastUserId;
-      scrollQuestionToTop();
-    }
-    // Any other update (e.g. the assistant streaming) → do nothing.
-  }, [messages, activeChatId, showOptimistic, lastUserId, hasMessages]);
-
-  // Sticky bottom ONLY when the user is already at the very bottom — so a live
-  // answer keeps in view if they scrolled down, but we never yank them down
-  // while they read from the top.
+  // Follow the live-streaming answer: keep pinned to the bottom as tokens
+  // arrive, but only if the user is already near the bottom (don't yank them
+  // back down if they scrolled up to read).
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distanceFromBottom < 80) el.scrollTop = el.scrollHeight;
+    if (distanceFromBottom < 300) el.scrollTop = el.scrollHeight;
   }, [streamingMessages]);
 
-  // Track whether the user has scrolled away from the bottom (for the
-  // scroll-down button / "responding" indicator).
   useEffect(() => {
     const ref = mainRef.current;
     if (!ref) return;
+
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = ref;
-      setScrolledUp(scrollHeight - scrollTop - clientHeight > 200);
-    };
+  if (isAssistantTyping) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = ref;
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+  setShowScrollButton(distanceFromBottom > 200);
+};
+
     ref.addEventListener("scroll", handleScroll);
     return () => ref.removeEventListener("scroll", handleScroll);
   }, []);
@@ -131,38 +101,37 @@ export default function ChatArea({ messages, children }) {
       >
         {hasMessages ? (
           <div className="w-full max-w-4xl flex flex-col gap-2">
-            {displayMessages.map((msg, idx) => (
-              <div key={msg.id ?? idx} ref={idx === lastUserIndex ? lastUserRef : null}>
-                <ChatMessage message={msg} isLast={idx === displayMessages.length - 1} />
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
+  {displayMessages.map((msg, idx) => (
+    <ChatMessage key={msg.id ?? idx} message={msg} isLast={idx === displayMessages.length - 1} />
+  ))}
+  <div ref={messagesEndRef} />
+</div>
         ) : (
           children
         )}
       </main>
 
-      {/* Bottom-center control: "responding" while generating + scrolled up,
-          else a plain scroll-to-bottom button. */}
-      {scrolledUp && (
-        <div className="absolute bottom-[10px] left-1/2 -translate-x-1/2 z-40">
-          {isGenerating ? (
-            <button
-              onClick={scrollToBottom}
-              className="flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-blue-600 text-white text-xs font-medium shadow-lg hover:bg-blue-500 transition"
-            >
-              <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              NaviMind is responding…
-            </button>
-          ) : (
+      {/* Scroll to Bottom Button */}
+      {showScrollButton && (
+        <div className="absolute bottom-[10px] left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+          {/* Desktop */}
+          <div className="hidden sm:block relative group pointer-events-auto">
             <button
               onClick={scrollToBottom}
               className="p-2 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 transition rounded-full backdrop-blur shadow-sm"
             >
               <Icon name="scroll-bottom" size={20} />
             </button>
-          )}
+            </div>
+          {/* Mobile */}
+          <div className="block sm:hidden pointer-events-auto">
+            <button
+              onClick={scrollToBottom}
+              className="p-2 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 transition rounded-full backdrop-blur shadow-sm"
+            >
+              <Icon name="scroll-bottom-mobile" size={16} />
+            </button>
+          </div>
         </div>
       )}
     </div>
