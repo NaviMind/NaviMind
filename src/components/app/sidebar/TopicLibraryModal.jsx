@@ -205,7 +205,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         animate="animate"
         exit="exit"
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-lg max-h-[82vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        className="w-full max-w-lg h-[600px] max-h-[85vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
