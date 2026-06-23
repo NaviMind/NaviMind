@@ -24,7 +24,7 @@ import {
   getLibraryFiles,
 } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
-import { Maximize2, Minimize2, Mic, Check, X } from "lucide-react";
+import { Maximize2, Minimize2, Mic, Check, X, Upload } from "lucide-react";
 
 const FILES_LIMIT = 5;
 // Pasting more than this many characters turns the text into a .txt attachment
@@ -887,15 +887,29 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
     <>
       {/* ── Drag & drop overlay (desktop) ── */}
       {isDragging && !isMobile && (
-        <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center bg-blue-950/40 backdrop-blur-[2px]">
-          <div className="m-6 px-10 py-12 rounded-3xl border-2 border-dashed border-blue-400/80 bg-white/90 dark:bg-gray-900/90 shadow-2xl flex flex-col items-center gap-3 text-center">
-            <Icon name="attach-file" size={32} />
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">
-              Drop files to attach
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Images, PDF, Word — up to {FILES_LIMIT} files
-            </p>
+        <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center bg-blue-950/30 backdrop-blur-[3px]">
+          <div className="m-6 px-12 py-10 rounded-3xl border-2 border-dashed border-blue-400/70 bg-white/95 dark:bg-gray-900/90 shadow-2xl ring-1 ring-blue-500/10 flex flex-col items-center gap-4 text-center animate-fade-in">
+            <span className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-500/15 text-blue-500 dark:text-blue-300">
+              <Upload size={30} strokeWidth={2} />
+            </span>
+            <div>
+              <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                Drop files to attach
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Up to {FILES_LIMIT} files · 30&nbsp;MB each
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[260px]">
+              {["Images", "PDF", "Word", "Excel", "Text"].map((t) => (
+                <span
+                  key={t}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}
