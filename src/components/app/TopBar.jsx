@@ -37,15 +37,15 @@ export default function TopBar() {
     theme,
   } = useContext(UIContext);
 
-  const { customProjects, setActiveChatId, activeChatId, projectChatSessions } = useContext(ChatContext);
+  const { activeProject, customProjects, setActiveChatId, activeChatId, projectChatSessions } = useContext(ChatContext);
   const router = useRouter();
   const pathname = usePathname();
 
-  // "In a topic" is derived from the route, not activeProject (which can be
-  // stale on non-topic pages).
-  const topicId = pathname?.startsWith("/app/projects/")
-    ? pathname.split("/app/projects/")[1]?.split("/")[0] || null
-    : null;
+  // "In a topic" requires BOTH the active topic context AND a topic route:
+  // a chat click sets activeProject without changing the URL, and route nav can
+  // leave a stale activeProject — requiring both keeps this correct in all cases.
+  const onTopicRoute = !!pathname?.startsWith("/app/projects/");
+  const topicId = onTopicRoute && activeProject ? activeProject : null;
   const inTopic = !!topicId;
   const activeProjectName = topicId ? (customProjects?.[topicId]?.name || null) : null;
 

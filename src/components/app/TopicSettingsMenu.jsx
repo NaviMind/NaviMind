@@ -13,7 +13,7 @@ import { FileText } from "lucide-react";
 // dropdown with Library / Instruction; both dispatch a window event that the
 // topic page listens for (so we reuse its existing modals, no duplication).
 export default function TopicSettingsMenu() {
-  const { customProjects } = useContext(ChatContext);
+  const { activeProject, customProjects } = useContext(ChatContext);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -34,10 +34,12 @@ export default function TopicSettingsMenu() {
     };
   }, [open]);
 
-  // Bind to the actual topic route so the gear shows ONLY inside a topic.
-  const topicId = pathname?.startsWith("/app/projects/")
-    ? pathname.split("/app/projects/")[1]?.split("/")[0] || null
-    : null;
+  // Show ONLY inside a topic: requires both the active topic context AND a topic
+  // route. Clicking a regular chat clears activeProject (no URL change), and
+  // navigating home leaves a stale activeProject but a non-topic route — both
+  // cases correctly hide the gear.
+  const onTopicRoute = !!pathname?.startsWith("/app/projects/");
+  const topicId = onTopicRoute && activeProject ? activeProject : null;
   if (!topicId) return null;
   const hasInstr = !!customProjects?.[topicId]?.description;
 
