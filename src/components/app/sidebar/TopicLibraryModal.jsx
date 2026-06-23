@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, FileText } from "lucide-react";
 import Tooltip from "@/components/common/Tooltip";
 import MaskIcon from "@/components/common/MaskIcon";
@@ -47,8 +48,11 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const [activeDoc, setActiveDoc] = useState(null);
   const [activeImage, setActiveImage] = useState(null);
   const [portalTarget, setPortalTarget] = useState(null);
+  const [open, setOpen] = useState(true); // drives the slide-up / slide-down
   const storeIdRef = useRef("");
   const inputRef = useRef(null);
+
+  const close = () => setOpen(false);
 
   // Open over the main work area (not covering the sidebar), like file viewers.
   useEffect(() => {
@@ -183,12 +187,26 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   if (!portalTarget) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
+    <>
+    <AnimatePresence onExitComplete={onClose}>
+      {open && (
+      <motion.div
+        key="lib-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+      >
+      <motion.div
+        variants={{ initial: { y: "100%", opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: "100%", opacity: 0 } }}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-lg max-h-[82vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
@@ -213,7 +231,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
             </button>
           </Tooltip>
           <button
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
             className="shrink-0 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
           >
@@ -307,7 +325,10 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
+      </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* Viewers */}
       {activeImage && (
@@ -331,7 +352,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         </div>
       )}
       <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
-    </div>,
+    </>,
     portalTarget
   );
 }
