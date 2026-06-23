@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
+import TopicSettingsMenu from "@/components/app/TopicSettingsMenu";
 import Icon from "@/components/common/Icon";
 
 // Tooltip — только на десктопе
@@ -102,7 +103,7 @@ export default function TopBar() {
 
       {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
       <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 [@media(hover:hover)]:hidden ${
-        showMobileTopicPill ? "opacity-0" : "opacity-100"
+        showMobileTopicPill || activeProject ? "opacity-0" : "opacity-100"
       }`}>
         <img
           src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
@@ -158,10 +159,15 @@ export default function TopBar() {
           </button>
         )}
 
-        {/* NewChatButton — только мобилка */}
-        <div className="flex [@media(hover:hover)]:hidden">
-          <NewChatButton />
-        </div>
+        {/* NewChatButton — только мобилка и НЕ внутри топика */}
+        {!activeProject && (
+          <div className="flex [@media(hover:hover)]:hidden">
+            <NewChatButton />
+          </div>
+        )}
+
+        {/* Topic settings gear — only inside a topic (desktop + mobile) */}
+        <TopicSettingsMenu />
       </div>
 
       <AppModals />

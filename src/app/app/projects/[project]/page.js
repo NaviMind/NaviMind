@@ -9,12 +9,10 @@ import { UIContext } from "@/context/UIContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import ChatArea from "@/components/app/ChatArea";
 import Icon from "@/components/common/Icon";
-import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTopicDescription, getLibraryFiles } from "@/firebase/chatStore";
+import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import { sendChatMessage } from "@/components/app/InputBar/sendChatMessage";
 import TopicLibraryModal from "@/components/app/sidebar/TopicLibraryModal";
-import MaskIcon from "@/components/common/MaskIcon";
-import { FileText } from "lucide-react";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -53,23 +51,25 @@ export default function DynamicProjectPage() {
 
   const [instrModalOpen, setInstrModalOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [fileCount, setFileCount] = useState(0);
-
-  // Count the topic's files for the "Files (N)" affordance (re-counted when the
-  // library modal closes, since files may have been added/removed there).
-  const refreshFileCount = useCallback(async () => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || !project) return;
-    try {
-      const all = await getLibraryFiles({ uid, topicId: project });
-      setFileCount(all.filter((f) => f.url).length);
-    } catch { /* silent */ }
-  }, [project]);
-
-  useEffect(() => { refreshFileCount(); }, [refreshFileCount]);
   const [isInstrPresent, setIsInstrPresent] = useState(false);
   const [instrText, setInstrText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
+
+  // The Library / Instruction modals are opened from the top-bar gear
+  // (TopicSettingsMenu) via window events.
+  useEffect(() => {
+    const onLib = () => setLibraryOpen(true);
+    const onInstr = () => {
+      setInstrText(customProjects?.[project]?.description || "");
+      setInstrModalOpen(true);
+    };
+    window.addEventListener("nm-topic-library", onLib);
+    window.addEventListener("nm-topic-instruction", onInstr);
+    return () => {
+      window.removeEventListener("nm-topic-library", onLib);
+      window.removeEventListener("nm-topic-instruction", onInstr);
+    };
+  }, [project, customProjects]);
   const [isCompact, setIsCompact] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
@@ -391,31 +391,6 @@ export default function DynamicProjectPage() {
               </span>
             </>
           )}
-          <button
-            onClick={() => setLibraryOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium
-              border border-transparent text-gray-500 dark:text-gray-400
-              hover:border-blue-500/50 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
-              focus:outline-none focus:ring-2 focus:ring-blue-500/50
-              transition-colors duration-200 flex-shrink-0"
-          >
-            <MaskIcon src="/library_books.svg" size={16} className="opacity-80" />
-            {fileCount > 0 ? `Files (${fileCount})` : "Files"}
-          </button>
-          <button
-            onClick={() => {
-              setInstrText(customProjects?.[project]?.description || "");
-              setInstrModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium
-              border border-transparent text-gray-500 dark:text-gray-400
-              hover:border-blue-500/50 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5
-              focus:outline-none focus:ring-2 focus:ring-blue-500/50
-              transition-colors duration-200 flex-shrink-0"
-          >
-            <FileText size={16} className="opacity-80" />
-            {customProjects?.[project]?.description ? "Edit instruction" : "+ Add instruction"}
-          </button>
         </div>
         {lastActiveLabel && (
           <div className="flex items-center gap-1.5 mt-1 ml-8 text-[12px] text-gray-500 select-none">
@@ -616,7 +591,7 @@ export default function DynamicProjectPage() {
         <TopicLibraryModal
           topicId={project}
           topicName={customProjects?.[project]?.name || "Topic"}
-          onClose={() => { setLibraryOpen(false); refreshFileCount(); }}
+          onClose={() => setLibraryOpen(false)}
         />
       )}
 
