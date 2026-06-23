@@ -131,7 +131,7 @@ export async function sendChatMessage({
   let aiMessageId;
   let genAbortController = null;
 
-  const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}`;
+  const sendKey = `${currentUser?.uid}:${topicIdFromURL || "global"}:${activeChatId || "new"}`;
 
 if (sendLocks.has(sendKey)) {
   return;

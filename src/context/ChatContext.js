@@ -27,6 +27,9 @@ export function ChatProvider({ children }) {
     if (!chatId) return;
     setPinned({ chatId, topicId: topicId && topicId !== "global" ? topicId : null });
     setSplitMode(true);
+    // Free the left/main pane so the two panes aren't the same chat — the right
+    // holds the pinned chat, the left is ready to pick another.
+    ws.setActiveChatId(null);
   };
   const disableSplit = () => {
     setSplitMode(false);
