@@ -6,6 +6,7 @@ import { useChatWorkspace } from "@/context/useChatWorkspace";
 import ChatArea from "@/components/app/ChatArea";
 import InputBar from "@/components/app/InputBar/InputBar";
 import MaskIcon from "@/components/common/MaskIcon";
+import SplitDragHint from "@/components/app/SplitDragHint";
 import { X } from "lucide-react";
 
 // Right-hand split pane: a fixed ("pinned") chat with its own independent
@@ -38,6 +39,7 @@ export default function PinnedPane() {
   return (
     <ChatContext.Provider value={value}>
       <div ref={paneRef} className="relative flex flex-col h-full min-h-0">
+        <SplitDragHint />
         {/* Header */}
         <div className="flex items-center gap-2 px-4 h-[60px] border-b border-gray-200 dark:border-white/10 shrink-0">
           <MaskIcon src="/Split_scene_right.svg" size={17} className="text-blue-500 dark:text-blue-400 shrink-0" />

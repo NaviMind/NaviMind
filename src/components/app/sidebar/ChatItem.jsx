@@ -7,6 +7,7 @@ import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import { renameChatInFirestore, togglePinChat } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
+import { GripVertical } from "lucide-react";
 
 function ChatItem({
   chat,
@@ -108,6 +109,7 @@ if (!chat.title) return null;
         ${!isSelectMode && isActive ? "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white" : ""}
         ${!isSelectMode && !isActive ? "hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200" : ""}
         ${isSelectMode ? "cursor-pointer" : ""}
+        ${!isSelectMode && !isBeingRenamed ? "[@media(hover:hover)]:cursor-grab active:cursor-grabbing" : ""}
       `}
       style={{ minHeight: 34 }}
       onClick={isSelectMode ? () => onToggleSelect?.(chat.chatId) : undefined}
@@ -126,6 +128,18 @@ if (!chat.title) return null;
               </svg>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Drag-handle hint — desktop only. Signals the row can be dragged
+          (e.g. into the right split pane). Slides in on hover, no layout
+          shift at rest. */}
+      {!isSelectMode && !isBeingRenamed && (
+        <div
+          aria-hidden="true"
+          className="hidden [@media(hover:hover)]:flex items-center flex-shrink-0 overflow-hidden max-w-0 opacity-0 group-hover:max-w-[16px] group-hover:opacity-100 transition-all duration-200 text-gray-300 dark:text-white/25 cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
         </div>
       )}
 
