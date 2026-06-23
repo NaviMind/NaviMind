@@ -26,6 +26,7 @@ function ChatItem({
     openChatSession,
     renameChat,
     setProjectChatSessions,
+    setIsDraggingChat,
   } = useContext(ChatContext);
 
   const [renamingId, setRenamingId] = useState(null);
@@ -91,6 +92,16 @@ if (!chat.title) return null;
   return (
     <div
       key={chat.chatId}
+      draggable={!isSelectMode && !isBeingRenamed}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "copy";
+        e.dataTransfer.setData(
+          "application/nm-chat",
+          JSON.stringify({ chatId: chat.chatId, projId })
+        );
+        setIsDraggingChat?.(true);
+      }}
+      onDragEnd={() => setIsDraggingChat?.(false)}
       className={`
         group relative flex items-center px-1.5 py-0.5 my-px rounded-lg transition-all duration-200
         ${isSelectMode && isSelected ? "bg-blue-50 dark:bg-white/10" : ""}

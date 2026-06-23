@@ -15,6 +15,7 @@ import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 import InstallPrompt from "@/components/common/InstallPrompt";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 import PinnedPane from "@/components/app/PinnedPane";
+import { Pin } from "lucide-react";
 
 
 /* ---------------------- */
@@ -22,7 +23,16 @@ import PinnedPane from "@/components/app/PinnedPane";
 /* ---------------------- */
 
 function AppShell({ children }) {
-  const { isLoadingMessages, splitMode } = useContext(ChatContext);
+  const { isLoadingMessages, splitMode, isDraggingChat, setIsDraggingChat, enableSplit } = useContext(ChatContext);
+
+  const handlePinDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingChat(false);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("application/nm-chat") || "null");
+      if (data?.chatId) enableSplit(data.chatId, data.projId);
+    } catch { /* ignore */ }
+  };
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -140,6 +150,20 @@ function AppShell({ children }) {
           </div>
         )}
         </div>
+
+        {/* Drag-to-pin drop zone — right half, shown while dragging a chat */}
+        {isDraggingChat && (
+          <div
+            className="hidden [@media(hover:hover)]:flex fixed top-[60px] right-0 bottom-0 w-1/2 z-[60] p-4 items-center justify-center"
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+            onDrop={handlePinDrop}
+          >
+            <div className="w-full h-full rounded-2xl border-2 border-dashed border-blue-400 bg-blue-500/15 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-blue-600 dark:text-blue-300 font-medium pointer-events-none">
+              <Pin size={26} />
+              Drop here to pin chat
+            </div>
+          </div>
+        )}
       </div>
 
       <MobileSidebarOverlay />

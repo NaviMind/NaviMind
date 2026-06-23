@@ -23,13 +23,15 @@ export function ChatProvider({ children }) {
   // ── Split screen: a second pane holding a fixed ("pinned") chat ──
   const [splitMode, setSplitMode] = useState(false);
   const [pinned, setPinned] = useState(null); // { chatId, topicId }
+  const [isDraggingChat, setIsDraggingChat] = useState(false); // drag-to-pin
   const enableSplit = (chatId, topicId) => {
     if (!chatId) return;
+    const wasSplit = splitMode;
     setPinned({ chatId, topicId: topicId && topicId !== "global" ? topicId : null });
     setSplitMode(true);
-    // Free the left/main pane so the two panes aren't the same chat — the right
-    // holds the pinned chat, the left is ready to pick another.
-    ws.setActiveChatId(null);
+    // Free the left/main pane only when first entering split (so the two panes
+    // aren't the same chat). When already split, just swap the pinned chat.
+    if (!wasSplit) ws.setActiveChatId(null);
   };
   const disableSplit = () => {
     setSplitMode(false);
@@ -281,6 +283,8 @@ useEffect(() => {
     pinned,
     enableSplit,
     disableSplit,
+    isDraggingChat,
+    setIsDraggingChat,
     // Per-pane workspace (single instance for now; split screen adds a second).
     ...ws,
   };
