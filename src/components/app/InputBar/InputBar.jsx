@@ -296,12 +296,19 @@ export default function InputBar() {
 
   /* ───────── TEXTAREA AUTO-RESIZE ───────── */
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-      const scrollH = inputRef.current.scrollHeight;
-      inputRef.current.style.height = `${Math.min(scrollH, 168)}px`;
-      setShowExpandBtn(scrollH >= EXPAND_SCROLL_THRESHOLD);
+    const el = inputRef.current;
+    if (!el) return;
+    // Empty → force a clean single-line height and hide the expand button
+    // (mobile can report an inflated scrollHeight for an empty textarea).
+    if (!inputValue.trim()) {
+      el.style.height = "auto";
+      setShowExpandBtn(false);
+      return;
     }
+    el.style.height = "auto";
+    const scrollH = el.scrollHeight;
+    el.style.height = `${Math.min(scrollH, 168)}px`;
+    setShowExpandBtn(scrollH >= EXPAND_SCROLL_THRESHOLD);
   }, [inputValue]);
 
   /* ───────── FOCUS EXPANDED TEXTAREA ───────── */
