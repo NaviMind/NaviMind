@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import {
   subscribeToMessages,
@@ -26,6 +27,14 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  // Track auth readiness — on a page refresh the session restores async, so a
+  // restored (e.g. pinned) chat must re-subscribe once the uid is available.
+  const [uid, setUid] = useState(() => auth.currentUser?.uid || null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUid(u?.uid || null));
+    return () => unsub();
+  }, []);
 
   // Optimistic outgoing message (shown instantly while attachments upload).
   const [pendingSend, setPendingSend] = useState(null);
@@ -59,7 +68,6 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
 
   // Real-time chats of the active topic.
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
     if (!uid || !activeProject || activeProject === "global") return;
 
     const unsubscribe = subscribeToTopicChats(uid, activeProject, (chats) => {
@@ -67,11 +75,11 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
     });
 
     return () => unsubscribe();
-  }, [activeProject]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeProject, uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Messages of the active chat (topic-aware).
   useEffect(() => {
-    if (!activeChatId || !auth.currentUser) {
+    if (!activeChatId || !uid) {
       setIsLoadingMessages(false);
       return;
     }
@@ -79,7 +87,6 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
     setMessages([]);
     setIsLoadingMessages(true);
 
-    const uid = auth.currentUser.uid;
     const topicId = activeProject && activeProject !== "global" ? activeProject : null;
 
     const onMessages = (msgs) => {
@@ -92,7 +99,7 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
       : subscribeToMessages(uid, activeChatId, onMessages);
 
     return () => unsubscribe();
-  }, [activeChatId, activeProject]);
+  }, [activeChatId, activeProject, uid]);
 
   const createNewChat = (projId = "global") => {
     const newChat = {
