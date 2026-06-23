@@ -50,6 +50,9 @@ export default function ChatOptionsDropdown({
     customProjects,
     setActiveProject,
     setActiveChatId,
+    enableSplit,
+    splitMode,
+    pinned,
   } = useContext(ChatContext);
   const router = useRouter();
   const menuRef = useRef(null);
@@ -251,6 +254,18 @@ export default function ChatOptionsDropdown({
   <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
 </button>
+
+{/* Open in split — desktop only; pin this chat to the right pane while the
+    left pane stays free for the sidebar. Hidden when it's already pinned. */}
+{!isTopic && enableSplit && !(splitMode && pinned?.chatId === chatId) && (
+  <button
+    onClick={() => { enableSplit(chatId, topicId); onClose(); }}
+    className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+  >
+    <MaskIcon src="/Split_scene_right.svg" size={19} className="opacity-80" />
+    <span>Open in split</span>
+  </button>
+)}
 
             {!isTopic && (
               <button
