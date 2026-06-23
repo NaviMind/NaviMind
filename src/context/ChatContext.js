@@ -1,73 +1,29 @@
 "use client";
 
-import { subscribeToMessages, subscribeToTopicMessages, subscribeToUserChats, subscribeToUserTopics, subscribeToTopicChats, renameTopicInFirestore, getTopicData, getLibraryFiles, deleteLibraryFileRecords } from "@/firebase/chatStore";
-import { createContext, useEffect, useState, useRef } from "react";
+import { subscribeToUserChats, subscribeToUserTopics, renameTopicInFirestore, getTopicData, getLibraryFiles, deleteLibraryFileRecords } from "@/firebase/chatStore";
+import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { db } from "@/firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import { doc, deleteDoc } from "firebase/firestore";
+import { useChatWorkspace } from "./useChatWorkspace";
 
 export const ChatContext = createContext();
 
-/* ───────── helpers ───────── */
-const genId = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
-const makeTitle = (txt) => {
-  const words = txt.trim().split(/\s+/).slice(0, 5).join(" ");
-  return words.length > 30 ? words.slice(0, 30) + "…" : words;
-};
-
 /* ───────── provider ───────── */
 export function ChatProvider({ children }) {
+  // ── Shared sidebar data (one instance, used by all workspaces) ──
   const [projectChatSessions, setProjectChatSessions] = useState({});
   const [customProjects, setCustomProjects] = useState({});
-  const [activeProject, setActiveProject] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-  // Optimistic outgoing message: shown instantly (with local file previews and
-  // a "thinking" bubble) while attachments upload and the request is in flight,
-  // so the chat never looks frozen. Cleared once the real message is persisted.
-  // Shape: { chatId, message, attachments: [{ name, type, previewUrl }] }
-  const [pendingSend, setPendingSend] = useState(null);
-
-  // Live-streaming overlay: maps an assistant messageId → the text streamed so
-  // far. The UI renders this live while tokens arrive; Firestore still gets a
-  // single final write. Cleared once the final content is persisted.
-  const [streamingMessages, setStreamingMessages] = useState({});
-  const setStreamingMessage = (id, text) =>
-    setStreamingMessages((prev) => (prev[id] === text ? prev : { ...prev, [id]: text }));
-  const clearStreamingMessage = (id) =>
-    setStreamingMessages((prev) => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-
-  // Generation control: lets the UI show a Stop button and abort the in-flight
-  // answer. generatingChatId marks which chat is currently generating.
-  const generationAbortRef = useRef(null);
-  const [generatingChatId, setGeneratingChatId] = useState(null);
-  const beginGeneration = (controller, chatId) => {
-    generationAbortRef.current = controller;
-    setGeneratingChatId(chatId ?? true);
-  };
-  const endGeneration = () => {
-    generationAbortRef.current = null;
-    setGeneratingChatId(null);
-  };
-  const stopGeneration = () => {
-    try { generationAbortRef.current?.abort(); } catch { /* noop */ }
-  };
+  // ── Per-pane workspace (active chat/topic, messages, streaming, send, …) ──
+  const ws = useChatWorkspace({ projectChatSessions, setProjectChatSessions });
 
   const clearAllChats = () => {
     setProjectChatSessions({});
-    setActiveChatId(null);
-    setActiveProject(null);
+    ws.setActiveChatId(null);
+    ws.setActiveProject(null);
     localStorage.removeItem("chatSessions");
     localStorage.removeItem("customProjects");
   };
@@ -159,45 +115,6 @@ useEffect(() => {
     unsubscribeTopics?.();
   };
 }, []);
-
-  /* ───────── subscriptions ───────── */
-
-  // Подписка на чаты активного топика (real-time обновление списка)
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || !activeProject || activeProject === "global") return;
-
-    const unsubscribe = subscribeToTopicChats(uid, activeProject, (chats) => {
-      setProjectChatSessions(prev => ({ ...prev, [activeProject]: chats }));
-    });
-
-    return () => unsubscribe();
-  }, [activeProject]);
-
-  // Подписка на сообщения активного чата (учитывает topicId)
-  useEffect(() => {
-    if (!activeChatId || !auth.currentUser) {
-      setIsLoadingMessages(false);
-      return;
-    }
-
-    setMessages([]);
-    setIsLoadingMessages(true);
-
-    const uid = auth.currentUser.uid;
-    const topicId = activeProject && activeProject !== "global" ? activeProject : null;
-
-    const onMessages = (msgs) => {
-      setMessages(msgs);
-      setIsLoadingMessages(false);
-    };
-
-    const unsubscribe = topicId
-      ? subscribeToTopicMessages(uid, topicId, activeChatId, onMessages)
-      : subscribeToMessages(uid, activeChatId, onMessages);
-
-    return () => unsubscribe();
-  }, [activeChatId, activeProject]);
 
   /* ───────── persistence ───────── */
   useEffect(() => {
@@ -299,133 +216,32 @@ useEffect(() => {
     }
   };
 
-  /* ───────── chats control ───────── */
-  const createNewChat = (projId = "global") => {
-    const newChat = {
-      chatId: genId(),
-      createdAt: Date.now(),
-      title: "Untitled Chat",
-      messages: [],
-    };
-
-    setProjectChatSessions((prev) => {
-      const list = prev[projId] ? [...prev[projId]] : [];
-      return { ...prev, [projId]: [newChat, ...list] };
-    });
-
-    setActiveProject(projId);
-    setActiveChatId(newChat.chatId);
-  };
-
-  const sendMessage = (content, projId = activeProject || "global") => {
-    let targetChatId = activeChatId;
-
-    setProjectChatSessions((prev) => {
-      const next = { ...prev };
-
-      if (!next[projId]) {
-        next[projId] = [];
-      }
-
-      const chats = [...next[projId]];
-      let idx = chats.findIndex((c) => c.chatId === activeChatId);
-
-      if (idx === -1) {
-        const newChat = {
-          chatId: genId(),
-          createdAt: Date.now(),
-          title: makeTitle(content),
-          messages: [{ role: "user", content }],
-        };
-        chats.unshift(newChat);
-        idx = 0;
-        targetChatId = newChat.chatId;
-      } else {
-        const chat = { ...chats[idx] };
-        chat.messages = [...chat.messages, { role: "user", content }];
-        if (!chat.title) chat.title = makeTitle(content);
-        chats[idx] = chat;
-        targetChatId = chat.chatId;
-      }
-
-      next[projId] = chats;
-      return next;
-    });
-
-    setActiveProject(projId);
-    setActiveChatId(targetChatId);
-}; 
-
+  /* ───────── shared chat list control ───────── */
   const renameChat = (chatId, newTitle) => {
     setProjectChatSessions((prev) => {
       const next = { ...prev };
-
       Object.keys(next).forEach((projId) => {
         next[projId] = next[projId].map((chat) =>
           chat.chatId === chatId ? { ...chat, title: newTitle } : chat
         );
       });
-
       return next;
     });
-  };
-
-  const deleteChat = (chatId) => {
-    setProjectChatSessions((prev) => {
-      const next = {};
-      Object.entries(prev).forEach(([projKey, chats]) => {
-        next[projKey] = chats.filter((c) => c.chatId !== chatId);
-      });
-      return next;
-    });
-
-    if (activeChatId === chatId) setActiveChatId(null);
-  };
-
-  const openChatSession = (chatId, projId) => {
-    setActiveProject(projId);
-    setActiveChatId(chatId);
-  };
-
-  const getActiveChatSession = () => {
-    if (!activeProject || !activeChatId) return null;
-    const list = projectChatSessions?.[activeProject] || [];
-    return list.find((c) => c.chatId === activeChatId) || null;
   };
 
   /* ───────── context value ───────── */
   const value = {
     projectChatSessions,
     setProjectChatSessions,
-    activeProject,
-    activeChatId,
-    setActiveProject,
-    setActiveChatId,
-    renameChat,
-    deleteChat,
-    getActiveChatSession,
     customProjects,
     setCustomProjects,
     addCustomProject,
     deleteCustomProject,
     renameCustomProject,
-    openChatSession,
+    renameChat,
     clearAllChats,
-    messages,
-    setMessages,
-    isLoadingMessages,
-    setIsLoadingMessages,
-    pendingSend,
-    setPendingSend,
-    generatingChatId,
-    beginGeneration,
-    endGeneration,
-    stopGeneration,
-    streamingMessages,
-    setStreamingMessage,
-    clearStreamingMessage,
-    createNewChat,
-    sendMessage,
+    // Per-pane workspace (single instance for now; split screen adds a second).
+    ...ws,
   };
 
   return (
