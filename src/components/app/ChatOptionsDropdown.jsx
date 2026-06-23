@@ -263,7 +263,7 @@ export default function ChatOptionsDropdown({
     className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
   >
     <MaskIcon src="/Split_scene_right.svg" size={19} className="opacity-80" />
-    <span>Open in split</span>
+    <span>{splitMode ? "Move to split" : "Open in split"}</span>
   </button>
 )}
 
