@@ -1,7 +1,6 @@
 "use client";
 
 import { useContext, useState, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 
 import { auth } from "@/firebase/config";
@@ -223,17 +222,13 @@ function SendStopButton({ generating, onSend, onStop, disabled }) {
   );
 }
 
-export default function InputBar() {
+export default function InputBar({ respondToPendingPrompt = true }) {
   const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
-  const pathname = usePathname();
-  const topicIdFromURL =
-    pathname && pathname.startsWith("/app/projects/")
-      ? pathname.split("/app/projects/")[1]?.split("/")[0] || null
-      : null;
 
   const {
     projectChatSessions,
     activeChatId,
+    activeProject,
     setProjectChatSessions,
     setActiveProject,
     setActiveChatId,
@@ -513,14 +508,15 @@ export default function InputBar() {
   };
 
   /* ───────── ATTACHMENT PROCESSING (upload + index on attach) ───────── */
+  // The topic comes from this pane's workspace (context), not the URL — so a
+  // second (pinned) pane targets its own chat's topic correctly.
+  const topicId = activeProject && activeProject !== "global" ? activeProject : null;
+  const inTopic = Boolean(topicId);
+
   // Reset the cached store id when the scope (topic vs global) changes.
   useEffect(() => {
     storeIdRef.current = "";
-  }, [topicIdFromURL]);
-
-  const topicId =
-    topicIdFromURL && topicIdFromURL !== "null" ? topicIdFromURL : null;
-  const inTopic = Boolean(topicId);
+  }, [topicId]);
 
   // Keep filesRef and the rendered state in lockstep.
   const commitFiles = (next) => {
@@ -720,7 +716,7 @@ export default function InputBar() {
       attachments: preparedAttachments,
       currentUser,
       activeChatId,
-      topicIdFromURL,
+      topicIdFromURL: topicId,
       projectChatSessions,
       setProjectChatSessions,
       setActiveProject,
@@ -737,6 +733,7 @@ export default function InputBar() {
 
   /* ───────── SEND-NOW FROM FOLLOWUP CLICK ───────── */
   useEffect(() => {
+    if (!respondToPendingPrompt) return; // pinned pane ignores followup prompts
     if (!pendingPrompt || !pendingPrompt.trim()) return;
     if (!currentUser?.uid) return;
     const prompt = pendingPrompt;

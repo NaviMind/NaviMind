@@ -20,6 +20,19 @@ export function ChatProvider({ children }) {
   // ── Per-pane workspace (active chat/topic, messages, streaming, send, …) ──
   const ws = useChatWorkspace({ projectChatSessions, setProjectChatSessions });
 
+  // ── Split screen: a second pane holding a fixed ("pinned") chat ──
+  const [splitMode, setSplitMode] = useState(false);
+  const [pinned, setPinned] = useState(null); // { chatId, topicId }
+  const enableSplit = (chatId, topicId) => {
+    if (!chatId) return;
+    setPinned({ chatId, topicId: topicId && topicId !== "global" ? topicId : null });
+    setSplitMode(true);
+  };
+  const disableSplit = () => {
+    setSplitMode(false);
+    setPinned(null);
+  };
+
   const clearAllChats = () => {
     setProjectChatSessions({});
     ws.setActiveChatId(null);
@@ -240,6 +253,11 @@ useEffect(() => {
     renameCustomProject,
     renameChat,
     clearAllChats,
+    // Split screen
+    splitMode,
+    pinned,
+    enableSplit,
+    disableSplit,
     // Per-pane workspace (single instance for now; split screen adds a second).
     ...ws,
   };

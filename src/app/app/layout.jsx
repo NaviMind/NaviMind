@@ -14,6 +14,7 @@ import WelcomeModal from "@/components/app/Welcome/WelcomeModal";
 import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 import InstallPrompt from "@/components/common/InstallPrompt";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
+import PinnedPane from "@/components/app/PinnedPane";
 
 
 /* ---------------------- */
@@ -21,7 +22,7 @@ import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 /* ---------------------- */
 
 function AppShell({ children }) {
-  const { isLoadingMessages } = useContext(ChatContext);
+  const { isLoadingMessages, splitMode } = useContext(ChatContext);
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -104,7 +105,8 @@ function AppShell({ children }) {
           <TopBar />
         </div>
 
-        <div className="flex flex-col flex-1 min-h-0 w-full max-w-full">
+        <div className="flex flex-row flex-1 min-h-0 w-full max-w-full">
+        <div className="flex flex-col flex-1 min-h-0 min-w-0">
           <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
             {isLoadingMessages && (
@@ -129,6 +131,14 @@ function AppShell({ children }) {
           )}
           <InstallPrompt />
           <InputBar />
+        </div>
+
+        {/* Right split pane — a pinned chat (desktop only) */}
+        {splitMode && (
+          <div className="hidden [@media(hover:hover)]:flex flex-col flex-1 min-w-0 border-l border-gray-200 dark:border-white/10">
+            <PinnedPane />
+          </div>
+        )}
         </div>
       </div>
 
