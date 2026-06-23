@@ -6,13 +6,11 @@ import ChatMessage from "@/components/app/ChatMessage";
 import Icon from "@/components/common/Icon";
 
 export default function ChatArea({ messages, children }) {
-  const { activeChatId, pendingSend } = useContext(ChatContext);
+  const { activeChatId, streamingMessages, pendingSend } = useContext(ChatContext);
   const messagesEndRef = useRef(null);
   const mainRef = useRef(null);
   const prevChatIdRef = useRef(null);
   const pinTimerRef = useRef(null);
-  const prevLastUserIdRef = useRef(null);
-  const lastUserRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const baseMessages = Array.isArray(messages) ? messages : [];
@@ -34,13 +32,6 @@ export default function ChatArea({ messages, children }) {
     : baseMessages;
 
   const hasMessages = displayMessages.length > 0;
-
-  // Index/id of the latest user message — to anchor it on top when sending.
-  let lastUserIndex = -1;
-  for (let i = displayMessages.length - 1; i >= 0; i--) {
-    if (displayMessages[i].role === "user") { lastUserIndex = i; break; }
-  }
-  const lastUserId = lastUserIndex >= 0 ? (displayMessages[lastUserIndex].id ?? lastUserIndex) : null;
 
   const lastMessage = hasMessages ? messages[messages.length - 1] : null;
   const isAssistantTyping = lastMessage?.role === "assistant" && lastMessage?.isStreaming === true;
@@ -74,16 +65,6 @@ export default function ChatArea({ messages, children }) {
 
   useEffect(() => () => { if (pinTimerRef.current) clearInterval(pinTimerRef.current); }, []);
 
-  // Bring the latest question to the top so the answer reads from the top — the
-  // user scrolls down themselves; we never auto-follow the streaming answer.
-  const scrollQuestionToTop = () => {
-    const el = lastUserRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  };
-
   // useLayoutEffect ставит позицию ДО отрисовки кадра.
   useLayoutEffect(() => {
     if (!hasMessages) return;
@@ -93,27 +74,29 @@ export default function ChatArea({ messages, children }) {
     if (isChatSwitch) {
       // Открыли/сменили чат → пиним низ мгновенно, пока контент досчитается.
       prevChatIdRef.current = activeChatId;
-      prevLastUserIdRef.current = lastUserId; // загрузку не считаем «новым вопросом»
       startPinning(800);
       return;
     }
 
     if (pinTimerRef.current) {
       // Тот же только что открытый чат догружает сообщения → остаёмся внизу.
-      prevLastUserIdRef.current = lastUserId;
       pinBottom();
       return;
     }
 
-    // Новый вопрос юзера → поднимаем его наверх, дальше НЕ следим за ответом.
-    if (lastUserId && lastUserId !== prevLastUserIdRef.current) {
-      prevLastUserIdRef.current = lastUserId;
-      scrollQuestionToTop();
-      return;
-    }
+    // Новое сообщение в текущем чате → плавный скролл вниз.
+    setTimeout(scrollToBottom, 50);
+  }, [messages, activeChatId, showOptimistic]);
 
-    // Прочие обновления (стриминг ответа) → ничего не делаем (без автоскрола).
-  }, [messages, activeChatId, showOptimistic, lastUserId]);
+  // Follow the live-streaming answer: keep pinned to the bottom as tokens
+  // arrive, but only if the user is already near the bottom (don't yank them
+  // back down if they scrolled up to read).
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 300) el.scrollTop = el.scrollHeight;
+  }, [streamingMessages]);
 
   useEffect(() => {
     const ref = mainRef.current;
@@ -145,9 +128,7 @@ export default function ChatArea({ messages, children }) {
         {hasMessages ? (
           <div className="w-full max-w-4xl flex flex-col gap-2">
   {displayMessages.map((msg, idx) => (
-    <div key={msg.id ?? idx} ref={idx === lastUserIndex ? lastUserRef : undefined}>
-      <ChatMessage message={msg} isLast={idx === displayMessages.length - 1} />
-    </div>
+    <ChatMessage key={msg.id ?? idx} message={msg} isLast={idx === displayMessages.length - 1} />
   ))}
   <div ref={messagesEndRef} />
 </div>
