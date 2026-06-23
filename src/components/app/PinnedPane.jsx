@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { ChatContext } from "@/context/ChatContext";
 import { useChatWorkspace } from "@/context/useChatWorkspace";
 import ChatArea from "@/components/app/ChatArea";
@@ -15,6 +15,7 @@ export default function PinnedPane() {
   const shared = useContext(ChatContext);
   const { pinned, disableSplit, projectChatSessions, setProjectChatSessions } = shared;
   const ws = useChatWorkspace({ projectChatSessions, setProjectChatSessions });
+  const paneRef = useRef(null);
 
   // Lock this pane onto the pinned chat.
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function PinnedPane() {
 
   return (
     <ChatContext.Provider value={value}>
-      <div className="flex flex-col h-full min-h-0">
+      <div ref={paneRef} className="flex flex-col h-full min-h-0">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 h-[60px] border-b border-gray-200 dark:border-white/10 shrink-0">
           <Pin size={15} className="text-blue-500 dark:text-blue-400 shrink-0" />
@@ -57,7 +58,7 @@ export default function PinnedPane() {
         </div>
 
         {/* Input */}
-        <InputBar respondToPendingPrompt={false} />
+        <InputBar respondToPendingPrompt={false} dropTargetRef={paneRef} />
       </div>
     </ChatContext.Provider>
   );

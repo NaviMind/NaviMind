@@ -222,7 +222,7 @@ function SendStopButton({ generating, onSend, onStop, disabled }) {
   );
 }
 
-export default function InputBar({ respondToPendingPrompt = true }) {
+export default function InputBar({ respondToPendingPrompt = true, dropTargetRef = null }) {
   const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
 
   const {
@@ -394,15 +394,19 @@ export default function InputBar({ respondToPendingPrompt = true }) {
       if (dropped.length) addFiles(dropped);
     };
 
-    window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragover", onDragOver);
-    window.addEventListener("dragleave", onDragLeave);
-    window.addEventListener("drop", onDrop);
+    // Scope file drops to this pane's element when provided (split screen), so a
+    // file dropped on the right pane doesn't also load into the left, and vice
+    // versa. Falls back to window (single pane).
+    const target = dropTargetRef?.current || window;
+    target.addEventListener("dragenter", onDragEnter);
+    target.addEventListener("dragover", onDragOver);
+    target.addEventListener("dragleave", onDragLeave);
+    target.addEventListener("drop", onDrop);
     return () => {
-      window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragover", onDragOver);
-      window.removeEventListener("dragleave", onDragLeave);
-      window.removeEventListener("drop", onDrop);
+      target.removeEventListener("dragenter", onDragEnter);
+      target.removeEventListener("dragover", onDragOver);
+      target.removeEventListener("dragleave", onDragLeave);
+      target.removeEventListener("drop", onDrop);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedFiles]);

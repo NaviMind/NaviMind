@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { UIProvider, UIContext } from "@/context/UIContext";
 import { ChatProvider, ChatContext } from "@/context/ChatContext";
 import SidebarContainer from "@/components/app/sidebar/SidebarContainer";
@@ -24,6 +24,7 @@ import { Pin } from "lucide-react";
 
 function AppShell({ children }) {
   const { isLoadingMessages, splitMode, isDraggingChat, setIsDraggingChat, enableSplit } = useContext(ChatContext);
+  const mainPaneRef = useRef(null);
 
   const handlePinDrop = (e) => {
     e.preventDefault();
@@ -116,7 +117,7 @@ function AppShell({ children }) {
         </div>
 
         <div className="flex flex-row flex-1 min-h-0 w-full max-w-full">
-        <div className="flex flex-col flex-1 min-h-0 min-w-0">
+        <div ref={mainPaneRef} className="flex flex-col flex-1 min-h-0 min-w-0">
           <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
             {isLoadingMessages && (
@@ -140,7 +141,7 @@ function AppShell({ children }) {
             />
           )}
           <InstallPrompt />
-          <InputBar />
+          <InputBar dropTargetRef={mainPaneRef} />
         </div>
 
         {/* Right split pane — a pinned chat (desktop only) */}
