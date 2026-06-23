@@ -196,7 +196,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-hidden"
         onClick={(e) => { if (e.target === e.currentTarget) close(); }}
       >
       <motion.div
