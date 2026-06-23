@@ -8,7 +8,8 @@ import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
 import TopicSettingsMenu from "@/components/app/TopicSettingsMenu";
 import Icon from "@/components/common/Icon";
-import { Columns2 } from "lucide-react";
+import MaskIcon from "@/components/common/MaskIcon";
+import HoverTip from "@/components/common/Tooltip";
 
 // Tooltip — только на десктопе
 const Tooltip = ({ children, content, position = "bottom" }) => (
@@ -176,16 +177,18 @@ export default function TopBar() {
 
         {/* Split screen — desktop only; pin the current chat to a second pane */}
         {(activeChatId || splitMode) && (
-          <button
-            onClick={() => (splitMode ? disableSplit() : enableSplit(activeChatId, activeProject))}
-            aria-label={splitMode ? "Exit split screen" : "Split screen"}
-            className={`hidden [@media(hover:hover)]:flex items-center justify-center w-9 h-9 rounded-full transition-colors
-              ${splitMode
-                ? "bg-blue-600 text-white hover:bg-blue-500"
-                : "text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white"}`}
-          >
-            <Columns2 size={19} />
-          </button>
+          <HoverTip content={splitMode ? "Exit split screen" : "Split screen"} position="bottom" align="right">
+            <button
+              onClick={() => (splitMode ? disableSplit() : enableSplit(activeChatId, activeProject))}
+              aria-label={splitMode ? "Exit split screen" : "Split screen"}
+              className={`hidden [@media(hover:hover)]:flex items-center justify-center w-9 h-9 rounded-full transition-colors
+                ${splitMode
+                  ? "bg-blue-600 text-white hover:bg-blue-500"
+                  : "text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white"}`}
+            >
+              <MaskIcon src="/Split_scene.svg" size={20} />
+            </button>
+          </HoverTip>
         )}
 
         {/* Topic settings gear — only inside a topic (desktop + mobile) */}

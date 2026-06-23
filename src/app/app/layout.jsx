@@ -15,7 +15,7 @@ import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 import InstallPrompt from "@/components/common/InstallPrompt";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 import PinnedPane from "@/components/app/PinnedPane";
-import { Pin } from "lucide-react";
+import MaskIcon from "@/components/common/MaskIcon";
 
 
 /* ---------------------- */
@@ -144,9 +144,10 @@ function AppShell({ children }) {
           <InputBar dropTargetRef={mainPaneRef} />
         </div>
 
-        {/* Right split pane — a pinned chat (desktop only) */}
+        {/* Right split pane — a pinned chat (desktop only). Stronger separation:
+            border + soft left shadow + faint tint so it reads as its own panel. */}
         {splitMode && (
-          <div className="hidden [@media(hover:hover)]:flex flex-col flex-1 min-w-0 border-l border-gray-200 dark:border-white/10">
+          <div className="hidden [@media(hover:hover)]:flex flex-col flex-1 min-w-0 border-l border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] shadow-[-12px_0_28px_-14px_rgba(0,0,0,0.22)] dark:shadow-[-12px_0_28px_-14px_rgba(0,0,0,0.6)]">
             <PinnedPane />
           </div>
         )}
@@ -160,7 +161,7 @@ function AppShell({ children }) {
             onDrop={handlePinDrop}
           >
             <div className="w-full h-full rounded-2xl border-2 border-dashed border-blue-400 bg-blue-500/15 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-blue-600 dark:text-blue-300 font-medium pointer-events-none">
-              <Pin size={26} />
+              <MaskIcon src="/Split_scene_right.svg" size={28} />
               Drop here to pin chat
             </div>
           </div>

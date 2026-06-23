@@ -5,7 +5,8 @@ import { ChatContext } from "@/context/ChatContext";
 import { useChatWorkspace } from "@/context/useChatWorkspace";
 import ChatArea from "@/components/app/ChatArea";
 import InputBar from "@/components/app/InputBar/InputBar";
-import { Pin, X } from "lucide-react";
+import MaskIcon from "@/components/common/MaskIcon";
+import { X } from "lucide-react";
 
 // Right-hand split pane: a fixed ("pinned") chat with its own independent
 // workspace (messages, streaming, send) running over the shared chat lists. You
@@ -39,7 +40,7 @@ export default function PinnedPane() {
       <div ref={paneRef} className="flex flex-col h-full min-h-0">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 h-[60px] border-b border-gray-200 dark:border-white/10 shrink-0">
-          <Pin size={15} className="text-blue-500 dark:text-blue-400 shrink-0" />
+          <MaskIcon src="/Split_scene_right.svg" size={17} className="text-blue-500 dark:text-blue-400 shrink-0" />
           <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
             {title}
           </span>
