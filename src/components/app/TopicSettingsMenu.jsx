@@ -2,7 +2,9 @@
 
 import { useContext, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
+import Tooltip from "@/components/common/Tooltip";
 import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
 import { FileText } from "lucide-react";
@@ -11,7 +13,8 @@ import { FileText } from "lucide-react";
 // dropdown with Library / Instruction; both dispatch a window event that the
 // topic page listens for (so we reuse its existing modals, no duplication).
 export default function TopicSettingsMenu() {
-  const { activeProject, customProjects } = useContext(ChatContext);
+  const { customProjects } = useContext(ChatContext);
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
   const btnRef = useRef(null);
@@ -31,8 +34,12 @@ export default function TopicSettingsMenu() {
     };
   }, [open]);
 
-  if (!activeProject) return null;
-  const hasInstr = !!customProjects?.[activeProject]?.description;
+  // Bind to the actual topic route so the gear shows ONLY inside a topic.
+  const topicId = pathname?.startsWith("/app/projects/")
+    ? pathname.split("/app/projects/")[1]?.split("/")[0] || null
+    : null;
+  if (!topicId) return null;
+  const hasInstr = !!customProjects?.[topicId]?.description;
 
   const toggle = () => {
     const r = btnRef.current?.getBoundingClientRect();
@@ -49,14 +56,16 @@ export default function TopicSettingsMenu() {
 
   return (
     <>
-      <button
-        ref={btnRef}
-        onClick={toggle}
-        aria-label="Topic settings"
-        className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white transition-colors"
-      >
-        <Icon name="settings" size={20} />
-      </button>
+      <Tooltip content="Topic settings" position="bottom" align="right">
+        <button
+          ref={btnRef}
+          onClick={toggle}
+          aria-label="Topic settings"
+          className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white transition-colors"
+        >
+          <Icon name="settings" size={20} />
+        </button>
+      </Tooltip>
 
       {open && coords &&
         createPortal(

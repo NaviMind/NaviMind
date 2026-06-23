@@ -2,7 +2,7 @@
 
 import AppModals from "./AppModals";
 import { useContext } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
@@ -37,22 +37,30 @@ export default function TopBar() {
     theme,
   } = useContext(UIContext);
 
-  const { activeProject, customProjects, setActiveChatId, activeChatId, projectChatSessions } = useContext(ChatContext);
+  const { customProjects, setActiveChatId, activeChatId, projectChatSessions } = useContext(ChatContext);
   const router = useRouter();
-  const activeProjectName = activeProject ? (customProjects?.[activeProject]?.name || null) : null;
+  const pathname = usePathname();
+
+  // "In a topic" is derived from the route, not activeProject (which can be
+  // stale on non-topic pages).
+  const topicId = pathname?.startsWith("/app/projects/")
+    ? pathname.split("/app/projects/")[1]?.split("/")[0] || null
+    : null;
+  const inTopic = !!topicId;
+  const activeProjectName = topicId ? (customProjects?.[topicId]?.name || null) : null;
 
   // Title of the chat currently open (for the desktop breadcrumb).
   const activeChatTitle = activeChatId
-    ? (projectChatSessions?.[activeProject || "global"] || []).find((c) => c.chatId === activeChatId)?.title || ""
+    ? (projectChatSessions?.[topicId || "global"] || []).find((c) => c.chatId === activeChatId)?.title || ""
     : "";
 
   const goToTopic = () => {
     setActiveChatId(null);
-    router.push(`/app/projects/${activeProject}`);
+    if (topicId) router.push(`/app/projects/${topicId}`);
   };
 
   // На мобилке показываем таблетку только когда открыт чат топика (не просто страница топика)
-  const showMobileTopicPill = !!(activeProjectName && activeChatId);
+  const showMobileTopicPill = !!(inTopic && activeChatId);
 
   return (
     <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30">
@@ -103,7 +111,7 @@ export default function TopBar() {
 
       {/* ── Центр: Логотип — только мобилка (на десктопе он в сайдбаре) ── */}
       <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 [@media(hover:hover)]:hidden ${
-        showMobileTopicPill || activeProject ? "opacity-0" : "opacity-100"
+        showMobileTopicPill || inTopic ? "opacity-0" : "opacity-100"
       }`}>
         <img
           src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
@@ -116,10 +124,7 @@ export default function TopBar() {
       {showMobileTopicPill && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [@media(hover:hover)]:hidden">
           <button
-            onClick={() => {
-              setActiveChatId(null);
-              router.push(`/app/projects/${activeProject}`);
-            }}
+            onClick={goToTopic}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs
               border border-emerald-500/40 bg-emerald-500/[0.07]
               hover:border-emerald-400/65 hover:bg-emerald-500/[0.13]
@@ -160,7 +165,7 @@ export default function TopBar() {
         )}
 
         {/* NewChatButton — только мобилка и НЕ внутри топика */}
-        {!activeProject && (
+        {!inTopic && (
           <div className="flex [@media(hover:hover)]:hidden">
             <NewChatButton />
           </div>
