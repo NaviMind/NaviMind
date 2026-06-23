@@ -1,7 +1,7 @@
 "use client";
 
 import { subscribeToUserChats, subscribeToUserTopics, renameTopicInFirestore, getTopicData, getLibraryFiles, deleteLibraryFileRecords } from "@/firebase/chatStore";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { db } from "@/firebase/config";
@@ -35,6 +35,26 @@ export function ChatProvider({ children }) {
     setSplitMode(false);
     setPinned(null);
   };
+
+  // Persist split across reloads (the left pane starts at home; the right pane
+  // restores its pinned chat).
+  const splitRestoredRef = useRef(false);
+  useEffect(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem("splitState") || "null");
+      if (s?.splitMode && s?.pinned?.chatId) {
+        setPinned(s.pinned);
+        setSplitMode(true);
+      }
+    } catch { /* ignore */ }
+    splitRestoredRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (!splitRestoredRef.current) return;
+    try {
+      localStorage.setItem("splitState", JSON.stringify({ splitMode, pinned }));
+    } catch { /* ignore */ }
+  }, [splitMode, pinned]);
 
   const clearAllChats = () => {
     setProjectChatSessions({});
