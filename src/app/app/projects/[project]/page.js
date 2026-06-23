@@ -55,6 +55,12 @@ export default function DynamicProjectPage() {
   const [instrText, setInstrText] = useState("");
   const [kbHeight, setKbHeight] = useState(0);
 
+  // Open modals inside the main work area (not over the sidebar).
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    setPortalTarget(document.getElementById("nm-workarea") || document.body);
+  }, []);
+
   // The Library / Instruction modals are opened from the top-bar gear
   // (TopicSettingsMenu) via window events.
   useEffect(() => {
@@ -595,7 +601,7 @@ export default function DynamicProjectPage() {
         />
       )}
 
-      {isInstrPresent && createPortal(
+      {isInstrPresent && portalTarget && createPortal(
         <div
           className={`fixed left-0 top-0 right-0 z-[200] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
           style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: instrModalOpen ? 1 : 0 }}
@@ -645,7 +651,7 @@ export default function DynamicProjectPage() {
             )}
           </AnimatePresence>
         </div>,
-        document.body
+        portalTarget
       )}
     </main>
   );
