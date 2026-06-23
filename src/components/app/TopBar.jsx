@@ -41,11 +41,13 @@ export default function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // "In a topic" requires BOTH the active topic context AND a topic route:
-  // a chat click sets activeProject without changing the URL, and route nav can
-  // leave a stale activeProject — requiring both keeps this correct in all cases.
+  // "In a topic" needs a REAL topic id (not null and not the "global" sentinel
+  // that a regular-chat click sets) AND a topic route. A chat click changes
+  // activeProject without changing the URL, and route nav can leave a stale id —
+  // this combination stays correct in every case.
   const onTopicRoute = !!pathname?.startsWith("/app/projects/");
-  const topicId = onTopicRoute && activeProject ? activeProject : null;
+  const topicId =
+    onTopicRoute && activeProject && activeProject !== "global" ? activeProject : null;
   const inTopic = !!topicId;
   const activeProjectName = topicId ? (customProjects?.[topicId]?.name || null) : null;
 

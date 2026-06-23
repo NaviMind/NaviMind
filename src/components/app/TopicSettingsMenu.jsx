@@ -34,12 +34,13 @@ export default function TopicSettingsMenu() {
     };
   }, [open]);
 
-  // Show ONLY inside a topic: requires both the active topic context AND a topic
-  // route. Clicking a regular chat clears activeProject (no URL change), and
-  // navigating home leaves a stale activeProject but a non-topic route — both
-  // cases correctly hide the gear.
+  // Show ONLY inside a real topic. Note: clicking a regular chat sets
+  // activeProject to the string "global" (truthy!), and navigating home can
+  // leave a stale topic id — so require a real topic id (not null / "global")
+  // AND a topic route.
   const onTopicRoute = !!pathname?.startsWith("/app/projects/");
-  const topicId = onTopicRoute && activeProject ? activeProject : null;
+  const topicId =
+    onTopicRoute && activeProject && activeProject !== "global" ? activeProject : null;
   if (!topicId) return null;
   const hasInstr = !!customProjects?.[topicId]?.description;
 
