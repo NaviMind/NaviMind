@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { UIContext } from "@/context/UIContext";
 
 import { auth } from "@/firebase/config";
@@ -885,34 +886,38 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   /* ───────── RENDER ───────── */
   return (
     <>
-      {/* ── Drag & drop overlay (desktop) ── */}
-      {isDragging && !isMobile && (
-        <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center bg-blue-950/30 backdrop-blur-[3px]">
-          <div className="m-6 px-12 py-10 rounded-3xl border-2 border-dashed border-blue-400/70 bg-white/95 dark:bg-gray-900/90 shadow-2xl ring-1 ring-blue-500/10 flex flex-col items-center gap-4 text-center animate-fade-in">
-            <span className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-500/15 text-blue-500 dark:text-blue-300">
-              <Upload size={30} strokeWidth={2} />
-            </span>
-            <div>
-              <p className="text-xl font-semibold text-gray-900 dark:text-white">
-                Drop files to attach
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Up to {FILES_LIMIT} files · 30&nbsp;MB each
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[260px]">
-              {["Images", "PDF", "Word", "Excel", "Text"].map((t) => (
-                <span
-                  key={t}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300"
-                >
-                  {t}
-                </span>
-              ))}
+      {/* ── Drag & drop overlay (desktop) — scoped to this pane's element so a
+            file dragged over one split shows the drop UI only there. ── */}
+      {isDragging && !isMobile && (() => {
+        const overlay = (
+          <div className={`${dropTargetRef?.current ? "absolute" : "fixed"} inset-0 z-[300] pointer-events-none flex items-center justify-center bg-blue-950/30 backdrop-blur-[3px]`}>
+            <div className="m-6 px-12 py-10 rounded-3xl border-2 border-dashed border-blue-400/70 bg-white/95 dark:bg-gray-900/90 shadow-2xl ring-1 ring-blue-500/10 flex flex-col items-center gap-4 text-center animate-fade-in">
+              <span className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-500/15 text-blue-500 dark:text-blue-300">
+                <Upload size={30} strokeWidth={2} />
+              </span>
+              <div>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Drop files to attach
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Up to {FILES_LIMIT} files · 30&nbsp;MB each
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[260px]">
+                {["Images", "PDF", "Word", "Excel", "Text"].map((t) => (
+                  <span
+                    key={t}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+        return dropTargetRef?.current ? createPortal(overlay, dropTargetRef.current) : overlay;
+      })()}
 
       {/* ── Expanded fullscreen editor (mobile only) ── */}
       {isExpanded && (

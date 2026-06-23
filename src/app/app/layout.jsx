@@ -117,7 +117,7 @@ function AppShell({ children }) {
         </div>
 
         <div className="flex flex-row flex-1 min-h-0 w-full max-w-full">
-        <div ref={mainPaneRef} className="flex flex-col flex-1 min-h-0 min-w-0">
+        <div ref={mainPaneRef} className="relative flex flex-col flex-1 min-h-0 min-w-0">
           <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
             {isLoadingMessages && (
