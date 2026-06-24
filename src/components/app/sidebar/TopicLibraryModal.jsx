@@ -56,9 +56,14 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
 
   const close = () => setOpen(false);
 
-  // Open over the main work area (not covering the sidebar), like file viewers.
+  // Desktop: open over the main work area (not covering the sidebar), like file
+  // viewers. Mobile: the work area is transformed off-screen when the sidebar is
+  // open, so portal to <body> to overlay the whole screen instead.
   useEffect(() => {
-    setPortalTarget(document.getElementById("nm-workarea") || document.body);
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
   }, []);
 
   const refresh = async () => {
