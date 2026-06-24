@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState, createRef, useRef, useCallback } from "react";
+import { useContext, useState, useEffect, createRef, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
@@ -47,6 +47,21 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
   const [instrTopic, setInstrTopic] = useState(null);
   const [instrText, setInstrText] = useState("");
   const [savingInstr, setSavingInstr] = useState(false);
+
+  // Keyboard height (mobile) — keep the instructions sheet above the keyboard.
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbHeight(Math.max(0, window.innerHeight - vv.height));
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // ── Topic library modal ──
   const [libraryTopic, setLibraryTopic] = useState(null);
@@ -512,10 +527,13 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
       {instrTopic && typeof document !== "undefined" &&
         createPortal(
           <div
-            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm"
             onClick={(e) => { if (e.target === e.currentTarget && !savingInstr) setInstrTopic(null); }}
           >
-            <div className="w-full max-w-md bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 flex flex-col gap-3">
+            <div
+              style={{ marginBottom: kbHeight }}
+              className="w-full sm:max-w-md max-h-[88vh] overflow-y-auto custom-scroll bg-white dark:bg-[#1a2235] rounded-t-2xl sm:rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 flex flex-col gap-3"
+            >
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">
                 Topic instructions
               </h2>
