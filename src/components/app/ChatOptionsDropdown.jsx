@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useContext } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useContext } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { UIContext } from "@/context/UIContext";
@@ -140,6 +140,21 @@ export default function ChatOptionsDropdown({
 
     setCoords({ top, left });
   }, [isOpen, targetRef, isMobile]);
+
+  // The initial position uses an estimated height, which is wrong once the item
+  // count changes. After the menu renders, measure its real height and flip it
+  // above the anchor (or clamp) if it would overflow the bottom of the viewport.
+  useLayoutEffect(() => {
+    if (!isOpen || !coords || !menuRef.current || !targetRef?.current) return;
+    const menuH = menuRef.current.offsetHeight;
+    const rect = targetRef.current.getBoundingClientRect();
+    let top = coords.top;
+    if (top + menuH > window.innerHeight - 8) {
+      const above = rect.top - menuH - 2;
+      top = above >= 8 ? above : Math.max(8, window.innerHeight - menuH - 8);
+    }
+    if (Math.abs(top - coords.top) > 0.5) setCoords((c) => ({ ...c, top }));
+  }, [isOpen, coords?.top, coords?.left, targetRef]);
 
   useEffect(() => {
     if (!isOpen && !confirmOpen) return;
