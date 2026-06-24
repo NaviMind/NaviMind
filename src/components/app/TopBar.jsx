@@ -39,7 +39,7 @@ export default function TopBar() {
     theme,
   } = useContext(UIContext);
 
-  const { activeProject, customProjects, setActiveChatId, activeChatId, projectChatSessions, splitMode, enableSplit, disableSplit } = useContext(ChatContext);
+  const { activeProject, customProjects, setActiveChatId, activeChatId, projectChatSessions, splitMode, enableSplit } = useContext(ChatContext);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -67,7 +67,7 @@ export default function TopBar() {
   const showMobileTopicPill = !!(inTopic && activeChatId);
 
   return (
-    <header className={`relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30 ${splitMode ? "border-b border-gray-200 dark:border-white/10" : ""}`}>
+    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30">
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">
@@ -175,16 +175,15 @@ export default function TopBar() {
           </div>
         )}
 
-        {/* Split screen — desktop only; pin the current chat to a second pane */}
-        {(activeChatId || splitMode) && (
-          <HoverTip content={splitMode ? "Exit split screen" : "Split screen"} position="bottom" align="right">
+        {/* Split screen — desktop only; pin the current chat to a second pane.
+            Only the ENTER control lives here; exiting is done from the right
+            pane's header button, so we hide this while split is active. */}
+        {activeChatId && !splitMode && (
+          <HoverTip content="Split screen" position="bottom" align="right">
             <button
-              onClick={() => (splitMode ? disableSplit() : enableSplit(activeChatId, activeProject))}
-              aria-label={splitMode ? "Exit split screen" : "Split screen"}
-              className={`hidden [@media(hover:hover)]:flex items-center justify-center w-9 h-9 rounded-full transition-colors
-                ${splitMode
-                  ? "bg-blue-600 text-white hover:bg-blue-500"
-                  : "text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white"}`}
+              onClick={() => enableSplit(activeChatId, activeProject)}
+              aria-label="Split screen"
+              className="hidden [@media(hover:hover)]:flex items-center justify-center w-9 h-9 rounded-full transition-colors text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white"
             >
               <MaskIcon src="/Split_scene.svg" size={20} />
             </button>
