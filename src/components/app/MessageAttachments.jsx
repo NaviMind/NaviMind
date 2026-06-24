@@ -1,9 +1,36 @@
 import React, { useState } from "react";
+import MaskIcon from "@/components/common/MaskIcon";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getFileExt(name = "") {
   return name.split(".").pop()?.toLowerCase() || "";
+}
+
+const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "heic", "heif", "avif"];
+
+// Map a file to a custom type icon in /public. Returns null for types that
+// should fall back to the generic document glyph (Word, text, PPT, etc).
+export function getFileIconSrc(name = "", type = "") {
+  if (type?.startsWith("image/")) return "/Image.svg";
+  const ext = getFileExt(name);
+  if (ext === "pdf") return "/Picture_pdf.svg";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "/Table%20excel.svg";
+  if (IMAGE_EXTS.includes(ext)) return "/Image.svg";
+  return null;
+}
+
+// File-type icon: a themed custom glyph for image / PDF / Excel, otherwise the
+// generic document icon. Color follows currentColor; size is in px.
+export function FileTypeIcon({ name, type, size = 20, className = "text-gray-500 dark:text-gray-300" }) {
+  const src = getFileIconSrc(name, type);
+  if (src) return <MaskIcon src={src} size={size} className={className} />;
+  return (
+    <svg style={{ width: size, height: size }} className={className} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function getDocLabel(ext) {
@@ -62,12 +89,9 @@ function DocPill({ file, onClick }) {
       onClick={onClick}
       className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group cursor-pointer"
     >
-      {/* Type badge — neutral icon on subtle blue tint */}
+      {/* Type badge — themed type icon on subtle blue tint */}
       <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
-        <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-          <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <FileTypeIcon name={file.name} type={file.type} size={20} />
       </div>
 
       {/* Name + type */}

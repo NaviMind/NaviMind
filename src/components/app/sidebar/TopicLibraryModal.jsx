@@ -22,7 +22,7 @@ import {
   withRetry,
   expireIndexedFile,
 } from "@/components/app/InputBar/attachmentProcessing";
-import { getViewerSrc, getFileUrl, DocViewerModal } from "@/components/app/MessageAttachments";
+import { getViewerSrc, getFileUrl, DocViewerModal, FileTypeIcon } from "@/components/app/MessageAttachments";
 
 function fileExt(name = "") {
   return name.split(".").pop()?.toLowerCase() || "";
@@ -303,7 +303,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
                 className="flex items-center gap-3 min-w-0 flex-1 text-left"
               >
                 <span className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <FileText size={18} className="text-gray-500 dark:text-gray-300" />
+                  <FileTypeIcon name={file.name} type={file.type} size={18} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>

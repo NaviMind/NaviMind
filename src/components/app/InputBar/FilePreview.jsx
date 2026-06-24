@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getViewerSrc, getFileUrl, DocViewerModal } from "../MessageAttachments";
+import { getViewerSrc, getFileUrl, DocViewerModal, FileTypeIcon } from "../MessageAttachments";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function getFileExt(name = "") {
@@ -221,10 +221,7 @@ export default function FilePreview({ files, onRemove, onRetry }) {
             )}
             {/* Type badge */}
             <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
-              <svg className="w-5 h-5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                <path d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <FileTypeIcon name={entry.name} type={entry.type} size={20} />
             </div>
 
             {/* Name + type + status */}
