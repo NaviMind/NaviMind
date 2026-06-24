@@ -151,7 +151,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
               className="w-[58px] h-[58px] rounded-full object-cover mb-3 ring-2 ring-black/10 dark:ring-white/10"
             />
           ) : (
-            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-gray-400 to-gray-600 dark:from-gray-500 dark:to-gray-700 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-black/10 dark:ring-white/10">
+            <div className="w-[58px] h-[58px] rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-[20px] font-semibold mb-3 select-none ring-2 ring-black/10 dark:ring-white/10">
               {loading ? "" : initials}
             </div>
           )}

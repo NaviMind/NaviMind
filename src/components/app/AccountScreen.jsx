@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { updateUserProfile, uploadUserAvatar } from "@/firebase/userRepo";
-
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
     <polyline points="15 18 9 12 15 6" />
@@ -30,6 +29,7 @@ export default function AccountScreen({ userDoc, onBack }) {
   const [last, setLast] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,6 +72,23 @@ export default function AccountScreen({ userDoc, onBack }) {
     }
   };
 
+  const onRemovePhoto = async () => {
+    if (!uid || uploading || removing || !photoURL) return;
+    setRemoving(true);
+    setError("");
+    try {
+      await updateUserProfile(uid, { photoURL: null });
+      // Empty string clears the Auth profile photo (e.g. the one pulled from
+      // Google), so the display falls back to initials instead of re-showing it.
+      if (auth.currentUser) await updateProfile(auth.currentUser, { photoURL: "" });
+    } catch (err) {
+      console.error("Remove photo failed:", err);
+      setError("Couldn't remove photo. Try again.");
+    } finally {
+      setRemoving(false);
+    }
+  };
+
   const onSave = async () => {
     if (!uid || !dirty || saving) return;
     setSaving(true);
@@ -107,11 +124,12 @@ export default function AccountScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-6">
-        {/* Avatar */}
+        {/* Avatar — click to change (single control via the corner badge);
+            "Remove photo" appears only when a photo is set. */}
         <div className="flex flex-col items-center mb-7">
           <button
             onClick={pickAvatar}
-            disabled={uploading}
+            disabled={uploading || removing}
             className="relative group rounded-full focus:outline-none"
             aria-label="Change photo"
           >
@@ -123,20 +141,12 @@ export default function AccountScreen({ userDoc, onBack }) {
                 className="w-[84px] h-[84px] rounded-full object-cover ring-2 ring-black/10 dark:ring-white/10"
               />
             ) : (
-              <div className="w-[84px] h-[84px] rounded-full bg-gradient-to-br from-gray-400 to-gray-600 dark:from-gray-500 dark:to-gray-700 flex items-center justify-center text-white text-[28px] font-semibold select-none ring-2 ring-black/10 dark:ring-white/10">
+              <div className="w-[84px] h-[84px] rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-[28px] font-semibold select-none ring-2 ring-black/10 dark:ring-white/10">
                 {initials}
               </div>
             )}
-            {/* Edit overlay */}
-            <span className="absolute inset-0 rounded-full bg-black/45 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-              {uploading ? (
-                <span className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              ) : (
-                <IcCamera />
-              )}
-            </span>
-            {/* Small camera badge (always visible hint) */}
-            <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0f1623]">
+            {/* Camera badge — the single change affordance (also shows progress) */}
+            <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0f1623] group-hover:bg-blue-500 transition-colors">
               {uploading ? (
                 <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
               ) : (
@@ -144,13 +154,17 @@ export default function AccountScreen({ userDoc, onBack }) {
               )}
             </span>
           </button>
-          <button
-            onClick={pickAvatar}
-            disabled={uploading}
-            className="mt-3 text-[13px] font-medium text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-60"
-          >
-            {uploading ? "Uploading…" : "Change photo"}
-          </button>
+
+          {photoURL && (
+            <button
+              onClick={onRemovePhoto}
+              disabled={uploading || removing}
+              className="mt-3 text-[13px] font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-60 transition-colors"
+            >
+              {removing ? "Removing…" : "Remove photo"}
+            </button>
+          )}
+
           <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={onAvatarChange} />
         </div>
 
