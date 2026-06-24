@@ -39,7 +39,6 @@ export default function PinnedPane() {
   return (
     <ChatContext.Provider value={value}>
       <div ref={paneRef} className="relative flex flex-col h-full min-h-0">
-        <SplitDragHint />
         {/* Header */}
         <div className="flex items-center gap-2 px-4 h-[60px] border-b border-gray-200 dark:border-white/10 shrink-0">
           <MaskIcon src="/Split_scene_right.svg" size={17} className="text-blue-500 dark:text-blue-400 shrink-0" />
@@ -59,6 +58,9 @@ export default function PinnedPane() {
         <div className="relative flex-1 min-h-0 overflow-hidden">
           <ChatArea messages={ws.messages} />
         </div>
+
+        {/* First-time hint, just above the input bar (house banner style) */}
+        <SplitDragHint />
 
         {/* Input */}
         <InputBar respondToPendingPrompt={false} dropTargetRef={paneRef} />
