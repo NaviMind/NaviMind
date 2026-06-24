@@ -67,7 +67,7 @@ export default function TopBar() {
   const showMobileTopicPill = !!(inTopic && activeChatId);
 
   return (
-    <header className="relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30">
+    <header className={`relative h-[60px] flex items-center justify-between bg-[var(--bg-topbar)] pl-0 pr-4 md:px-4 z-30 ${splitMode ? "border-b border-gray-200 dark:border-white/10" : ""}`}>
 
       {/* ── Левый блок ── */}
       <div className="flex items-center gap-2">

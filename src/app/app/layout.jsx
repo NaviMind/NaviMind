@@ -112,12 +112,11 @@ function AppShell({ children }) {
             boxShadow: isMobile && isSidebarOpen ? "-8px 0 32px rgba(0,0,0,0.55)" : "-8px 0 32px rgba(0,0,0,0)",
           }}
         >
-        <div className="relative isolate sm:z-50 z-0 w-full max-w-full">
-          <TopBar />
-        </div>
-
         <div className="flex flex-row flex-1 min-h-0 w-full max-w-full">
         <div ref={mainPaneRef} className="relative flex flex-col flex-1 min-h-0 min-w-0">
+          <div className="relative isolate sm:z-50 z-0 w-full max-w-full">
+            <TopBar />
+          </div>
           <div className="relative flex-1 min-h-0 overflow-hidden w-full max-w-full">
             {children}
             {isLoadingMessages && (
@@ -147,7 +146,7 @@ function AppShell({ children }) {
         {/* Right split pane — a pinned chat (desktop only). Stronger separation:
             border + soft left shadow + faint tint so it reads as its own panel. */}
         {splitMode && (
-          <div className="hidden [@media(hover:hover)]:flex flex-col flex-1 min-w-0 border-l border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] shadow-[-12px_0_28px_-14px_rgba(0,0,0,0.22)] dark:shadow-[-12px_0_28px_-14px_rgba(0,0,0,0.6)]">
+          <div className="hidden [@media(hover:hover)]:flex flex-col flex-1 min-w-0 border-l border-gray-200 dark:border-white/10">
             <PinnedPane />
           </div>
         )}
