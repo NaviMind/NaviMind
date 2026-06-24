@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { UIContext } from "@/context/UIContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
+import AccountScreen from "@/components/app/AccountScreen";
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
 
@@ -341,10 +342,14 @@ export default function SettingsModal() {
                     className="flex flex-col"
                     style={{ minHeight: 320 }}
                   >
-                    <SubScreen
-                      title={SUB_TITLES[step] || step}
-                      onBack={() => setStep("main")}
-                    />
+                    {step === "account" ? (
+                      <AccountScreen userDoc={userDoc} onBack={() => setStep("main")} />
+                    ) : (
+                      <SubScreen
+                        title={SUB_TITLES[step] || step}
+                        onBack={() => setStep("main")}
+                      />
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
