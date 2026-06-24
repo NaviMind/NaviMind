@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, FileText } from "lucide-react";
 import Tooltip from "@/components/common/Tooltip";
@@ -40,6 +41,7 @@ const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 // Topic Library panel — view / open / delete / add files for a single topic.
 // Files added here are indexed straight into the topic's vector store (no chat).
 export default function TopicLibraryModal({ topicId, topicName, onClose }) {
+  const { splitMode } = useContext(ChatContext);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState([]); // [{ id, name, status }]
@@ -196,7 +198,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-hidden"
+        className={`fixed top-0 bottom-0 left-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-hidden ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
         onClick={(e) => { if (e.target === e.currentTarget) close(); }}
       >
       <motion.div

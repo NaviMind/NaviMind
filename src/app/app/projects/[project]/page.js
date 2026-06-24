@@ -31,6 +31,7 @@ export default function DynamicProjectPage() {
     messages,
     isLoadingMessages,
     setIsLoadingMessages,
+    splitMode,
   } = useContext(ChatContext);
   const { theme, vesselProfileData } = useContext(UIContext);
 
@@ -603,7 +604,7 @@ export default function DynamicProjectPage() {
 
       {isInstrPresent && portalTarget && createPortal(
         <div
-          className={`fixed left-0 top-0 right-0 z-[200] flex items-center justify-center overflow-hidden backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+          className={`fixed left-0 top-0 z-[200] flex items-center justify-center overflow-hidden backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
           style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: instrModalOpen ? 1 : 0 }}
           onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
         >
