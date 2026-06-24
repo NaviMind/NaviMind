@@ -213,15 +213,14 @@ export default function FilePreview({ files, onRemove, onRetry }) {
             onClick={() => openDoc(entry)}
             className="relative flex items-center gap-2.5 pl-3 pr-6 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm max-w-[230px] min-w-[160px] flex-shrink-0 overflow-hidden cursor-pointer transition-colors"
           >
-            {/* Processing overlay — % while uploading, spinner while indexing */}
-            {busy && (
-              <div className="absolute inset-0 z-[5] bg-white/70 dark:bg-gray-900/70 backdrop-blur-[1px] flex items-center justify-center">
-                <ProcessingIndicator status={entry.status} progress={entry.progress} tone="dark" />
-              </div>
-            )}
-            {/* Type badge */}
+            {/* Type badge — shows upload %/indexing spinner on the icon itself
+                while busy, so the filename stays visible and removable. */}
             <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
-              <FileTypeIcon name={entry.name} type={entry.type} size={20} />
+              {busy ? (
+                <ProcessingIndicator status={entry.status} progress={entry.progress} tone="dark" />
+              ) : (
+                <FileTypeIcon name={entry.name} type={entry.type} size={20} />
+              )}
             </div>
 
             {/* Name + type + status */}
