@@ -99,7 +99,7 @@ export default function TopBar() {
                   className="flex items-center gap-1 min-w-0 max-w-[200px] -ml-1.5 px-2 py-1 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
                   aria-label={`Go to topic ${activeProjectName}`}
                 >
-                  <Icon name="folder-open" size={15} className="text-emerald-400/70 flex-shrink-0" />
+                  <Icon name="folder-open" size={15} className="opacity-50 flex-shrink-0" />
                   <span className="truncate">{activeProjectName}</span>
                 </button>
                 <span className="text-gray-300 dark:text-white/25 flex-shrink-0">/</span>
@@ -146,8 +146,9 @@ export default function TopBar() {
 
       {/* ── Правый блок ── */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Vessel profile pill — только десктоп */}
-        {vesselProfileData && (
+        {/* Vessel profile pill — desktop only, and hidden while split is active
+            (the breadcrumb topic/chat is more useful there and space is tight). */}
+        {vesselProfileData && !splitMode && (
           <button
             onClick={() => setVesselProfileOpen(true)}
             className="hidden [@media(hover:hover)]:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
