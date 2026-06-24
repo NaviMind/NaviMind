@@ -6,6 +6,7 @@ import { useChatWorkspace } from "@/context/useChatWorkspace";
 import ChatArea from "@/components/app/ChatArea";
 import InputBar from "@/components/app/InputBar/InputBar";
 import MaskIcon from "@/components/common/MaskIcon";
+import Icon from "@/components/common/Icon";
 import SplitDragHint from "@/components/app/SplitDragHint";
 import HoverTip from "@/components/common/Tooltip";
 
@@ -41,7 +42,7 @@ export default function PinnedPane() {
       <div ref={paneRef} className="relative flex flex-col h-full min-h-0">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 h-[60px] shrink-0">
-          <MaskIcon src="/Split_scene_right.svg" size={17} className="text-blue-500 dark:text-blue-400 shrink-0" />
+          <Icon name="chat" size={15} className="opacity-50 shrink-0" />
           <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
             {title}
           </span>
