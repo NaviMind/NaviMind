@@ -159,7 +159,7 @@ function AppShell({ children }) {
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
             onDrop={handlePinDrop}
           >
-            <div className="w-full h-full rounded-2xl border-2 border-dashed border-blue-400 bg-blue-500/15 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-blue-600 dark:text-blue-300 font-medium pointer-events-none">
+            <div className="w-full h-full rounded-2xl border-2 border-dashed border-blue-400 bg-blue-500/10 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-gray-600 dark:text-gray-200 font-medium pointer-events-none">
               <MaskIcon src="/Split_scene_right.svg" size={28} />
               Drop here to pin chat
             </div>
