@@ -152,6 +152,16 @@ function AppShell({ children }) {
         )}
         </div>
 
+        {/* Single shared footer under both panes in split (per-pane footers are
+            hidden in split to avoid the duplicated line). Desktop only. */}
+        {splitMode && (
+          <div className="hidden [@media(hover:hover)]:block w-full px-4 pb-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400 leading-tight text-center">
+              Powered by advanced AI — enhanced with verified maritime sources such as IMO, SOLAS, and ISM.
+            </div>
+          </div>
+        )}
+
         {/* Drag-to-pin drop zone — right half, shown while dragging a chat */}
         {isDraggingChat && (
           <div

@@ -241,6 +241,7 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
     beginGeneration,
     endGeneration,
     stopGeneration,
+    splitMode,
   } = useContext(ChatContext);
 
   const isGenerating =
@@ -1082,8 +1083,9 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
         </div>
       </div>
 
-      {/* Footer — desktop only */}
-      <div className="w-full px-1 sm:px-4 pb-2 max-w-full overflow-x-hidden hidden md:block">
+      {/* Footer — desktop only. Hidden in split mode: a single shared footer is
+          rendered once, centered under both panes (see AppShell). */}
+      <div className={`w-full px-1 sm:px-4 pb-2 max-w-full overflow-x-hidden ${splitMode ? "hidden" : "hidden md:block"}`}>
         <div className="w-full max-w-full md:max-w-[896px] mx-auto text-center">
           <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight px-1 break-words text-center">
             <span className="inline-block">Powered by advanced AI</span>{" "}
