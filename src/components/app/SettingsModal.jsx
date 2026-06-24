@@ -7,6 +7,7 @@ import { UIContext } from "@/context/UIContext";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import { auth } from "@/firebase/config";
 import AccountScreen from "@/components/app/AccountScreen";
+import PrivacyDataScreen from "@/components/app/PrivacyDataScreen";
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
 
@@ -344,6 +345,8 @@ export default function SettingsModal() {
                   >
                     {step === "account" ? (
                       <AccountScreen userDoc={userDoc} onBack={() => setStep("main")} />
+                    ) : step === "privacy" ? (
+                      <PrivacyDataScreen userDoc={userDoc} onBack={() => setStep("main")} />
                     ) : (
                       <SubScreen
                         title={SUB_TITLES[step] || step}
