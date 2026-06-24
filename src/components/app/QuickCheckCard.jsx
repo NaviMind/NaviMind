@@ -5,10 +5,13 @@ import { UIContext } from "@/context/UIContext";
 import Icon from "@/components/common/Icon";
 
 export default function QuickCheckCard({ question, onNext }) {
-  const { setInputText } = useContext(UIContext);
+  const { setPendingPrompt } = useContext(UIContext);
 
+  // Send immediately: pushing into pendingPrompt makes the input bar fire the
+  // message right away (same path as the suggested-question followups), instead
+  // of just pre-filling the box and waiting for a separate Send tap.
   const handleClick = () => {
-    setInputText(question.text);
+    setPendingPrompt(question.text);
   };
 
   return (
