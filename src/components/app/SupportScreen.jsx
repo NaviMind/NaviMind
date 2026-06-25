@@ -310,7 +310,7 @@ export default function SupportScreen({ onBack }) {
                 onClick={() => setView("faq")}
               />
 
-              <div className="pt-3">
+              <div className="pt-3 hidden sm:block">
                 <p className="px-1 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Keyboard shortcuts</p>
                 <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {SHORTCUTS.map((s, i) => (
