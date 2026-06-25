@@ -207,7 +207,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
           <div className="mt-2.5 space-y-2">
             <SettingCell
               iconName="Contact_support.svg"
-              label="Support"
+              label="Support & Help"
               right={<IcChevron />}
               onPress={() => onNavigate("support")}
             />
@@ -250,7 +250,7 @@ const SUB_TITLES = {
   account: "Account",
   subscription: "Subscription",
   privacy: "Privacy & Data",
-  support: "Support",
+  support: "Support & Help",
   privacyPolicy: "Privacy Policy",
   terms: "Terms of Service",
 };

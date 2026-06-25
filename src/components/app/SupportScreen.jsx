@@ -41,6 +41,11 @@ const IcChevron = () => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
+const IcClose = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[16px] h-[16px]">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
 const IcChevronDown = ({ open }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
     className={`w-[13px] h-[13px] text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
@@ -153,6 +158,55 @@ function FaqView({ onBack }) {
   );
 }
 
+// ─── bug report overlay ───────────────────────────────────────────────────────
+
+const MAX_BUG_CHARS = 2000;
+
+function BugReportOverlay({ onClose }) {
+  const [text, setText] = useState("");
+
+  const handleSend = () => {
+    if (!text.trim()) return;
+    const subject = encodeURIComponent("Bug Report — NaviMind");
+    const body = encodeURIComponent(text.trim());
+    window.open(`mailto:support@navimind.io?subject=${subject}&body=${body}`, "_blank");
+    onClose();
+  };
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
+      <div className="w-full max-w-[360px] rounded-2xl bg-white dark:bg-[#141c2b] ring-1 ring-black/10 dark:ring-white/10 shadow-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-[15px] font-semibold text-gray-900 dark:text-white">What happened?</h4>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+            <IcClose />
+          </button>
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, MAX_BUG_CHARS))}
+          placeholder="Tell us about the issue you encountered"
+          rows={7}
+          autoFocus
+          className="w-full px-3.5 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 resize-none"
+        />
+        <p className="text-right text-[11.5px] text-gray-400 mt-1.5 mb-4">
+          {text.length} / {MAX_BUG_CHARS} characters used
+        </p>
+        <div className="flex justify-end">
+          <button
+            onClick={handleSend}
+            disabled={!text.trim()}
+            className="px-5 py-2.5 rounded-xl text-[14px] font-semibold text-white bg-gray-900 dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-40 transition-colors"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── contact row ─────────────────────────────────────────────────────────────
 
 function ContactRow({ icon, label, sub, href, onClick, disabled }) {
@@ -212,6 +266,7 @@ function ShortcutRow({ label, keys }) {
 
 export default function SupportScreen({ onBack }) {
   const [view, setView] = useState("main"); // "main" | "faq"
+  const [showBugReport, setShowBugReport] = useState(false);
 
   return (
     <AnimatePresence mode="wait">
@@ -223,12 +278,12 @@ export default function SupportScreen({ onBack }) {
       ) : (
         <motion.div key="main" variants={fadeSlide} initial="initial" animate="animate" exit="exit"
           transition={{ duration: 0.16 }} className="flex flex-col flex-1 min-h-0">
-          <div className="flex flex-col h-full">
+          <div className="relative flex flex-col h-full">
             <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
               <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
                 <IcBack />
               </button>
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Support</h3>
+              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Support & Help</h3>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-2">
@@ -239,16 +294,16 @@ export default function SupportScreen({ onBack }) {
                 href="mailto:support@navimind.io?subject=NaviMind%20Support"
               />
               <ContactRow
-                icon={<IcBug />}
-                label="Report a bug"
-                sub="Tell us what went wrong"
-                href="mailto:support@navimind.io?subject=Bug%20Report%20%E2%80%94%20NaviMind"
-              />
-              <ContactRow
                 icon={<IcTelegram />}
                 label="Telegram support"
                 sub="Chat with us directly"
                 disabled
+              />
+              <ContactRow
+                icon={<IcBug />}
+                label="Report a bug"
+                sub="Tell us what went wrong"
+                onClick={() => setShowBugReport(true)}
               />
               <ContactRow
                 icon={<IcFaq />}
@@ -266,6 +321,8 @@ export default function SupportScreen({ onBack }) {
                 </div>
               </div>
             </div>
+
+            {showBugReport && <BugReportOverlay onClose={() => setShowBugReport(false)} />}
           </div>
         </motion.div>
       )}
