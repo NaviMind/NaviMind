@@ -108,7 +108,7 @@ export default function InstallPrompt() {
       {/* Banner */}
       {showBanner && (
         <div
-          className={`w-full flex justify-center mt-[-8px] sm:mt-0 transition-all duration-500 ease-in-out
+          className={`w-full flex justify-center mt-[-8px] sm:mt-0 mb-2 transition-all duration-500 ease-in-out
             ${showBanner ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3"}`}
         >
           <div
