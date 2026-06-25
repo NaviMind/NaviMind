@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation"; 
 import { registerWithEmail } from "@/firebase/authClient";
-import { sendEmailVerification } from "firebase/auth";
-import { auth } from "@/firebase/config";
 
 export default function RegistrationBlock({
   onBack,
@@ -43,11 +41,6 @@ export default function RegistrationBlock({
     lastName,
     country,
   });
-
-  // Отправка письма верификации
-  if (auth.currentUser) {
-    await sendEmailVerification(auth.currentUser);
-  }
 
   setEmailSent(true);
 } catch (err) {
