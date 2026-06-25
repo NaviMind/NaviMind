@@ -181,7 +181,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             />
             <SettingCell
               iconName="Add_card.svg"
-              label="Subscription"
+              label="Billing"
               badge={plan === "free" ? "Free" : "Pro"}
               right={<IcChevron />}
               onPress={() => onNavigate("subscription")}
@@ -250,7 +250,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
 
 const SUB_TITLES = {
   account: "Account",
-  subscription: "Subscription",
+  subscription: "Billing",
   privacy: "Privacy & Data",
   support: "Support & Help",
   privacyPolicy: "Privacy Policy",
