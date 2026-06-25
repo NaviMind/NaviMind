@@ -174,10 +174,10 @@ function BugReportOverlay({ onClose }) {
   };
 
   return (
-    <div className="absolute inset-0 z-30 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
-      <div className="w-full max-w-[360px] rounded-2xl bg-white dark:bg-[#141c2b] ring-1 ring-black/10 dark:ring-white/10 shadow-2xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-[15px] font-semibold text-gray-900 dark:text-white">What happened?</h4>
+    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-[480px] rounded-2xl bg-white dark:bg-[#141c2b] ring-1 ring-black/10 dark:ring-white/10 shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-[16px] font-semibold text-gray-900 dark:text-white">What happened?</h4>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
             <IcClose />
           </button>
@@ -186,18 +186,18 @@ function BugReportOverlay({ onClose }) {
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, MAX_BUG_CHARS))}
           placeholder="Tell us about the issue you encountered"
-          rows={7}
+          rows={9}
           autoFocus
           className="w-full px-3.5 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 resize-none"
         />
-        <p className="text-right text-[11.5px] text-gray-400 mt-1.5 mb-4">
+        <p className="text-right text-[11.5px] text-gray-400 mt-2 mb-4">
           {text.length} / {MAX_BUG_CHARS} characters used
         </p>
         <div className="flex justify-end">
           <button
             onClick={handleSend}
             disabled={!text.trim()}
-            className="px-5 py-2.5 rounded-xl text-[14px] font-semibold text-white bg-gray-900 dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-40 transition-colors"
+            className="px-6 py-2.5 rounded-xl text-[14px] font-semibold text-white bg-gray-900 dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-40 transition-colors"
           >
             Send
           </button>
