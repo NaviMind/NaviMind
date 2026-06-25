@@ -99,9 +99,6 @@ export default function ChatOptionsDropdown({
     try {
       await moveChatToTopic({ uid: user.uid, chatId, fromTopicId: topicId, toTopicId });
       const name = (customProjects || {})[toTopicId]?.name || "topic";
-      window.dispatchEvent(
-        new CustomEvent("navimind-toast", { detail: { message: `Moved to topic: ${name}` } })
-      );
       // Open the destination topic (its overview/chat list) — the moved chat
       // shows up there; we don't drop the user straight into the chat.
       setActiveProject(toTopicId);
