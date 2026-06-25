@@ -192,7 +192,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
               onPress={() => onNavigate("account")}
             />
             <SettingCell
-              iconName="Add_card.svg"
+              iconName="Credit_card.svg"
               label="Billing"
               badge={plan === "free" ? "Free" : "Pro"}
               right={<IcChevron />}
