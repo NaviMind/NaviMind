@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider } from "@/firebase/config";
 import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
+import { updateUserProfile } from "@/firebase/userRepo";
 import {
   clearAllConversations,
   purgeAllUserData,
@@ -53,7 +54,7 @@ const Spinner = ({ className = "" }) => (
   <span className={`inline-block rounded-full border-2 border-current border-t-transparent animate-spin ${className}`} />
 );
 
-// ─── a tappable action row ──────────────────────────────────────────────────
+// ─── action row (tappable) ──────────────────────────────────────────────────
 
 function ActionRow({ icon, label, sub, onPress, danger, busy, right, disabled }) {
   return (
@@ -75,19 +76,33 @@ function ActionRow({ icon, label, sub, onPress, danger, busy, right, disabled })
   );
 }
 
+// ─── toggle row ─────────────────────────────────────────────────────────────
+
+function ToggleRow({ label, sub, checked, onToggle }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-[13px] rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06]">
+      <span className="flex-1 min-w-0">
+        <span className="block text-[14px] text-gray-800 dark:text-white/90 leading-tight">{label}</span>
+        {sub && <span className="block text-[11.5px] text-gray-400 dark:text-gray-500 mt-0.5">{sub}</span>}
+      </span>
+      <button
+        onClick={onToggle}
+        aria-checked={checked}
+        role="switch"
+        className={`relative flex-shrink-0 w-[42px] h-[24px] rounded-full transition-colors duration-200
+          ${checked ? "bg-blue-500" : "bg-gray-300 dark:bg-white/20"}`}
+      >
+        <span className={`absolute top-[2px] w-[20px] h-[20px] rounded-full bg-white shadow transition-transform duration-200
+          ${checked ? "translate-x-[20px]" : "translate-x-[2px]"}`}
+        />
+      </button>
+    </div>
+  );
+}
+
 // ─── confirmation overlay ───────────────────────────────────────────────────
 
-function ConfirmOverlay({
-  title,
-  message,
-  confirmLabel,
-  onConfirm,
-  onCancel,
-  busy,
-  danger = true,
-  requireText,
-  needPassword,
-}) {
+function ConfirmOverlay({ title, message, confirmLabel, onConfirm, onCancel, busy, danger = true, requireText, needPassword }) {
   const [typed, setTyped] = useState("");
   const [password, setPassword] = useState("");
   const textOk = !requireText || typed.trim().toUpperCase() === requireText.toUpperCase();
@@ -101,41 +116,26 @@ function ConfirmOverlay({
         <p className="mt-2 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400">{message}</p>
 
         {needPassword && (
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Current password"
-            autoFocus
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            placeholder="Current password" autoFocus
             className="mt-3 w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-400 dark:focus:border-blue-500"
           />
         )}
-
         {requireText && (
-          <input
-            type="text"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={`Type ${requireText} to confirm`}
-            autoFocus={!needPassword}
+          <input type="text" value={typed} onChange={(e) => setTyped(e.target.value)}
+            placeholder={`Type ${requireText} to confirm`} autoFocus={!needPassword}
             className="mt-3 w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-red-400 dark:focus:border-red-500"
           />
         )}
 
         <div className="mt-4 flex gap-2">
-          <button
-            onClick={onCancel}
-            disabled={busy}
-            className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:hover:bg-white/[0.1] disabled:opacity-60 transition-colors"
-          >
+          <button onClick={onCancel} disabled={busy}
+            className="flex-1 px-4 py-2.5 rounded-xl text-[14px] font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:hover:bg-white/[0.1] disabled:opacity-60 transition-colors">
             Cancel
           </button>
-          <button
-            onClick={() => onConfirm(password)}
-            disabled={!canConfirm}
+          <button onClick={() => onConfirm(password)} disabled={!canConfirm}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[14px] font-medium text-white disabled:opacity-50 transition-colors
-              ${danger ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"}`}
-          >
+              ${danger ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"}`}>
             {busy && <Spinner className="w-4 h-4" />}
             {confirmLabel}
           </button>
@@ -145,52 +145,36 @@ function ConfirmOverlay({
   );
 }
 
-// ─── Manage memory view ─────────────────────────────────────────────────────
+// ─── Memory settings view ────────────────────────────────────────────────────
 
-function MemoryView({ uid, onBack }) {
-  const [topics, setTopics] = useState(null);
-  const [drafts, setDrafts] = useState({});
-  const [savingId, setSavingId] = useState(null);
+const MEMORY_DEFAULTS = {
+  searchPastChats: true,
+  buildFromChats: true,
+  crossTopicContext: false,
+};
+
+function MemoryView({ uid, userDoc, onBack }) {
+  const saved = userDoc?.memorySettings ?? {};
+  const [settings, setSettings] = useState({ ...MEMORY_DEFAULTS, ...saved });
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [clearingAll, setClearingAll] = useState(false);
 
-  const load = async () => {
-    if (!uid) return;
-    const all = await loadUserTopics(uid);
-    const withMem = all
-      .map((t) => ({ topicId: t.topicId, name: t.name || t.title || "Untitled topic", memory: t.topicMemory || "" }))
-      .filter((t) => t.memory.trim().length > 0);
-    setTopics(withMem);
-    setDrafts(Object.fromEntries(withMem.map((t) => [t.topicId, t.memory])));
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [uid]);
-
-  const saveOne = async (topicId) => {
-    setSavingId(topicId);
+  const toggle = async (key) => {
+    const next = { ...settings, [key]: !settings[key] };
+    setSettings(next);
     try {
-      await updateTopicMemory(uid, topicId, drafts[topicId] ?? "");
-    } finally {
-      setSavingId(null);
-    }
-  };
-
-  const clearOne = async (topicId) => {
-    setSavingId(topicId);
-    try {
-      await updateTopicMemory(uid, topicId, "");
-      setTopics((prev) => prev.filter((t) => t.topicId !== topicId));
-    } finally {
-      setSavingId(null);
+      await updateUserProfile(uid, { memorySettings: next });
+    } catch (err) {
+      console.error("Failed to save memory setting:", err);
+      setSettings(settings); // revert on error
     }
   };
 
   const clearAll = async () => {
-    if (!topics?.length) { setConfirmClearAll(false); return; }
     setClearingAll(true);
     try {
-      await Promise.all(topics.map((t) => updateTopicMemory(uid, t.topicId, "")));
-      setTopics([]);
+      const all = await loadUserTopics(uid);
+      await Promise.all(all.map((t) => updateTopicMemory(uid, t.topicId, "")));
     } finally {
       setClearingAll(false);
       setConfirmClearAll(false);
@@ -203,56 +187,38 @@ function MemoryView({ uid, onBack }) {
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
           <IcBack />
         </button>
-        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Manage memory</h3>
+        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Memory</h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
-        <p className="text-[12.5px] leading-relaxed text-gray-500 dark:text-gray-400 mb-4">
-          What the assistant remembers from each topic. Edit or clear anything below — changes apply to future replies.
-        </p>
+      <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-2">
+        <ToggleRow
+          label="Search past chats"
+          sub="Reference relevant details from previous conversations"
+          checked={settings.searchPastChats}
+          onToggle={() => toggle("searchPastChats")}
+        />
+        <ToggleRow
+          label="Build memory from chats"
+          sub="Automatically extract and save useful context as you talk"
+          checked={settings.buildFromChats}
+          onToggle={() => toggle("buildFromChats")}
+        />
+        <ToggleRow
+          label="Cross-topic context"
+          sub="Apply what's learned in one topic to related questions in others"
+          checked={settings.crossTopicContext}
+          onToggle={() => toggle("crossTopicContext")}
+        />
 
-        {topics === null ? (
-          <div className="flex justify-center py-10 text-gray-400"><Spinner className="w-5 h-5" /></div>
-        ) : topics.length === 0 ? (
-          <p className="text-[13px] text-gray-400 dark:text-gray-500 text-center py-10">No memory stored yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {topics.map((t) => (
-              <div key={t.topicId} className="rounded-2xl ring-1 ring-gray-200 dark:ring-white/[0.06] bg-gray-50 dark:bg-white/[0.04] p-3.5">
-                <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 mb-2 truncate">{t.name}</p>
-                <textarea
-                  value={drafts[t.topicId] ?? ""}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [t.topicId]: e.target.value }))}
-                  rows={4}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-[13px] text-gray-900 dark:text-white outline-none focus:border-blue-400 dark:focus:border-blue-500 resize-none"
-                />
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    onClick={() => saveOne(t.topicId)}
-                    disabled={savingId === t.topicId || (drafts[t.topicId] ?? "") === t.memory}
-                    className="px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
-                  >
-                    {savingId === t.topicId ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    onClick={() => clearOne(t.topicId)}
-                    disabled={savingId === t.topicId}
-                    className="px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-            ))}
+        <div className="pt-3 pb-1 h-px" />
 
-            <button
-              onClick={() => setConfirmClearAll(true)}
-              className="w-full mt-1 px-4 py-2.5 rounded-xl text-[13px] font-medium text-red-600 dark:text-red-400 bg-red-50/60 dark:bg-red-500/[0.07] ring-1 ring-red-200/70 dark:ring-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.12] transition-colors"
-            >
-              Clear all memory
-            </button>
-          </div>
-        )}
+        <button
+          onClick={() => setConfirmClearAll(true)}
+          className="w-full px-4 py-[13px] rounded-2xl text-[14px] text-left font-medium text-red-600 dark:text-red-400 bg-red-50/60 dark:bg-red-500/[0.07] ring-1 ring-red-200/70 dark:ring-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.12] transition-colors"
+        >
+          Clear all memory
+          <span className="block text-[11.5px] font-normal text-red-400/80 dark:text-red-500/70 mt-0.5">Remove everything the assistant has learned across all topics</span>
+        </button>
       </div>
 
       {confirmClearAll && (
@@ -328,10 +294,8 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       } else {
         await reauthenticateWithPopup(user, googleProvider);
       }
-
       await purgeAllUserData(uid);
       await deleteUser(user);
-
       localStorage.removeItem("navimind_vessel_profile");
       localStorage.removeItem("navimind_vessel_department");
       try { await signOut(auth); } catch {}
@@ -351,12 +315,11 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   };
 
   if (view === "memory") {
-    return <MemoryView uid={uid} onBack={() => setView("main")} />;
+    return <MemoryView uid={uid} userDoc={userDoc} onBack={() => setView("main")} />;
   }
 
   return (
     <div className="relative flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
           <IcBack />
@@ -376,14 +339,13 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
           />
           <ActionRow
             icon={<IcMemory />}
-            label="Manage memory"
-            sub="View, edit or clear what the assistant remembers"
+            label="Memory"
+            sub="Control how the assistant learns and remembers"
             onPress={() => setView("memory")}
             right={<IcChevron />}
           />
         </div>
 
-        {/* separator before destructive actions */}
         <div className="mt-6 mb-3 h-px bg-red-200/70 dark:bg-red-500/20" />
 
         <div className="space-y-2">
