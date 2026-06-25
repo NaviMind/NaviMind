@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   reauthenticateWithPopup,
@@ -10,6 +10,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/firebase/config";
+import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
 import {
   clearAllConversations,
   purgeAllUserData,
@@ -31,6 +32,11 @@ const IcChevron = () => (
 const IcExport = () => (
   <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
     <path d="M480-480ZM202-65l-56-57 118-118h-90v-80h226v226h-80v-89L202-65Zm278-15v-80h240v-440H520v-200H240v400h-80v-400q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H480Z" />
+  </svg>
+);
+const IcMemory = () => (
+  <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
+    <path d="M360-360v-240h240v240H360Zm80-80h80v-80h-80v80Zm-80 320v-80h-80q-33 0-56.5-23.5T200-280v-80h-80v-80h80v-80h-80v-80h80v-80q0-33 23.5-56.5T280-760h80v-80h80v80h80v-80h80v80h80q33 0 56.5 23.5T760-680v80h80v80h-80v80h80v80h-80v80q0 33-23.5 56.5T680-200h-80v80h-80v-80h-80v80h-80Zm320-160v-400H280v400h400ZM480-480Z" />
   </svg>
 );
 const IcDelete = () => (
@@ -79,9 +85,7 @@ function ConfirmOverlay({
   onCancel,
   busy,
   danger = true,
-  // optional gated confirmation: user must type `requireText` (e.g. "DELETE")
   requireText,
-  // optional password field (re-auth for password accounts)
   needPassword,
 }) {
   const [typed, setTyped] = useState("");
@@ -141,6 +145,130 @@ function ConfirmOverlay({
   );
 }
 
+// ─── Manage memory view ─────────────────────────────────────────────────────
+
+function MemoryView({ uid, onBack }) {
+  const [topics, setTopics] = useState(null);
+  const [drafts, setDrafts] = useState({});
+  const [savingId, setSavingId] = useState(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [clearingAll, setClearingAll] = useState(false);
+
+  const load = async () => {
+    if (!uid) return;
+    const all = await loadUserTopics(uid);
+    const withMem = all
+      .map((t) => ({ topicId: t.topicId, name: t.name || t.title || "Untitled topic", memory: t.topicMemory || "" }))
+      .filter((t) => t.memory.trim().length > 0);
+    setTopics(withMem);
+    setDrafts(Object.fromEntries(withMem.map((t) => [t.topicId, t.memory])));
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [uid]);
+
+  const saveOne = async (topicId) => {
+    setSavingId(topicId);
+    try {
+      await updateTopicMemory(uid, topicId, drafts[topicId] ?? "");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const clearOne = async (topicId) => {
+    setSavingId(topicId);
+    try {
+      await updateTopicMemory(uid, topicId, "");
+      setTopics((prev) => prev.filter((t) => t.topicId !== topicId));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const clearAll = async () => {
+    if (!topics?.length) { setConfirmClearAll(false); return; }
+    setClearingAll(true);
+    try {
+      await Promise.all(topics.map((t) => updateTopicMemory(uid, t.topicId, "")));
+      setTopics([]);
+    } finally {
+      setClearingAll(false);
+      setConfirmClearAll(false);
+    }
+  };
+
+  return (
+    <div className="relative flex flex-col h-full">
+      <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
+        <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
+          <IcBack />
+        </button>
+        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Manage memory</h3>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
+        <p className="text-[12.5px] leading-relaxed text-gray-500 dark:text-gray-400 mb-4">
+          What the assistant remembers from each topic. Edit or clear anything below — changes apply to future replies.
+        </p>
+
+        {topics === null ? (
+          <div className="flex justify-center py-10 text-gray-400"><Spinner className="w-5 h-5" /></div>
+        ) : topics.length === 0 ? (
+          <p className="text-[13px] text-gray-400 dark:text-gray-500 text-center py-10">No memory stored yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {topics.map((t) => (
+              <div key={t.topicId} className="rounded-2xl ring-1 ring-gray-200 dark:ring-white/[0.06] bg-gray-50 dark:bg-white/[0.04] p-3.5">
+                <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 mb-2 truncate">{t.name}</p>
+                <textarea
+                  value={drafts[t.topicId] ?? ""}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [t.topicId]: e.target.value }))}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-[13px] text-gray-900 dark:text-white outline-none focus:border-blue-400 dark:focus:border-blue-500 resize-none"
+                />
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => saveOne(t.topicId)}
+                    disabled={savingId === t.topicId || (drafts[t.topicId] ?? "") === t.memory}
+                    className="px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                  >
+                    {savingId === t.topicId ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    onClick={() => clearOne(t.topicId)}
+                    disabled={savingId === t.topicId}
+                    className="px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => setConfirmClearAll(true)}
+              className="w-full mt-1 px-4 py-2.5 rounded-xl text-[13px] font-medium text-red-600 dark:text-red-400 bg-red-50/60 dark:bg-red-500/[0.07] ring-1 ring-red-200/70 dark:ring-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.12] transition-colors"
+            >
+              Clear all memory
+            </button>
+          </div>
+        )}
+      </div>
+
+      {confirmClearAll && (
+        <ConfirmOverlay
+          title="Clear all memory?"
+          message="The assistant will forget everything it learned across all topics. Your chats themselves stay."
+          confirmLabel="Clear all"
+          busy={clearingAll}
+          onCancel={() => setConfirmClearAll(false)}
+          onConfirm={clearAll}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── main Privacy & Data screen ─────────────────────────────────────────────
 
 export default function PrivacyDataScreen({ userDoc, onBack }) {
@@ -149,6 +277,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const provider = auth.currentUser?.providerData?.[0]?.providerId || userDoc?.authProvider || "password";
   const isPasswordUser = provider === "password";
 
+  const [view, setView] = useState("main"); // "main" | "memory"
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
@@ -193,8 +322,6 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     setDeleting(true);
     setError("");
     try {
-      // Firebase requires a recent login before account deletion. Re-auth by
-      // provider: Google → popup, email/password → credential.
       if (isPasswordUser) {
         const cred = EmailAuthProvider.credential(user.email, password || "");
         await reauthenticateWithCredential(user, cred);
@@ -202,12 +329,9 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         await reauthenticateWithPopup(user, googleProvider);
       }
 
-      // Purge data while still authenticated (security rules require it), then
-      // remove the auth user itself.
       await purgeAllUserData(uid);
       await deleteUser(user);
 
-      // Mirror the logout cleanup and leave the app.
       localStorage.removeItem("navimind_vessel_profile");
       localStorage.removeItem("navimind_vessel_department");
       try { await signOut(auth); } catch {}
@@ -226,6 +350,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     }
   };
 
+  if (view === "memory") {
+    return <MemoryView uid={uid} onBack={() => setView("main")} />;
+  }
+
   return (
     <div className="relative flex flex-col h-full">
       {/* Header */}
@@ -237,8 +365,6 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
-        {/* Your data */}
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Your data</p>
         <div className="space-y-2">
           <ActionRow
             icon={<IcExport />}
@@ -248,14 +374,18 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
             onPress={onExport}
             right={<IcChevron />}
           />
+          <ActionRow
+            icon={<IcMemory />}
+            label="Manage memory"
+            sub="View, edit or clear what the assistant remembers"
+            onPress={() => setView("memory")}
+            right={<IcChevron />}
+          />
         </div>
 
-        {/* Danger zone */}
-        <div className="flex items-center gap-3 mt-7 mb-3">
-          <div className="flex-1 h-px bg-red-200/70 dark:bg-red-500/25" />
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-red-400 dark:text-red-500">Danger Zone</span>
-          <div className="flex-1 h-px bg-red-200/70 dark:bg-red-500/25" />
-        </div>
+        {/* separator before destructive actions */}
+        <div className="mt-6 mb-3 h-px bg-red-200/70 dark:bg-red-500/20" />
+
         <div className="space-y-2">
           <ActionRow
             icon={<IcDelete />}
