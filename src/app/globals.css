@@ -276,6 +276,14 @@ body {
   transform-origin: center center;
 }
 
+@keyframes dotFade {
+  0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+  40%            { opacity: 1;   transform: translateY(-3px); }
+}
+.dot-1 { animation: dotFade 1.2s ease-in-out infinite; animation-delay: 0s; }
+.dot-2 { animation: dotFade 1.2s ease-in-out infinite; animation-delay: 0.2s; }
+.dot-3 { animation: dotFade 1.2s ease-in-out infinite; animation-delay: 0.4s; }
+
 .input-style {
   @apply w-full px-3 py-2 rounded-lg border text-base
   bg-white dark:bg-gray-700
