@@ -332,7 +332,7 @@ export default function SettingsModal() {
             transition={slideTransition}
             className="w-full max-w-[360px] sm:max-w-lg"
           >
-            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]">
+            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75dvh] sm:max-h-[95dvh]">
               <AnimatePresence mode="wait">
                 {step === "main" ? (
                   <motion.div

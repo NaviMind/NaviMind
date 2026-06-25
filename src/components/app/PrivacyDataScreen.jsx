@@ -167,7 +167,7 @@ function MemoryView({ uid, userDoc, onBack }) {
   };
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col flex-1 min-h-0">
       <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
           <IcBack />
@@ -266,7 +266,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   }
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col flex-1 min-h-0">
       <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
           <IcBack />
