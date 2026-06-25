@@ -55,7 +55,7 @@ export default function TopicSettingsMenu() {
   };
 
   const itemCls =
-    "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition";
+    "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition";
 
   return (
     <>

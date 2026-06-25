@@ -96,7 +96,7 @@ export default function TopBar() {
               <>
                 <button
                   onClick={goToTopic}
-                  className="flex items-center gap-1 min-w-0 max-w-[200px] -ml-1.5 px-2 py-1 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+                  className="flex items-center gap-1 min-w-0 max-w-[200px] -ml-1.5 px-2 py-1 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition-colors"
                   aria-label={`Go to topic ${activeProjectName}`}
                 >
                   <Icon name="folder-open" size={15} className="opacity-50 flex-shrink-0" />
