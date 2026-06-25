@@ -63,7 +63,7 @@ function ActionRow({ icon, label, sub, onPress, danger, busy, right, disabled })
       disabled={disabled || busy}
       className={`w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl ring-1 transition-colors disabled:opacity-60
         ${danger
-          ? "bg-red-50/60 dark:bg-red-500/[0.07] ring-red-200/70 dark:ring-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.12] text-red-600 dark:text-red-400"
+          ? "bg-gray-50 dark:bg-white/[0.05] ring-gray-200 dark:ring-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.08] text-red-600 dark:text-red-400"
           : "bg-gray-50 dark:bg-white/[0.05] ring-gray-200 dark:ring-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.08] text-gray-800 dark:text-white/90"}`}
     >
       <span className={danger ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}>{icon}</span>
@@ -89,11 +89,13 @@ function ToggleRow({ label, sub, checked, onToggle }) {
         onClick={onToggle}
         aria-checked={checked}
         role="switch"
-        className={`relative flex-shrink-0 w-[42px] h-[24px] rounded-full transition-colors duration-200
-          ${checked ? "bg-blue-500" : "bg-gray-300 dark:bg-white/20"}`}
+        className={`relative flex-shrink-0 w-[34px] h-[20px] rounded-full border transition-colors duration-200
+          ${checked
+            ? "bg-gradient-to-br from-blue-500 to-blue-600 border-transparent shadow shadow-blue-900/30"
+            : "bg-gray-200/80 dark:bg-gray-700/60 border-gray-300/40 dark:border-white/10"}`}
       >
-        <span className={`absolute top-[2px] w-[20px] h-[20px] rounded-full bg-white shadow transition-transform duration-200
-          ${checked ? "translate-x-[20px]" : "translate-x-[2px]"}`}
+        <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
+          ${checked ? "translate-x-[16px]" : "translate-x-[2px]"}`}
         />
       </button>
     </div>
@@ -214,7 +216,7 @@ function MemoryView({ uid, userDoc, onBack }) {
 
         <button
           onClick={() => setConfirmClearAll(true)}
-          className="w-full px-4 py-[13px] rounded-2xl text-[14px] text-left font-medium text-red-600 dark:text-red-400 bg-red-50/60 dark:bg-red-500/[0.07] ring-1 ring-red-200/70 dark:ring-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/[0.12] transition-colors"
+          className="w-full px-4 py-[13px] rounded-2xl text-[14px] text-left font-medium text-red-600 dark:text-red-400 bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.08] transition-colors"
         >
           Clear all memory
           <span className="block text-[11.5px] font-normal text-red-400/80 dark:text-red-500/70 mt-0.5">Remove everything the assistant has learned across all topics</span>
