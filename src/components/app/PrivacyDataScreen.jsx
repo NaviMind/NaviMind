@@ -89,12 +89,12 @@ function ToggleRow({ label, sub, checked, onToggle }) {
         onClick={onToggle}
         aria-checked={checked}
         role="switch"
-        className={`relative flex-shrink-0 w-[34px] h-[20px] rounded-full border transition-colors duration-200
+        className={`relative overflow-hidden flex-shrink-0 w-[34px] h-[20px] rounded-full border transition-colors duration-200
           ${checked
             ? "bg-gradient-to-br from-blue-500 to-blue-600 border-transparent shadow shadow-blue-900/30"
             : "bg-gray-200/80 dark:bg-gray-700/60 border-gray-300/40 dark:border-white/10"}`}
       >
-        <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
+        <span className={`absolute top-[2px] left-0 w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200
           ${checked ? "translate-x-[16px]" : "translate-x-[2px]"}`}
         />
       </button>
@@ -219,7 +219,7 @@ function MemoryView({ uid, userDoc, onBack }) {
           className="w-full px-4 py-[13px] rounded-2xl text-[14px] text-left font-medium text-red-600 dark:text-red-400 bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.08] transition-colors"
         >
           Clear all memory
-          <span className="block text-[11.5px] font-normal text-red-400/80 dark:text-red-500/70 mt-0.5">Remove everything the assistant has learned across all topics</span>
+          <span className="block text-[11.5px] font-normal text-gray-400 dark:text-gray-500 mt-0.5">Remove everything the assistant has learned across all topics</span>
         </button>
       </div>
 
@@ -348,9 +348,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
           />
         </div>
 
-        <div className="mt-6 mb-3 h-px bg-red-200/70 dark:bg-red-500/20" />
-
-        <div className="space-y-2">
+        <div className="mt-4 space-y-2">
           <ActionRow
             icon={<IcDelete />}
             label="Clear all chats"
