@@ -8,6 +8,7 @@ import {
   updateChatSummary,
   getTopicData,
   updateTopicMemory,
+  loadUserTopics,
   getUserLibraryStoreId,
   setTopicVectorStoreId,
   addLibraryFileRecords,
@@ -240,6 +241,8 @@ sendLocks.add(sendKey);
   let topicInstruction = "";
   let topicMemory = "";
   let topicStoreId = "";
+  let crossTopicMemory = "";
+  let crossTopicStoreIds = [];
   if (inTopic) {
     try {
       const topicData = await getTopicData(currentUser.uid, topicId);
@@ -247,6 +250,26 @@ sendLocks.add(sendKey);
       topicMemory = topicData?.topicMemory || "";
       topicStoreId = topicData?.vectorStoreId || "";
     } catch { /* silent */ }
+
+    if (memorySettings.crossTopicContext) {
+      try {
+        const allTopics = await loadUserTopics(currentUser.uid);
+        const others = allTopics
+          .filter((t) => t.topicId !== topicId)
+          .slice(0, 8); // cap to avoid token overflow
+
+        const memBlocks = others
+          .filter((t) => t.topicMemory?.trim())
+          .map((t) => `[${t.name || t.title || "Untitled"}]\n${t.topicMemory.trim()}`);
+        if (memBlocks.length) {
+          crossTopicMemory = memBlocks.join("\n\n");
+        }
+
+        crossTopicStoreIds = others
+          .map((t) => t.vectorStoreId)
+          .filter(Boolean);
+      } catch { /* silent */ }
+    }
   }
 
   // ───────── SAVE USER MESSAGE ─────────
@@ -368,6 +391,8 @@ if (inTopic) {
       topicInstruction,
       topicMemory: memorySettings.searchPastChats === false ? "" : (inTopic ? topicMemory : globalChatMemory),
       searchPastChats: memorySettings.searchPastChats !== false,
+      crossTopicMemory: memorySettings.searchPastChats === false ? "" : crossTopicMemory,
+      crossTopicStoreIds,
     }),
     signal: genAbortController.signal,
   });

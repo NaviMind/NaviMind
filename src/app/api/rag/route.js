@@ -160,6 +160,8 @@ export async function POST(req) {
       topicInstruction = "",
       topicMemory = "",
       searchPastChats = true,
+      crossTopicMemory = "",
+      crossTopicStoreIds = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -167,7 +169,9 @@ export async function POST(req) {
     // carries the filenames attached in THIS message, so the citation
     // instruction can name them; the actual retrieval is `vectorStoreIds`.
     const hasImages = imageUrls.length > 0;
-    const hasDocs = Array.isArray(vectorStoreIds) && vectorStoreIds.length > 0;
+    // Merge cross-topic store IDs into the search pool (deduplicated)
+    const allVectorStoreIds = [...new Set([...vectorStoreIds, ...(Array.isArray(crossTopicStoreIds) ? crossTopicStoreIds : [])])];
+    const hasDocs = allVectorStoreIds.length > 0;
 
     // Citation instruction — asks the model to mark which document a claim came
     // from, so the client can render clickable source pills (Level 1). Works for
@@ -310,6 +314,19 @@ export async function POST(req) {
       ? `PAST CONVERSATION MEMORY\nThe following facts and context were accumulated from previous chats. Use them to provide continuity, avoid repeating covered ground, and build on previous work.\n\n${topicMemory}`
       : null;
 
+    const crossTopicMemoryBlock = crossTopicMemory
+      ? [
+          "═══════════════════════════════════════════",
+          "CROSS-TOPIC CONTEXT — OTHER TOPIC SUMMARIES",
+          "═══════════════════════════════════════════",
+          "The user has enabled cross-topic context. The following are memory summaries from other topics they work in.",
+          "Use this as background to provide richer, more connected answers. Do NOT surface these details unprompted — only draw on them when directly relevant.",
+          "",
+          crossTopicMemory,
+          "═══════════════════════════════════════════",
+        ].join("\n")
+      : null;
+
     const basePrompt = [
   systemInstruction,
   assistantRoleAndValue,
@@ -390,6 +407,7 @@ const assembledSystemPrompt = [
             { role: "system", content: assembledSystemPrompt },
             ...(topicInstructionBlock ? [{ role: "system", content: topicInstructionBlock }] : []),
             ...(topicMemoryBlock ? [{ role: "system", content: topicMemoryBlock }] : []),
+            ...(crossTopicMemoryBlock ? [{ role: "system", content: crossTopicMemoryBlock }] : []),
             ...(summaryBlock ? [summaryBlock] : []),
             ...chatHistory.map((m) => ({
               role: m.role,
@@ -416,7 +434,7 @@ const assembledSystemPrompt = [
           if (hasDocs) {
             tools.push({
               type: "file_search",
-              vector_store_ids: vectorStoreIds,
+              vector_store_ids: allVectorStoreIds,
               max_num_results: FILE_SEARCH_MAX_RESULTS,
               ranking_options: {
                 ranker: "auto",
