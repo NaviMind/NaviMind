@@ -1,21 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  reauthenticateWithPopup,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-  deleteUser,
-  signOut,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/firebase/config";
+import { auth } from "@/firebase/config";
 import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
-import {
-  clearAllConversations,
-  purgeAllUserData,
-} from "@/firebase/privacyData";
+import { clearAllConversations } from "@/firebase/privacyData";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
 
@@ -37,11 +26,6 @@ const IcMemory = () => (
 const IcDelete = () => (
   <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
     <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
-  </svg>
-);
-const IcDeleteForever = () => (
-  <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
-    <path d="m376-300 104-104 104 104 56-56-104-104 104-104-56-56-104 104-104-104-56 56 104 104-104 104 56 56Zm-96 180q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520Zm-400 0v520-520Z" />
   </svg>
 );
 const Spinner = ({ className = "" }) => (
@@ -234,19 +218,13 @@ function MemoryView({ uid, userDoc, onBack }) {
 // ─── main Privacy & Data screen ─────────────────────────────────────────────
 
 export default function PrivacyDataScreen({ userDoc, onBack }) {
-  const router = useRouter();
   const uid = auth.currentUser?.uid || userDoc?.uid || null;
-  const provider = auth.currentUser?.providerData?.[0]?.providerId || userDoc?.authProvider || "password";
-  const isPasswordUser = provider === "password";
 
   const [view, setView] = useState("main"); // "main" | "memory"
   const [error, setError] = useState("");
 
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
-
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const onClearChats = async () => {
     if (!uid || clearing) return;
@@ -260,38 +238,6 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       setError("Couldn't clear chats. Try again.");
     } finally {
       setClearing(false);
-    }
-  };
-
-  const onDeleteAccount = async (password) => {
-    const user = auth.currentUser;
-    if (!uid || !user || deleting) return;
-    setDeleting(true);
-    setError("");
-    try {
-      if (isPasswordUser) {
-        const cred = EmailAuthProvider.credential(user.email, password || "");
-        await reauthenticateWithCredential(user, cred);
-      } else {
-        await reauthenticateWithPopup(user, googleProvider);
-      }
-      await purgeAllUserData(uid);
-      await deleteUser(user);
-      localStorage.removeItem("navimind_vessel_profile");
-      localStorage.removeItem("navimind_vessel_department");
-      try { await signOut(auth); } catch {}
-      router.push("/");
-    } catch (err) {
-      console.error("Delete account failed:", err);
-      const code = err?.code || "";
-      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setError("Incorrect password.");
-      } else if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        setError("Re-authentication was cancelled.");
-      } else {
-        setError("Couldn't delete the account. Try again.");
-      }
-      setDeleting(false);
     }
   };
 
@@ -327,13 +273,6 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
             danger
             onPress={() => setConfirmClear(true)}
           />
-          <ActionRow
-            icon={<IcDeleteForever />}
-            label="Delete account"
-            sub="Permanently erase your account and all data"
-            danger
-            onPress={() => setConfirmDelete(true)}
-          />
         </div>
 
         {error && <p className="mt-4 text-[12px] text-red-500">{error}</p>}
@@ -350,22 +289,6 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         />
       )}
 
-      {confirmDelete && (
-        <ConfirmOverlay
-          title="Delete account?"
-          message={
-            isPasswordUser
-              ? "This erases your account and all data forever. Enter your password to confirm."
-              : "This erases your account and all data forever. You'll be asked to re-authenticate with Google to confirm."
-          }
-          confirmLabel="Delete account"
-          busy={deleting}
-          requireText="DELETE"
-          needPassword={isPasswordUser}
-          onCancel={() => setConfirmDelete(false)}
-          onConfirm={(password) => onDeleteAccount(password)}
-        />
-      )}
     </div>
   );
 }
