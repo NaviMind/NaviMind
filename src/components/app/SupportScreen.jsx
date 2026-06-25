@@ -110,6 +110,36 @@ function ContactRow({ icon, label, sub, href, disabled }) {
   );
 }
 
+// ─── keyboard shortcuts ───────────────────────────────────────────────────────
+
+const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+const mod = isMac ? "⌘" : "Ctrl";
+
+const SHORTCUTS = [
+  { label: "Send message",    keys: ["Enter"] },
+  { label: "New line",        keys: ["Shift", "Enter"] },
+  { label: "Open search",     keys: [mod, "K"] },
+  { label: "Close / go back", keys: ["Esc"] },
+];
+
+function ShortcutRow({ label, keys }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-[11px]">
+      <span className="text-[13.5px] text-gray-700 dark:text-white/80">{label}</span>
+      <span className="flex items-center gap-1">
+        {keys.map((k, i) => (
+          <span key={i} className="flex items-center gap-1">
+            {i > 0 && <span className="text-[11px] text-gray-400 dark:text-gray-500">+</span>}
+            <kbd className="px-1.5 py-0.5 rounded-md text-[11.5px] font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/[0.08] ring-1 ring-gray-200 dark:ring-white/[0.10]">
+              {k}
+            </kbd>
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 // ─── main screen ─────────────────────────────────────────────────────────────
 
 export default function SupportScreen({ onBack }) {
@@ -147,6 +177,15 @@ export default function SupportScreen({ onBack }) {
           {FAQ.map((item, i) => (
             <FaqItem key={i} q={item.q} a={item.a} />
           ))}
+        </div>
+
+        <div className="pt-3">
+          <p className="px-1 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Keyboard shortcuts</p>
+          <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] divide-y divide-gray-100 dark:divide-white/[0.05]">
+            {SHORTCUTS.map((s, i) => (
+              <ShortcutRow key={i} label={s.label} keys={s.keys} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
