@@ -307,7 +307,7 @@ export async function POST(req) {
       : null;
 
     const topicMemoryBlock = topicMemory
-      ? `TOPIC MEMORY — CROSS-CHAT CONTEXT\nThe following facts were discussed in other chats within this same topic. Use them to provide continuity, avoid repeating covered ground, and build on previous work.\n\n${topicMemory}`
+      ? `PAST CONVERSATION MEMORY\nThe following facts and context were accumulated from previous chats. Use them to provide continuity, avoid repeating covered ground, and build on previous work.\n\n${topicMemory}`
       : null;
 
     const basePrompt = [

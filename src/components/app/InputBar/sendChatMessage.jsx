@@ -16,6 +16,7 @@ import {
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
 import { indexTextSnippet } from "./attachmentProcessing";
+import { updateUserProfile } from "@/firebase/userRepo";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
 import { updateDoc } from "firebase/firestore";
@@ -108,6 +109,7 @@ export async function sendChatMessage({
   endGeneration,
   vesselProfile = null,
   memorySettings = {},
+  globalChatMemory = "",
 }) {
   if (!currentUser?.uid) return;
 
@@ -364,7 +366,7 @@ if (inTopic) {
       vectorStoreIds,
       vesselProfile,
       topicInstruction,
-      topicMemory: memorySettings.searchPastChats === false ? "" : topicMemory,
+      topicMemory: memorySettings.searchPastChats === false ? "" : (inTopic ? topicMemory : globalChatMemory),
       searchPastChats: memorySettings.searchPastChats !== false,
     }),
     signal: genAbortController.signal,
@@ -617,6 +619,47 @@ if (!summaryLocks.has(summaryKey)) {
           });
         }
       } catch { /* silent — cold memory is best-effort */ }
+    })();
+  }
+
+  // ───────── GLOBAL CHAT MEMORY UPDATE (fire & forget) ─────────
+  if (!inTopic && memorySettings.buildFromChats !== false) {
+    const globalMemKey = `${currentUser.uid}:global:chatMemory`;
+    if (!summaryLocks.has(globalMemKey)) {
+      summaryLocks.add(globalMemKey);
+      fetchChatSummary({
+        messages: [
+          ...chatHistory,
+          { role: "user", content: ragQuestion },
+          { role: "assistant", content: finalText },
+        ],
+        previousSummary: globalChatMemory,
+        mode: "topic",
+      })
+        .then(async (newGlobalMemory) => {
+          if (newGlobalMemory) {
+            await updateUserProfile(currentUser.uid, { globalChatMemory: newGlobalMemory });
+          }
+        })
+        .catch(() => {})
+        .finally(() => summaryLocks.delete(globalMemKey));
+    }
+  }
+
+  // ───────── GLOBAL COLD MEMORY (fire & forget) ─────────
+  // Index this exchange into the user's global library store so File Search
+  // can recall past non-topic conversations when searchPastChats is on.
+  if (!inTopic && !aborted && finalText && finalText.trim() && vectorStoreId && memorySettings.buildFromChats !== false) {
+    (async () => {
+      try {
+        const content = `User: ${ragQuestion}\n\nAssistant: ${finalText}`;
+        await indexTextSnippet({
+          vectorStoreId,
+          label: "Global chats",
+          name: `memory-${chatId}-${Date.now()}`,
+          content,
+        });
+      } catch { /* silent */ }
     })();
   }
 
