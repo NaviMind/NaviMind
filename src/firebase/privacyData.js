@@ -142,83 +142,94 @@ export async function purgeAllUserData(uid) {
   await deleteDoc(doc(db, "users", uid));
 }
 
-// Convert Firestore Timestamps to ISO strings so the export reads cleanly.
-function jsonReplacer(_key, value) {
-  if (value && typeof value === "object" && typeof value.toDate === "function") {
-    try {
-      return value.toDate().toISOString();
-    } catch {
-      return value;
-    }
-  }
-  return value;
-}
-
-// Collect the user's full dataset (profile + all chats/topics with messages +
-// library metadata) into a plain object, ready to serialize for download.
-export async function buildUserDataExport(uid) {
+// Build a human-readable memory summary: distilled context from all topics and
+// global chats, plus the vessel profile. Designed to be portable — the output
+// can be pasted into any AI to give it 6 months of context in one shot.
+export async function buildMemorySummaryExport(uid) {
   if (!uid) return null;
 
   const userSnap = await getDoc(doc(db, "users", uid));
   const profile = userSnap.exists() ? userSnap.data() : {};
+  const vp = profile.vesselProfile || {};
 
-  const loadMessages = async (chatRef) => {
-    const snap = await getDocs(query(collection(chatRef, "messages"), orderBy("timestamp", "asc")));
-    return snap.docs.map((m) => ({ id: m.id, ...m.data() }));
-  };
+  const lines = [];
 
-  // Global chats.
-  const chatsSnap = await getDocs(
-    query(collection(db, "users", uid, "chats"), orderBy("createdAt", "asc"))
-  );
-  const chats = [];
-  for (const c of chatsSnap.docs) {
-    chats.push({ id: c.id, ...c.data(), messages: await loadMessages(c.ref) });
+  lines.push("NaviMind Memory Export");
+  lines.push(`Exported: ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC`);
+  lines.push("═".repeat(52));
+  lines.push("");
+
+  // ── Vessel & role profile ──
+  lines.push("VESSEL & ROLE PROFILE");
+  lines.push("─".repeat(30));
+  const profileFields = [
+    vp.rank           && `Rank: ${vp.rank}`,
+    vp.vesselType     && `Vessel type: ${vp.vesselType}`,
+    vp.flag           && `Flag state: ${vp.flag}`,
+    vp.classification && `Classification: ${vp.classification}`,
+    vp.engMainEngine  && `Main engine: ${vp.engMainEngine}`,
+    vp.iceClass && vp.iceClass !== "No Ice Class" && `Ice class: ${vp.iceClass}`,
+    vp.specialNotes   && `Deck notes: ${vp.specialNotes}`,
+    vp.engNotes       && `Engine notes: ${vp.engNotes}`,
+  ].filter(Boolean);
+
+  if (profileFields.length) {
+    lines.push(...profileFields);
+  } else {
+    lines.push("(No vessel profile configured)");
+  }
+  lines.push("");
+
+  // ── Global / general chat memory ──
+  if (profile.globalChatMemory?.trim()) {
+    lines.push("GENERAL CONVERSATION MEMORY");
+    lines.push("─".repeat(30));
+    lines.push(profile.globalChatMemory.trim());
+    lines.push("");
   }
 
-  // Topics with nested chats.
+  // ── Per-topic memories ──
   const topicsSnap = await getDocs(
     query(collection(db, "users", uid, "topics"), orderBy("createdAt", "asc"))
   );
-  const topics = [];
-  for (const t of topicsSnap.docs) {
-    const tChatsSnap = await getDocs(
-      query(collection(db, "users", uid, "topics", t.id, "chats"), orderBy("createdAt", "asc"))
-    );
-    const tChats = [];
-    for (const c of tChatsSnap.docs) {
-      tChats.push({ id: c.id, ...c.data(), messages: await loadMessages(c.ref) });
+  const topicsWithMemory = topicsSnap.docs
+    .map((t) => ({ id: t.id, ...t.data() }))
+    .filter((t) => t.topicMemory?.trim());
+
+  if (topicsWithMemory.length > 0) {
+    lines.push("TOPIC MEMORIES");
+    lines.push("─".repeat(30));
+    for (const t of topicsWithMemory) {
+      lines.push(`[${t.name || t.title || "Untitled topic"}]`);
+      lines.push(t.topicMemory.trim());
+      lines.push("");
     }
-    const libSnap = await getDocs(
-      collection(db, "users", uid, "topics", t.id, "libraryFiles")
-    );
-    topics.push({
-      id: t.id,
-      ...t.data(),
-      chats: tChats,
-      libraryFiles: libSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    });
   }
 
-  return {
-    exportedAt: new Date().toISOString(),
-    profile,
-    chats,
-    topics,
-  };
+  // ── Empty state ──
+  if (!profile.globalChatMemory?.trim() && topicsWithMemory.length === 0) {
+    lines.push("No memory accumulated yet.");
+    lines.push("Keep chatting — NaviMind builds context automatically over time.");
+    lines.push("");
+  }
+
+  lines.push("═".repeat(52));
+  lines.push("Tip: paste this file into any AI assistant to give it your full");
+  lines.push("maritime context without starting from scratch.");
+
+  return lines.join("\n");
 }
 
-// Build the export and trigger a browser download as a JSON file.
-export async function downloadUserDataExport(uid) {
-  const data = await buildUserDataExport(uid);
-  if (!data) return;
-  const json = JSON.stringify(data, jsonReplacer, 2);
-  const blob = new Blob([json], { type: "application/json" });
+// Build the summary and trigger a browser download as a plain-text file.
+export async function downloadMemorySummary(uid) {
+  const text = await buildMemorySummaryExport(uid);
+  if (!text) return;
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const stamp = new Date().toISOString().slice(0, 10);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `navimind-data-${stamp}.json`;
+  a.download = `navimind-memory-${stamp}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();

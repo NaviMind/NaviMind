@@ -15,7 +15,7 @@ import { updateUserProfile } from "@/firebase/userRepo";
 import {
   clearAllConversations,
   purgeAllUserData,
-  downloadUserDataExport,
+  downloadMemorySummary,
 } from "@/firebase/privacyData";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
@@ -260,7 +260,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     setExporting(true);
     setError("");
     try {
-      await downloadUserDataExport(uid);
+      await downloadMemorySummary(uid);
     } catch (err) {
       console.error("Export failed:", err);
       setError("Couldn't export your data. Try again.");
@@ -333,8 +333,8 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         <div className="space-y-2">
           <ActionRow
             icon={<IcExport />}
-            label="Export my data"
-            sub="Download all your chats and profile as JSON"
+            label="Export memory"
+            sub="Download a summary of everything the assistant knows about you"
             busy={exporting}
             onPress={onExport}
             right={<IcChevron />}
