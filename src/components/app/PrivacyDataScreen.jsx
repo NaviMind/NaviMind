@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { auth } from "@/firebase/config";
 import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
-import { clearAllConversations } from "@/firebase/privacyData";
+import { clearAllConversations, downloadUserDataExport } from "@/firebase/privacyData";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
 
@@ -16,6 +16,11 @@ const IcBack = () => (
 const IcChevron = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-[13px] h-[13px] text-gray-400 flex-shrink-0">
     <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+const IcExport = () => (
+  <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
+    <path d="M480-480ZM202-65l-56-57 118-118h-90v-80h226v226h-80v-89L202-65Zm278-15v-80h240v-440H520v-200H240v400h-80v-400q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H480Z" />
   </svg>
 );
 const IcMemory = () => (
@@ -221,6 +226,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const uid = auth.currentUser?.uid || userDoc?.uid || null;
 
   const [view, setView] = useState("main"); // "main" | "memory"
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 
   const [confirmClear, setConfirmClear] = useState(false);
@@ -241,6 +247,20 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     }
   };
 
+  const onExport = async () => {
+    if (!uid || exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      await downloadUserDataExport(uid);
+    } catch (err) {
+      console.error("Export failed:", err);
+      setError("Couldn't export your data. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (view === "memory") {
     return <MemoryView uid={uid} userDoc={userDoc} onBack={() => setView("main")} />;
   }
@@ -256,6 +276,14 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
         <div className="space-y-2">
+          <ActionRow
+            icon={<IcExport />}
+            label="Export data"
+            sub="Download all your chats and profile as JSON"
+            busy={exporting}
+            onPress={onExport}
+            right={<IcChevron />}
+          />
           <ActionRow
             icon={<IcMemory />}
             label="Memory"

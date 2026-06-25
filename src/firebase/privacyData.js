@@ -12,6 +12,8 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  query,
+  orderBy,
   serverTimestamp,
 } from "firebase/firestore";
 import { ref as storageRef, listAll, deleteObject } from "firebase/storage";
@@ -138,5 +140,60 @@ export async function purgeAllUserData(uid) {
   await clearAllConversations(uid);
   await deleteStorageFolder(storageRef(storage, `users/${uid}`));
   await deleteDoc(doc(db, "users", uid));
+}
+
+// ─── data export ─────────────────────────────────────────────────────────────
+
+function jsonReplacer(_key, value) {
+  if (value && typeof value === "object" && typeof value.toDate === "function") {
+    try { return value.toDate().toISOString(); } catch { return value; }
+  }
+  return value;
+}
+
+async function loadMessages(chatRef) {
+  const snap = await getDocs(query(collection(chatRef, "messages"), orderBy("timestamp", "asc")));
+  return snap.docs.map((m) => ({ id: m.id, ...m.data() }));
+}
+
+export async function buildUserDataExport(uid) {
+  if (!uid) return null;
+
+  const userSnap = await getDoc(doc(db, "users", uid));
+  const profile = userSnap.exists() ? userSnap.data() : {};
+
+  const chatsSnap = await getDocs(query(collection(db, "users", uid, "chats"), orderBy("createdAt", "asc")));
+  const chats = [];
+  for (const c of chatsSnap.docs) {
+    chats.push({ id: c.id, ...c.data(), messages: await loadMessages(c.ref) });
+  }
+
+  const topicsSnap = await getDocs(query(collection(db, "users", uid, "topics"), orderBy("createdAt", "asc")));
+  const topics = [];
+  for (const t of topicsSnap.docs) {
+    const tChatsSnap = await getDocs(query(collection(db, "users", uid, "topics", t.id, "chats"), orderBy("createdAt", "asc")));
+    const tChats = [];
+    for (const c of tChatsSnap.docs) {
+      tChats.push({ id: c.id, ...c.data(), messages: await loadMessages(c.ref) });
+    }
+    const libSnap = await getDocs(collection(db, "users", uid, "topics", t.id, "libraryFiles"));
+    topics.push({ id: t.id, ...t.data(), chats: tChats, libraryFiles: libSnap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+  }
+
+  return { exportedAt: new Date().toISOString(), profile, chats, topics };
+}
+
+export async function downloadUserDataExport(uid) {
+  const data = await buildUserDataExport(uid);
+  if (!data) return;
+  const blob = new Blob([JSON.stringify(data, jsonReplacer, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `navimind-data-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
