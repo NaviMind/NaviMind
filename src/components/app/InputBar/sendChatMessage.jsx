@@ -107,6 +107,7 @@ export async function sendChatMessage({
   beginGeneration,
   endGeneration,
   vesselProfile = null,
+  memorySettings = {},
 }) {
   if (!currentUser?.uid) return;
 
@@ -363,7 +364,8 @@ if (inTopic) {
       vectorStoreIds,
       vesselProfile,
       topicInstruction,
-      topicMemory,
+      topicMemory: memorySettings.searchPastChats === false ? "" : topicMemory,
+      searchPastChats: memorySettings.searchPastChats !== false,
     }),
     signal: genAbortController.signal,
   });
@@ -559,7 +561,7 @@ if (!summaryLocks.has(summaryKey)) {
   }
 }
   // ───────── TOPIC MEMORY UPDATE (fire & forget) ─────────
-  if (inTopic) {
+  if (inTopic && memorySettings.buildFromChats !== false) {
     const topicMemoryKey = `${currentUser.uid}:${topicId}:topicMemory`;
     if (!summaryLocks.has(topicMemoryKey)) {
       summaryLocks.add(topicMemoryKey);
@@ -583,11 +585,7 @@ if (!summaryLocks.has(summaryKey)) {
   }
 
   // ───────── TOPIC COLD MEMORY (fire & forget) ─────────
-  // Index this exchange into the topic's vector store so File Search can recall
-  // it later — the deep "cold memory" that complements the short topic summary.
-  // Topic-scoped, so it's exempt from the global library TTL and is cleaned up
-  // when the topic is deleted.
-  if (inTopic && !aborted && finalText && finalText.trim()) {
+  if (inTopic && !aborted && finalText && finalText.trim() && memorySettings.buildFromChats !== false) {
     (async () => {
       try {
         const content = `User: ${ragQuestion}\n\nAssistant: ${finalText}`;

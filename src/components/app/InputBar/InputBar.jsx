@@ -3,6 +3,7 @@
 import { useContext, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { UIContext } from "@/context/UIContext";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 
 import { auth } from "@/firebase/config";
 import { onAuthStateChanged } from "firebase/auth";
@@ -225,6 +226,7 @@ function SendStopButton({ generating, onSend, onStop, disabled }) {
 
 export default function InputBar({ respondToPendingPrompt = true, dropTargetRef = null }) {
   const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
+  const { data: userDoc } = useCurrentUserDoc();
 
   const {
     projectChatSessions,
@@ -734,6 +736,7 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
       beginGeneration,
       endGeneration,
       vesselProfile: vesselProfileData || null,
+      memorySettings: userDoc?.memorySettings ?? {},
     });
   };
 

@@ -159,6 +159,7 @@ export async function POST(req) {
       vesselProfile = null,
       topicInstruction = "",
       topicMemory = "",
+      searchPastChats = true,
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -333,6 +334,9 @@ const fileSearchGuidance = hasDocs
       "- BEFORE answering anything that could depend on the user's own documents, vessel paperwork, port/arrival requirements, or prior context, SEARCH the library first.",
       "- Prefer specific facts found in the library over generic knowledge; the library reflects this user's actual vessel and situation.",
       "- If the library has nothing relevant, answer normally — do not invent a source.",
+      ...(!searchPastChats ? [
+        "- The user has disabled past conversation memory. Do NOT use any files starting with \"memory-\" from the library as context. Only use explicitly attached documents.",
+      ] : []),
       "═══════════════════════════════════════════",
     ].join("\n")
   : null;
