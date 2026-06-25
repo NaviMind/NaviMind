@@ -31,9 +31,9 @@ export default function RootLayout({ children }) {
         {/* Синхронно применяем тему из localStorage до рендера CSS — устраняет вспышку */}
         <script dangerouslySetInnerHTML={{ __html: `
           try {
-            if (localStorage.getItem('theme') === 'dark') {
-              document.documentElement.classList.add('dark');
-            }
+            var pref = localStorage.getItem('themePreference') || 'system';
+            var isDark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) document.documentElement.classList.add('dark');
           } catch(e) {}
         `}} />
         <meta

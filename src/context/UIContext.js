@@ -9,9 +9,18 @@ export const UIContext = createContext();
 export function UIProvider({ children }) {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isLogoutOpen, setLogoutOpen] = useState(false);
+  const [themePreference, setThemePreferenceState] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("themePreference") || "system";
+    }
+    return "system";
+  });
   const [theme, setTheme] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark" ? "dark" : "light";
+      const pref = localStorage.getItem("themePreference") || "system";
+      if (pref === "dark") return "dark";
+      if (pref === "light") return "light";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
     return "light";
   });
@@ -115,7 +124,33 @@ export function UIProvider({ children }) {
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [theme]);
+
+  useEffect(() => {
+    if (themePreference !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e) => setTheme(e.matches ? "dark" : "light");
+    mq.addEventListener("change", handler);
+    setTheme(mq.matches ? "dark" : "light");
+    return () => mq.removeEventListener("change", handler);
+  }, [themePreference]);
+
+  const setThemePreference = (pref) => {
+    setThemePreferenceState(pref);
+    localStorage.setItem("themePreference", pref);
+    if (pref === "light") {
+      setTheme("light");
+    } else if (pref === "dark") {
+      setTheme("dark");
+    } else {
+      setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    }
+  };
 
   const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
   const toggleSettings = (val) => setSettingsOpen(val);
@@ -132,6 +167,8 @@ export function UIProvider({ children }) {
         toggleLogout,
         theme,
         setTheme,
+        themePreference,
+        setThemePreference,
         language,
         setLanguage,
         inputText,
