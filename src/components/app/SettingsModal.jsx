@@ -341,8 +341,7 @@ export default function SettingsModal() {
                     animate="animate"
                     exit="exit"
                     transition={{ duration: 0.18 }}
-                    className="flex flex-col"
-                    style={{ minHeight: 320 }}
+                    className="flex flex-col flex-1 min-h-0"
                   >
                     {step === "account" ? (
                       <AccountScreen userDoc={userDoc} onBack={() => setStep("main")} />

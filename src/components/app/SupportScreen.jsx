@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const fadeSlide = {
+  initial: { opacity: 0, x: 18 },
+  animate: { opacity: 1, x: 0 },
+  exit:    { opacity: 0, x: -18 },
+};
 
 // ─── icons ────────────────────────────────────────────────────────────────────
 
@@ -206,52 +213,62 @@ function ShortcutRow({ label, keys }) {
 export default function SupportScreen({ onBack }) {
   const [view, setView] = useState("main"); // "main" | "faq"
 
-  if (view === "faq") return <FaqView onBack={() => setView("main")} />;
-
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
-        <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
-          <IcBack />
-        </button>
-        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Support</h3>
-      </div>
+    <AnimatePresence mode="wait">
+      {view === "faq" ? (
+        <motion.div key="faq" variants={fadeSlide} initial="initial" animate="animate" exit="exit"
+          transition={{ duration: 0.16 }} className="flex flex-col flex-1 min-h-0">
+          <FaqView onBack={() => setView("main")} />
+        </motion.div>
+      ) : (
+        <motion.div key="main" variants={fadeSlide} initial="initial" animate="animate" exit="exit"
+          transition={{ duration: 0.16 }} className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
+              <button onClick={onBack} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/70 mr-1" aria-label="Back">
+                <IcBack />
+              </button>
+              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Support</h3>
+            </div>
 
-      <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-2">
-        <ContactRow
-          icon={<IcMail />}
-          label="Email support"
-          sub="support@navimind.io"
-          href="mailto:support@navimind.io?subject=NaviMind%20Support"
-        />
-        <ContactRow
-          icon={<IcBug />}
-          label="Report a bug"
-          sub="Tell us what went wrong"
-          href="mailto:support@navimind.io?subject=Bug%20Report%20%E2%80%94%20NaviMind"
-        />
-        <ContactRow
-          icon={<IcTelegram />}
-          label="Telegram support"
-          sub="Chat with us directly"
-          disabled
-        />
-        <ContactRow
-          icon={<IcFaq />}
-          label="FAQ"
-          sub="Common questions answered"
-          onClick={() => setView("faq")}
-        />
+            <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-2">
+              <ContactRow
+                icon={<IcMail />}
+                label="Email support"
+                sub="support@navimind.io"
+                href="mailto:support@navimind.io?subject=NaviMind%20Support"
+              />
+              <ContactRow
+                icon={<IcBug />}
+                label="Report a bug"
+                sub="Tell us what went wrong"
+                href="mailto:support@navimind.io?subject=Bug%20Report%20%E2%80%94%20NaviMind"
+              />
+              <ContactRow
+                icon={<IcTelegram />}
+                label="Telegram support"
+                sub="Chat with us directly"
+                disabled
+              />
+              <ContactRow
+                icon={<IcFaq />}
+                label="FAQ"
+                sub="Common questions answered"
+                onClick={() => setView("faq")}
+              />
 
-        <div className="pt-3">
-          <p className="px-1 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Keyboard shortcuts</p>
-          <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {SHORTCUTS.map((s, i) => (
-              <ShortcutRow key={i} label={s.label} keys={s.keys} />
-            ))}
+              <div className="pt-3">
+                <p className="px-1 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">Keyboard shortcuts</p>
+                <div className="rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] divide-y divide-gray-100 dark:divide-white/[0.05]">
+                  {SHORTCUTS.map((s, i) => (
+                    <ShortcutRow key={i} label={s.label} keys={s.keys} />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
