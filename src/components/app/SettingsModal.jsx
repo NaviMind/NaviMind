@@ -9,6 +9,8 @@ import { auth } from "@/firebase/config";
 import AccountScreen from "@/components/app/AccountScreen";
 import PrivacyDataScreen from "@/components/app/PrivacyDataScreen";
 import SupportScreen from "@/components/app/SupportScreen";
+import PrivacyPolicyScreen from "@/components/app/PrivacyPolicyScreen";
+import TermsScreen from "@/components/app/TermsScreen";
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
 
@@ -349,6 +351,10 @@ export default function SettingsModal() {
                       <PrivacyDataScreen userDoc={userDoc} onBack={() => setStep("main")} />
                     ) : step === "support" ? (
                       <SupportScreen onBack={() => setStep("main")} />
+                    ) : step === "privacyPolicy" ? (
+                      <PrivacyPolicyScreen onBack={() => setStep("main")} />
+                    ) : step === "terms" ? (
+                      <TermsScreen onBack={() => setStep("main")} />
                     ) : (
                       <SubScreen
                         title={SUB_TITLES[step] || step}
