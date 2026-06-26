@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── User uploads ─────────────────────────────────────────────────────────
+    // All files under users/{userId}/ — chat attachments, topic files, and
+    // vessel drawings — are readable and writable only by their owner.
+    // A 200 MB per-file cap prevents runaway storage abuse; this is the
+    // default hard limit per upload (the quota bar in the UI is additional
+    // soft enforcement).
+
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && request.resource.size < 200 * 1024 * 1024; // 200 MB
+
+      // Allow deletes (no resource size check needed for deletions).
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny everything else.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
