@@ -30,10 +30,48 @@ export function UIProvider({ children }) {
   const [advancedCompleted, setAdvancedCompleted] = useState(false);
   const [vesselProfileSaved, setVesselProfileSaved] = useState(false);
   const [vesselProfileData, setVesselProfileData] = useState(null);
-  const [isVesselProfileOpen, setVesselProfileOpen] = useState(false);
   const [openAdvancedDirectly, setOpenAdvancedDirectly] = useState(false);
-  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
-  const [isDrawingRegisterOpen, setDrawingRegisterOpen] = useState(false);
+
+  // Single source of truth for which full-screen modal is visible.
+  // Only one modal can be open at a time; pendingModal queues the next one
+  // so the current exit animation completes before the next one enters.
+  const [activeModal, setActiveModal] = useState(null); // 'vesselProfile' | 'topicLibrary' | 'drawings' | null
+  const [pendingModal, setPendingModal] = useState(null);
+
+  // Backward-compat booleans — consumed by each modal component unchanged.
+  const isVesselProfileOpen = activeModal === "vesselProfile";
+  const isTopicModalOpen    = activeModal === "topicLibrary";
+  const isDrawingRegisterOpen = activeModal === "drawings";
+
+  // Request a modal to open. If another is already open, queue this one and
+  // close the current one first; the useEffect below opens the pending one
+  // once the exit animation has had time to complete.
+  const openModal = (name) => {
+    if (activeModal && activeModal !== name) {
+      setPendingModal(name);
+      setActiveModal(null);
+    } else if (!activeModal) {
+      setActiveModal(name);
+      setPendingModal(null);
+    }
+    // activeModal === name → already open, nothing to do
+  };
+
+  useEffect(() => {
+    if (activeModal === null && pendingModal) {
+      // Give the exit animation (0.45 s) time to finish before opening next.
+      const t = setTimeout(() => {
+        setActiveModal(pendingModal);
+        setPendingModal(null);
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [activeModal, pendingModal]);
+
+  // Backward-compat setters — all existing callers work without changes.
+  const setVesselProfileOpen  = (v) => v ? openModal("vesselProfile")  : setActiveModal((m) => m === "vesselProfile"  ? null : m);
+  const setIsTopicModalOpen   = (v) => v ? openModal("topicLibrary")   : setActiveModal((m) => m === "topicLibrary"   ? null : m);
+  const setDrawingRegisterOpen = (v) => v ? openModal("drawings")       : setActiveModal((m) => m === "drawings"       ? null : m);
 
   // Step 1: immediately hydrate from localStorage (no network delay)
   useEffect(() => {

@@ -45,9 +45,11 @@ export default function DrawingRegisterPanel() {
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Drive the slide-up / slide-down with the context flag
+  // Sync local open state with the context flag in both directions.
+  // Going true → slide in. Going false (e.g. another modal opened) → slide out.
   useEffect(() => {
     if (isDrawingRegisterOpen) setOpen(true);
+    else setOpen(false);
   }, [isDrawingRegisterOpen]);
 
   const close = () => setOpen(false);
