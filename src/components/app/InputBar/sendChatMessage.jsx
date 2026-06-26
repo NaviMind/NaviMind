@@ -45,6 +45,20 @@ async function getCachedDrawings(uid) {
 const DRAWING_QUESTION_RE =
   /plan|drawing|chart|layout|deck|fire|escape|evacuati|tank|pump|cargo|engine|boiler|ga |general arrangement|where is|where are|location|diagram|схем|чертеж|план|где|эвакуац|насос|танк|палуб/i;
 
+// Maps a classified drawing type to the question patterns it matches best.
+// When the question hits the pattern, that drawing gets a +4 relevance boost.
+const DRAWING_TYPE_PATTERNS = {
+  "GA Plan":          /where is|where are|location|layout|deck|general arrangement|где|расположени|палуб|plan view/i,
+  "Fire Plan":        /fire|пожар|co2|foam|sprinkler|smoke|fire station|fire zone|противопожар/i,
+  "Escape Routes":    /escape|evacuation|muster|lifeboat|emergency exit|эвакуац|шлюпк|спасательн|мастер/i,
+  "Tank Plan":        /tank|насос|pump|ballast|cargo tank|bunker|fuel|танк|балласт|цистерн/i,
+  "Engine Room":      /engine room|machinery|машинн|двигатель|compressor|generator|mechanical/i,
+  "Cargo Plan":       /cargo|stability|loading|груз|погрузк|stowage/i,
+  "Piping":           /pipe|valve|hydraul|трубопровод|клапан|piping|line diagram/i,
+  "Electrical":       /electric|power|switch|generator|электр|генератор|distribution/i,
+  "Safety Equipment": /life raft|fire extinguisher|epirb|спасательн|огнетушитель|safety appliance/i,
+};
+
 function selectDrawings(files, question) {
   if (!files.length) return [];
 
@@ -55,24 +69,31 @@ function selectDrawings(files, question) {
   // or engineering-related. General questions ("what's the weather?") get none.
   if (!DRAWING_QUESTION_RE.test(question)) return [];
 
-  // Score each drawing by how many question words appear in its name.
   const words = question.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
   const scored = files.map((f) => {
     const name = (f.name || "").toLowerCase();
-    const score = words.reduce((s, w) => s + (name.includes(w) ? 2 : 0), 0);
-    // Boost the GA plan for any spatial question.
+
+    // Base score: question words found in the file name.
+    const nameScore = words.reduce((s, w) => s + (name.includes(w) ? 2 : 0), 0);
+
+    // GA plan boost for spatial/location questions.
     const gaBoost =
       /general arrangement|ga plan|ga\.pdf/i.test(f.name) &&
       /where|location|deck|layout|где|палуб/i.test(question)
         ? 3
         : 0;
-    return { f, score: score + gaBoost };
+
+    // Drawing type boost: +4 when the classified type matches the question topic.
+    const typePattern = f.drawingType ? DRAWING_TYPE_PATTERNS[f.drawingType] : null;
+    const typeBoost = typePattern?.test(question) ? 4 : 0;
+
+    return { f, score: nameScore + gaBoost + typeBoost };
   });
 
   return scored
     .sort((a, b) => b.score - a.score)
-    .slice(0, 4) // cap at 4 drawings per query
-    .filter((s) => s.score > 0 || files.length <= 6) // include top-scored or all if library is small
+    .slice(0, 4)
+    .filter((s) => s.score > 0 || files.length <= 6)
     .map((s) => s.f);
 }
 
@@ -448,6 +469,7 @@ sendLocks.add(sendKey);
       url: f.url,
       name: f.name,
       type: f.type,
+      drawingType: f.drawingType || null,
       // Pre-select the most relevant pages so the API only receives what's needed.
       selectedPages: selectPages(f, question),
     }));

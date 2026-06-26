@@ -32,6 +32,19 @@ import {
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const DRAWING_TYPE_COLORS = {
+  "GA Plan":          "bg-blue-100   dark:bg-blue-500/20   text-blue-600   dark:text-blue-300",
+  "Fire Plan":        "bg-red-100    dark:bg-red-500/20    text-red-600    dark:text-red-300",
+  "Escape Routes":    "bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-300",
+  "Tank Plan":        "bg-teal-100   dark:bg-teal-500/20   text-teal-600   dark:text-teal-300",
+  "Engine Room":      "bg-slate-100  dark:bg-slate-500/20  text-slate-600  dark:text-slate-300",
+  "Cargo Plan":       "bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300",
+  "Electrical":       "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-300",
+  "Piping":           "bg-cyan-100   dark:bg-cyan-500/20   text-cyan-600   dark:text-cyan-300",
+  "Stability":        "bg-green-100  dark:bg-green-500/20  text-green-600  dark:text-green-300",
+  "Safety Equipment": "bg-pink-100   dark:bg-pink-500/20   text-pink-600   dark:text-pink-300",
+};
+
 // ── PDF rendering helpers ─────────────────────────────────────────────────────
 // pdfjs-dist is loaded lazily so it doesn't bloat the initial bundle.
 let _pdfJs = null;
@@ -391,11 +404,14 @@ export default function DrawingRegisterPanel() {
                 body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
               })
                 .then((r) => r.json())
-                .then(({ pages: pageAnalyses }) => {
-                  if (Array.isArray(pageAnalyses) && pageAnalyses.length) {
-                    updateDrawingFileRecord({ uid, id: rec.id, updates: { pageAnalyses } }).catch(() => {});
+                .then(({ pages: pageAnalyses, drawingType }) => {
+                  const updates = {};
+                  if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
+                  if (drawingType) updates.drawingType = drawingType;
+                  if (Object.keys(updates).length) {
+                    updateDrawingFileRecord({ uid, id: rec.id, updates }).catch(() => {});
                     setFiles((prev) =>
-                      prev.map((f) => (f.id === rec.id ? { ...f, pageAnalyses } : f))
+                      prev.map((f) => (f.id === rec.id ? { ...f, ...updates } : f))
                     );
                   }
                 })
@@ -708,7 +724,14 @@ export default function DrawingRegisterPanel() {
                                 <FileText size={18} />
                               </a>
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
+                                  {file.drawingType && DRAWING_TYPE_COLORS[file.drawingType] && (
+                                    <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${DRAWING_TYPE_COLORS[file.drawingType]}`}>
+                                      {file.drawingType}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
                                   {(file.name.split(".").pop() || "file").toUpperCase()}
                                   {file.size ? (

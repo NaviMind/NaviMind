@@ -9,6 +9,20 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_PAGES = 8;
 
+const DRAWING_TYPES = [
+  "GA Plan",
+  "Fire Plan",
+  "Escape Routes",
+  "Tank Plan",
+  "Engine Room",
+  "Cargo Plan",
+  "Electrical",
+  "Piping",
+  "Stability",
+  "Safety Equipment",
+  "Other",
+];
+
 // TIFF images can't be sent directly to OpenAI Vision — convert to JPEG first.
 async function resolveImageUrl(url) {
   if (/\.tiff?(\?|$)/i.test(url)) {
@@ -44,11 +58,34 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
 
-    // Analyse all pages in parallel — each description is independent.
-    const analyzed = await Promise.all(
-      pageList.map(async ({ url, pageNum }) => {
-        const imageUrl = await resolveImageUrl(url);
-        const resp = await openai.responses.create({
+    // Pre-resolve all URLs (TIFF → JPEG if needed) so parallel calls can start immediately.
+    const resolvedUrls = await Promise.all(pageList.map((p) => resolveImageUrl(p.url)));
+
+    // Run classification + full page analyses in parallel.
+    // Classification uses only page 1 at low detail — cheap and fast.
+    const classifyPromise = openai.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Classify this vessel technical drawing into exactly one of the following categories. Reply with ONLY the category name, nothing else.\n\nCategories:\n${DRAWING_TYPES.map((t) => `- ${t}`).join("\n")}\n\nDescription hints:\n- GA Plan: full ship profile/cross-section or deck overview showing all spaces\n- Fire Plan: fire detection, suppression equipment, fire zones\n- Escape Routes: muster stations, lifeboats, emergency escape paths\n- Tank Plan: ballast tanks, fuel tanks, cargo tanks arrangement\n- Engine Room: machinery spaces, main engine, auxiliary equipment\n- Cargo Plan: cargo loading, stability, capacity plan\n- Electrical: electrical diagrams, switchboards, power distribution\n- Piping: pipe routing, valve positions, hydraulic schematics\n- Stability: stability curves, trim/displacement tables\n- Safety Equipment: fire extinguishers, EPIRB, lifesaving appliances positions\n- Other: anything not listed above`,
+            },
+            {
+              type: "input_image",
+              image_url: resolvedUrls[0],
+              detail: "low",
+            },
+          ],
+        },
+      ],
+    });
+
+    const pageAnalysisPromises = pageList.map(({ pageNum }, i) =>
+      openai.responses
+        .create({
           model: "gpt-4o",
           input: [
             {
@@ -60,18 +97,25 @@ export async function POST(req) {
                 },
                 {
                   type: "input_image",
-                  image_url: imageUrl,
+                  image_url: resolvedUrls[i],
                   detail: "high",
                 },
               ],
             },
           ],
-        });
-        return { pageNum, url, description: resp.output_text };
-      })
+        })
+        .then((resp) => ({ pageNum, url: pageList[i].url, description: resp.output_text }))
     );
 
-    return NextResponse.json({ pages: analyzed });
+    const [classifyResult, ...analyzedPages] = await Promise.all([
+      classifyPromise,
+      ...pageAnalysisPromises,
+    ]);
+
+    const rawType = classifyResult.output_text?.trim() || "Other";
+    const drawingType = DRAWING_TYPES.includes(rawType) ? rawType : "Other";
+
+    return NextResponse.json({ pages: analyzedPages, drawingType });
   } catch (e) {
     console.error("drawings/analyze error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });

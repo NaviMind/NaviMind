@@ -407,8 +407,9 @@ const drawingsGuidance = hasDrawings
       vesselDrawings
         .map((d, i) => {
           const pages = d.selectedPages || [];
+          const typeNote = d.drawingType ? ` [${d.drawingType}]` : "";
           const pageNote = pages.length > 1 ? ` (${pages.length} pages)` : pages.length === 1 && pages[0].pageNum > 1 ? ` (page ${pages[0].pageNum})` : "";
-          return `  [Drawing ${i + 1}] ${d.name}${pageNote}`;
+          return `  [Drawing ${i + 1}] ${d.name}${typeNote}${pageNote}`;
         })
         .join("\n"),
       "",
