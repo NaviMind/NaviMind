@@ -13,6 +13,19 @@ import InventoryIcon from "./InventoryIcon";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+// Storage quota for drawings. Flat value for now — in the subscription phase this
+// will be derived from the user's plan (higher tier → larger quota).
+const STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+
+const formatBytes = (bytes) => {
+  if (!bytes || bytes < 0) return "0 MB";
+  const gb = bytes / 1024 ** 3;
+  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+  const mb = bytes / 1024 ** 2;
+  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
 export default function DrawingRegisterPanel() {
   const { isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
   const { splitMode } = useContext(ChatContext);
@@ -27,6 +40,7 @@ export default function DrawingRegisterPanel() {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [quotaError, setQuotaError] = useState("");
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -65,6 +79,22 @@ export default function DrawingRegisterPanel() {
   const visibleFolders = currentFolderId ? [] : folders;
   const visibleFiles = files.filter((f) => f.folderId === currentFolderId);
 
+  // Storage usage across every drawing (quota is a single global pool).
+  const usedBytes = useMemo(
+    () => files.reduce((sum, f) => sum + (f.size || 0), 0),
+    [files]
+  );
+  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  const barColor =
+    usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
+  // Auto-dismiss the "out of storage" notice after a moment.
+  useEffect(() => {
+    if (!quotaError) return;
+    const t = setTimeout(() => setQuotaError(""), 5000);
+    return () => clearTimeout(t);
+  }, [quotaError]);
+
   const commitFolder = () => {
     const name = newFolderName.trim();
     if (name) setFolders((prev) => [{ id: rid(), name }, ...prev]);
@@ -75,8 +105,26 @@ export default function DrawingRegisterPanel() {
   const addFiles = (fileList) => {
     const items = Array.from(fileList || []);
     if (!items.length) return;
+
+    // Block the upload if it would push the user past their storage quota.
+    const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
+    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
+      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+      setQuotaError(
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some drawings or upgrade your plan.`
+      );
+      return;
+    }
+
+    setQuotaError("");
     setFiles((prev) => [
-      ...items.map((f) => ({ id: rid(), name: f.name, type: f.type, folderId: currentFolderId })),
+      ...items.map((f) => ({
+        id: rid(),
+        name: f.name,
+        type: f.type,
+        size: f.size || 0,
+        folderId: currentFolderId,
+      })),
       ...prev,
     ]);
   };
@@ -99,6 +147,7 @@ export default function DrawingRegisterPanel() {
         setCurrentFolderId(null);
         setCreatingFolder(false);
         setNewFolderName("");
+        setQuotaError("");
       }}
     >
       {open && (
@@ -307,6 +356,11 @@ export default function DrawingRegisterPanel() {
                               <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
                               <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
                                 {(file.name.split(".").pop() || "file").toUpperCase()}
+                                {file.size ? (
+                                  <span className="text-gray-400 dark:text-gray-500 font-normal normal-case tracking-normal">
+                                    {" · "}{formatBytes(file.size)}
+                                  </span>
+                                ) : null}
                               </p>
                             </div>
                             <button
@@ -324,6 +378,30 @@ export default function DrawingRegisterPanel() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* ── Footer: storage quota ── */}
+            <div className="px-6 py-3.5 border-t border-gray-100 dark:border-white/10">
+              {quotaError && (
+                <p className="mb-2.5 text-xs font-medium text-red-500 dark:text-red-400">
+                  {quotaError}
+                </p>
+              )}
+              <div className="flex items-center justify-between mb-1.5 text-xs">
+                <span className="text-gray-500 dark:text-gray-400">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">
+                    {formatBytes(usedBytes)}
+                  </span>{" "}
+                  of {formatBytes(STORAGE_LIMIT_BYTES)} used
+                </span>
+                <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${barColor} transition-all duration-300`}
+                  style={{ width: `${usedPct}%` }}
+                />
+              </div>
             </div>
           </motion.div>
         </motion.div>
