@@ -72,6 +72,38 @@ function isVisualFile(file) {
   );
 }
 
+// ── Vision-analysis queue (cost guard) ───────────────────────────────────────
+// Each analysis triggers up to 8 gpt-4o vision calls. Without a cap, uploading
+// 20 files at once would fire 20 analyses in parallel — a sudden, expensive
+// burst. This queue runs at most ANALYZE_CONCURRENCY analyses at a time; the
+// rest wait their turn. Module-level so it persists across re-renders and is
+// shared by every upload batch.
+const ANALYZE_CONCURRENCY = 2;
+let _activeAnalyses = 0;
+const _analyzeQueue = [];
+
+function _drainAnalyzeQueue() {
+  while (_activeAnalyses < ANALYZE_CONCURRENCY && _analyzeQueue.length) {
+    const job = _analyzeQueue.shift();
+    _activeAnalyses++;
+    Promise.resolve()
+      .then(job)
+      .catch(() => {})
+      .finally(() => {
+        _activeAnalyses--;
+        _drainAnalyzeQueue();
+      });
+  }
+}
+
+// Schedule an async job; resolves with the job's result once it actually runs.
+function enqueueAnalysis(job) {
+  return new Promise((resolve) => {
+    _analyzeQueue.push(() => Promise.resolve().then(job).then(resolve));
+    _drainAnalyzeQueue();
+  });
+}
+
 // Renders each page of a PDF to a JPEG Blob (up to MAX_PDF_PAGES pages).
 const MAX_PDF_PAGES = 8;
 async function renderPdfPages(file) {
@@ -391,38 +423,41 @@ export default function DrawingRegisterPanel() {
           setPending((prev) => prev.filter((x) => x.tempId !== tempId));
           if (rec) {
             setFiles((prev) => [rec, ...prev]);
-            // 5) Fire-and-forget vision pre-analysis: analyse each page independently
-            //    so the query layer can select only the relevant pages later.
+            // 5) Vision pre-analysis, throttled through a concurrency-limited queue
+            //    (cost guard) so a big upload batch can't fire dozens of gpt-4o
+            //    calls at once. The file shows a spinner while it waits + runs.
             if (isVisualFile(file)) {
               const inputPages = pages.length
                 ? pages.map((p) => ({ url: p.url, pageNum: p.pageNum }))
                 : [{ url: uploaded.url, pageNum: 1 }];
               setAnalyzingIds((prev) => new Set([...prev, rec.id]));
-              fetch("/api/drawings/analyze", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
-              })
-                .then((r) => r.json())
-                .then(({ pages: pageAnalyses, drawingType }) => {
-                  const updates = {};
-                  if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
-                  if (drawingType) updates.drawingType = drawingType;
-                  if (Object.keys(updates).length) {
-                    updateDrawingFileRecord({ uid, id: rec.id, updates }).catch(() => {});
-                    setFiles((prev) =>
-                      prev.map((f) => (f.id === rec.id ? { ...f, ...updates } : f))
-                    );
-                  }
+              enqueueAnalysis(() =>
+                fetch("/api/drawings/analyze", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
                 })
-                .catch(() => {})
-                .finally(() => {
-                  setAnalyzingIds((prev) => {
-                    const s = new Set(prev);
-                    s.delete(rec.id);
-                    return s;
-                  });
-                });
+                  .then((r) => r.json())
+                  .then(({ pages: pageAnalyses, drawingType }) => {
+                    const updates = {};
+                    if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
+                    if (drawingType) updates.drawingType = drawingType;
+                    if (Object.keys(updates).length) {
+                      updateDrawingFileRecord({ uid, id: rec.id, updates }).catch(() => {});
+                      setFiles((prev) =>
+                        prev.map((f) => (f.id === rec.id ? { ...f, ...updates } : f))
+                      );
+                    }
+                  })
+                  .catch(() => {})
+                  .finally(() => {
+                    setAnalyzingIds((prev) => {
+                      const s = new Set(prev);
+                      s.delete(rec.id);
+                      return s;
+                    });
+                  })
+              );
             }
           }
         } else {
