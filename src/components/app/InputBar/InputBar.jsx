@@ -27,7 +27,6 @@ import {
 } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
 import { Maximize2, Minimize2, Mic, Check, X, Upload } from "lucide-react";
-import InventoryIcon from "@/components/app/DrawingRegister/InventoryIcon";
 
 const FILES_LIMIT = 5;
 // Pasting more than this many characters turns the text into a .txt attachment
@@ -226,7 +225,7 @@ function SendStopButton({ generating, onSend, onStop, disabled }) {
 }
 
 export default function InputBar({ respondToPendingPrompt = true, dropTargetRef = null }) {
-  const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData, isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
+  const { isSidebarOpen, inputText, setInputText, pendingPrompt, setPendingPrompt, vesselProfileData } = useContext(UIContext);
   const { data: userDoc } = useCurrentUserDoc();
 
   const {
@@ -1000,32 +999,16 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
 
             {/* INPUT ROW */}
             <div className="flex items-end w-full gap-1 px-1">
-              {/* Left: cancel-recording while recording, else 📎 attach + drawing register */}
+              {/* Left: cancel-recording while recording, else 📎 attach */}
               {isListening ? (
                 <CancelRecordButton onClick={cancelRecording} />
               ) : (
-                <>
-                  <Tooltip content="Add photos & files" position="top">
-                    <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
-                      <Icon name="attach-file" size={20} />
-                      <input type="file" multiple onChange={handleFileChange} className="sr-only" />
-                    </label>
-                  </Tooltip>
-                  <Tooltip content="Drawing Register" position="top">
-                    <button
-                      type="button"
-                      aria-label="Drawing Register"
-                      onClick={() => setDrawingRegisterOpen(!isDrawingRegisterOpen)}
-                      className={`p-2 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center transition
-                        ${isDrawingRegisterOpen
-                          ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-                        }`}
-                    >
-                      <InventoryIcon isOpen={isDrawingRegisterOpen} size={20} />
-                    </button>
-                  </Tooltip>
-                </>
+                <Tooltip content="Add photos & files" position="top">
+                  <label className="relative cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">
+                    <Icon name="attach-file" size={20} />
+                    <input type="file" multiple onChange={handleFileChange} className="sr-only" />
+                  </label>
+                </Tooltip>
               )}
 
               {/* Middle: live voice waveform while recording, else textarea */}

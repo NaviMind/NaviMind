@@ -16,6 +16,7 @@ import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
 import SearchModal from "./SearchModal";
 import Icon from "@/components/common/Icon";
+import DrawingRegisterButton from "@/components/app/DrawingRegister/DrawingRegisterButton";
 
 
 // Tooltip rendered to the RIGHT of its trigger via a portal, so it escapes
@@ -294,6 +295,11 @@ useEffect(() => {
         Vessel Profile
       </span>
     </button>
+  </div>
+
+  {/* Drawing Register — global vessel drawings, opens a full overlay over the work area */}
+  <div className="-mx-2 px-1 py-0">
+    <DrawingRegisterButton onSidebarItemClick={onSidebarItemClick} />
   </div>
 
   {/* Mobile: full-width "Create Topic" button (when topics already exist) —
