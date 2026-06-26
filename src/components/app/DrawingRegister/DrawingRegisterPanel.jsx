@@ -162,6 +162,36 @@ export default function DrawingRegisterPanel() {
   const fileInputRef = useRef(null);
   const storeIdRef = useRef(""); // the user's drawings vector store id
 
+  // Batch progress tracking — lets the user leave the panel while drawings
+  // process in the background and get a toast when the whole batch is ready.
+  const batchInFlightRef = useRef(0); // files still uploading/indexing/analysing
+  const batchReadyRef = useRef(0);    // successfully finished in the current batch
+  const batchActiveRef = useRef(false);
+
+  // Fire a global toast (mounted in the app layout; survives navigation).
+  const fireToast = (message, type = "success") => {
+    window.dispatchEvent(new CustomEvent("navimind-toast", { detail: { message, type } }));
+  };
+
+  // Called exactly once per file when its full lifecycle ends (ready or failed).
+  // When the whole batch drains, announce how many drawings became usable.
+  const markFileWorkDone = (success) => {
+    if (success) batchReadyRef.current += 1;
+    batchInFlightRef.current = Math.max(0, batchInFlightRef.current - 1);
+    if (batchInFlightRef.current === 0 && batchActiveRef.current) {
+      batchActiveRef.current = false;
+      const n = batchReadyRef.current;
+      batchReadyRef.current = 0;
+      if (n > 0) {
+        fireToast(
+          n === 1
+            ? "Your drawing is processed and ready to use."
+            : `Your ${n} drawings are processed and ready to use.`
+        );
+      }
+    }
+  };
+
   // Sync local open state with the context flag in both directions.
   useEffect(() => {
     if (isDrawingRegisterOpen) setOpen(true);
@@ -333,6 +363,19 @@ export default function DrawingRegisterPanel() {
     }));
     setPending((prev) => [...queued, ...prev]);
 
+    // Start (or extend) the background batch. Pre-count every file so the batch
+    // only "drains" once the very last one finishes — no premature toast.
+    const startingFresh = !batchActiveRef.current;
+    batchActiveRef.current = true;
+    batchInFlightRef.current += items.length;
+    if (startingFresh) {
+      fireToast(
+        items.length === 1
+          ? "Drawing is processing in the background — you can keep working."
+          : `${items.length} drawings are processing in the background — you can keep working.`
+      );
+    }
+
     for (let i = 0; i < items.length; i++) {
       const file = items[i];
       const { tempId } = queued[i];
@@ -456,9 +499,16 @@ export default function DrawingRegisterPanel() {
                       s.delete(rec.id);
                       return s;
                     });
+                    // Visual file's full lifecycle (upload → index → analyse) is done.
+                    markFileWorkDone(true);
                   })
               );
+            } else {
+              // Non-visual file (e.g. manual .docx): indexed and usable, no vision step.
+              markFileWorkDone(true);
             }
+          } else {
+            markFileWorkDone(false); // record failed to persist
           }
         } else {
           // Not indexable — clean up Storage objects.
@@ -473,6 +523,7 @@ export default function DrawingRegisterPanel() {
                 : x
             )
           );
+          markFileWorkDone(false);
         }
       } catch {
         if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
@@ -484,6 +535,7 @@ export default function DrawingRegisterPanel() {
             x.tempId === tempId ? { ...x, status: "failed", error: "Upload failed" } : x
           )
         );
+        markFileWorkDone(false);
       }
     }
   };
