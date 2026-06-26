@@ -172,6 +172,7 @@ export default function LandingPage() {
                     onLogin={handleLogin}
                     onBackToEmail={handleBackToEmail}
                     onForgot={() => setAuthStage("forgot")}
+                    onBackToWelcome={() => router.push("/welcome")}
                     authError={authError}
                     onClearAuthError={() => setAuthError("")}
                     isSubmitting={isSubmitting}

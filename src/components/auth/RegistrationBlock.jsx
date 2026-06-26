@@ -147,13 +147,15 @@ export default function RegistrationBlock({
           <p className="text-sm text-white/60 text-center leading-relaxed mt-1">
             Please confirm your email and then log in again.
           </p>
-          <button type="button" onClick={onBack} className="text-sm text-blue-400 hover:underline mt-4 text-center">
-            Back to Login
+          <button type="button" onClick={onBack}
+                  className="text-sm text-white/40 hover:text-white/70 hover:underline transition-colors mt-4 text-center">
+            ← Back to Login
           </button>
         </>
       ) : (
-        <button type="button" onClick={onBack} className="text-sm text-blue-400 hover:underline mt-1 text-center">
-          Back to Login
+        <button type="button" onClick={onBack}
+                className="text-sm text-white/40 hover:text-white/70 hover:underline transition-colors mt-1 text-center">
+          ← Back to Login
         </button>
       )}
     </form>

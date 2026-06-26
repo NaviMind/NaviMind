@@ -13,6 +13,7 @@ export default function LoginBlock({
   onLogin,
   onBackToEmail,
   onForgot,
+  onBackToWelcome,
   authError = "",
   onClearAuthError = () => {},
   isSubmitting = false,
@@ -128,10 +129,19 @@ export default function LoginBlock({
       </button>
 
       {step === "password" && (
-        <div className="flex justify-start text-sm">
+        <div className="flex justify-start text-sm mt-1">
           <button type="button" onClick={onForgot}
-                  className="text-blue-400 hover:underline">
+                  className="text-white/40 hover:text-white/70 hover:underline transition-colors">
             Forgot password?
+          </button>
+        </div>
+      )}
+
+      {step === "email" && onBackToWelcome && (
+        <div className="flex justify-center mt-5">
+          <button type="button" onClick={onBackToWelcome}
+                  className="text-sm text-white/40 hover:text-white/70 hover:underline transition-colors">
+            ← Other sign-in options
           </button>
         </div>
       )}

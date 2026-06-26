@@ -89,9 +89,9 @@ export default function ForgotPasswordBlock({ onBack }) {
       <div className="flex justify-center mt-8">
         <button
           onClick={onBack}
-          className="text-blue-400 text-sm hover:underline"
+          className="text-sm text-white/40 hover:text-white/70 hover:underline transition-colors"
         >
-          Back to Login
+          ← Back to Login
         </button>
       </div>
     </div>
