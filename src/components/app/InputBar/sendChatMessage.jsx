@@ -10,6 +10,7 @@ import {
   updateTopicMemory,
   loadUserTopics,
   getUserLibraryStoreId,
+  getUserDrawingsStoreId,
   setTopicVectorStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
@@ -317,7 +318,10 @@ sendLocks.add(sendKey);
       ? topicStoreId
       : await getUserLibraryStoreId(currentUser.uid).catch(() => "");
   }
-  const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
+  // The user's drawings store is account-wide: always searchable, in every chat
+  // and topic, so the assistant can consult vessel drawings/manuals anywhere.
+  const drawingsStoreId = await getUserDrawingsStoreId(currentUser.uid).catch(() => "");
+  const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).

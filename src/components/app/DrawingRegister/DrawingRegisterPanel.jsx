@@ -3,13 +3,31 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
 import MaskIcon from "@/components/common/MaskIcon";
 import Icon from "@/components/common/Icon";
 import InventoryIcon from "./InventoryIcon";
+import { auth, storage } from "@/firebase/config";
+import { ref as storageRef, deleteObject } from "firebase/storage";
+import {
+  uploadFileToStorage,
+  indexDocuments,
+  hashFile,
+  expireIndexedFile,
+} from "@/components/app/InputBar/attachmentProcessing";
+import {
+  getUserDrawingsStoreId,
+  setUserDrawingsStoreId,
+  getDrawingFiles,
+  addDrawingFileRecords,
+  deleteDrawingFileRecordsByIds,
+  getDrawingFolders,
+  addDrawingFolder,
+  deleteDrawingFolder,
+} from "@/firebase/chatStore";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -33,9 +51,12 @@ export default function DrawingRegisterPanel() {
   const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(false);
 
-  // Folder / file state (local for now — Firestore in the technical phase)
+  // Firestore-backed state
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
+  const [pending, setPending] = useState([]); // in-flight uploads: { tempId, name, size, folderId, status, progress, error }
+  const [loading, setLoading] = useState(false);
+
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -44,15 +65,37 @@ export default function DrawingRegisterPanel() {
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const storeIdRef = useRef(""); // the user's drawings vector store id
 
   // Sync local open state with the context flag in both directions.
-  // Going true → slide in. Going false (e.g. another modal opened) → slide out.
   useEffect(() => {
     if (isDrawingRegisterOpen) setOpen(true);
     else setOpen(false);
   }, [isDrawingRegisterOpen]);
 
   const close = () => setOpen(false);
+
+  // Load folders + files from Firestore each time the panel opens.
+  useEffect(() => {
+    if (!isDrawingRegisterOpen) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const [sid, fl, fo] = await Promise.all([
+        getUserDrawingsStoreId(uid).catch(() => ""),
+        getDrawingFolders(uid).catch(() => []),
+        getDrawingFiles(uid).catch(() => []),
+      ]);
+      if (cancelled) return;
+      storeIdRef.current = sid || "";
+      setFolders(fl);
+      setFiles(fo);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isDrawingRegisterOpen]);
 
   // Desktop: overlay the work area (sidebar stays visible). Mobile: work area is
   // transformed off-screen with the sidebar, so portal to <body>.
@@ -79,13 +122,15 @@ export default function DrawingRegisterPanel() {
 
   const currentFolder = folders.find((f) => f.id === currentFolderId) ?? null;
   const visibleFolders = currentFolderId ? [] : folders;
-  const visibleFiles = files.filter((f) => f.folderId === currentFolderId);
+  const visibleFiles = files.filter((f) => f.folderId === (currentFolderId ?? null));
+  const visiblePending = pending.filter((p) => p.folderId === (currentFolderId ?? null));
 
-  // Storage usage across every drawing (quota is a single global pool).
-  const usedBytes = useMemo(
-    () => files.reduce((sum, f) => sum + (f.size || 0), 0),
-    [files]
-  );
+  // Storage usage — committed files plus in-flight uploads, against one global pool.
+  const usedBytes = useMemo(() => {
+    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
+    return committed + inflight;
+  }, [files, pending]);
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
   const barColor =
     usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
@@ -97,18 +142,73 @@ export default function DrawingRegisterPanel() {
     return () => clearTimeout(t);
   }, [quotaError]);
 
-  const commitFolder = () => {
+  // ── Folder create / delete ──
+  const commitFolder = async () => {
     const name = newFolderName.trim();
-    if (name) setFolders((prev) => [{ id: rid(), name }, ...prev]);
     setNewFolderName("");
     setCreatingFolder(false);
+    if (!name) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const folder = await addDrawingFolder({ uid, name }).catch(() => null);
+    if (folder) setFolders((prev) => [folder, ...prev]);
   };
 
-  const addFiles = (fileList) => {
+  const deleteFolder = async (folder) => {
+    const uid = auth.currentUser?.uid;
+    const inFolder = files.filter((f) => f.folderId === folder.id);
+
+    // Optimistic UI
+    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    setFiles((prev) => prev.filter((f) => f.folderId !== folder.id));
+    if (currentFolderId === folder.id) setCurrentFolderId(null);
+
+    // Tear down each file's OpenAI + Storage footprint
+    for (const f of inFolder) {
+      if (f.openaiFileId) {
+        expireIndexedFile({
+          vectorStoreId: f.vectorStoreId || storeIdRef.current,
+          openaiFileId: f.openaiFileId,
+        });
+      }
+      if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
+    }
+    if (uid) {
+      if (inFolder.length) {
+        deleteDrawingFileRecordsByIds({ uid, ids: inFolder.map((f) => f.id) }).catch(() => {});
+      }
+      deleteDrawingFolder({ uid, folderId: folder.id }).catch(() => {});
+    }
+  };
+
+  // ── File delete ──
+  const deleteFile = async (file) => {
+    const uid = auth.currentUser?.uid;
+    setFiles((prev) => prev.filter((f) => f.id !== file.id));
+
+    if (file.openaiFileId) {
+      expireIndexedFile({
+        vectorStoreId: file.vectorStoreId || storeIdRef.current,
+        openaiFileId: file.openaiFileId,
+      });
+    }
+    if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
+    if (uid && file.id) {
+      deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
+    }
+  };
+
+  const dismissPending = (tempId) =>
+    setPending((prev) => prev.filter((p) => p.tempId !== tempId));
+
+  // ── Upload + index pipeline ──
+  const addFiles = async (fileList) => {
     const items = Array.from(fileList || []);
     if (!items.length) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
-    // Block the upload if it would push the user past their storage quota.
+    // Quota gate (committed + in-flight + incoming).
     const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
     if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
       const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
@@ -117,28 +217,108 @@ export default function DrawingRegisterPanel() {
       );
       return;
     }
-
     setQuotaError("");
-    setFiles((prev) => [
-      ...items.map((f) => ({
-        id: rid(),
-        name: f.name,
-        type: f.type,
-        size: f.size || 0,
-        folderId: currentFolderId,
-      })),
-      ...prev,
-    ]);
+
+    const folderId = currentFolderId ?? null;
+    const queued = items.map((f) => ({
+      tempId: rid(),
+      name: f.name,
+      type: f.type,
+      size: f.size || 0,
+      folderId,
+      status: "uploading",
+      progress: 0,
+    }));
+    setPending((prev) => [...queued, ...prev]);
+
+    for (let i = 0; i < items.length; i++) {
+      const file = items[i];
+      const { tempId } = queued[i];
+      let uploaded = null;
+      try {
+        // 1) Upload bytes to Firebase Storage (with progress).
+        uploaded = await uploadFileToStorage({
+          uid,
+          file,
+          onProgress: (p) =>
+            setPending((prev) =>
+              prev.map((x) => (x.tempId === tempId ? { ...x, progress: p } : x))
+            ),
+        });
+
+        // 2) Hash for future dedupe; switch the row to "indexing".
+        const hash = await hashFile(file).catch(() => "");
+        setPending((prev) =>
+          prev.map((x) =>
+            x.tempId === tempId ? { ...x, status: "indexing", progress: 100 } : x
+          )
+        );
+
+        // 3) Chunk + embed into the user's persistent drawings store.
+        const result = await indexDocuments({
+          vectorStoreId: storeIdRef.current || "",
+          label: "NaviMind Drawings",
+          docs: [{ url: uploaded.url, name: uploaded.name, type: uploaded.type }],
+        });
+
+        const newStoreId = result?.vectorStoreId || storeIdRef.current || "";
+        if (newStoreId && newStoreId !== storeIdRef.current) {
+          storeIdRef.current = newStoreId;
+          setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+        }
+
+        const indexed = result?.files?.[0];
+        const openaiFileId = indexed?.openaiFileId || "";
+
+        if (openaiFileId) {
+          // 4) Persist the record; reconcile optimistic state.
+          const [rec] = await addDrawingFileRecords({
+            uid,
+            files: [
+              {
+                name: uploaded.name,
+                type: uploaded.type,
+                url: uploaded.url,
+                path: uploaded.path,
+                openaiFileId,
+                vectorStoreId: newStoreId,
+                hash,
+                size: file.size || 0,
+                folderId,
+              },
+            ],
+          });
+          setPending((prev) => prev.filter((x) => x.tempId !== tempId));
+          if (rec) setFiles((prev) => [rec, ...prev]);
+        } else {
+          // Not indexable (e.g. visual-only image, unsupported type) — don't keep
+          // the orphaned Storage object around eating quota.
+          if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+          setPending((prev) =>
+            prev.map((x) =>
+              x.tempId === tempId
+                ? { ...x, status: "failed", error: prettyStatus(indexed?.status) }
+                : x
+            )
+          );
+        }
+      } catch (e) {
+        if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+        setPending((prev) =>
+          prev.map((x) =>
+            x.tempId === tempId ? { ...x, status: "failed", error: "Upload failed" } : x
+          )
+        );
+      }
+    }
   };
 
-  const deleteFolder = (id) => {
-    setFolders((prev) => prev.filter((f) => f.id !== id));
-    setFiles((prev) => prev.filter((f) => f.folderId !== id));
-    if (currentFolderId === id) setCurrentFolderId(null);
-  };
-  const deleteFile = (id) => setFiles((prev) => prev.filter((f) => f.id !== id));
-
-  const isEmpty = visibleFolders.length === 0 && visibleFiles.length === 0 && !creatingFolder;
+  const isEmpty =
+    !loading &&
+    visibleFolders.length === 0 &&
+    visibleFiles.length === 0 &&
+    visiblePending.length === 0 &&
+    !creatingFolder;
 
   if (!portalTarget) return null;
 
@@ -242,21 +422,24 @@ export default function DrawingRegisterPanel() {
                 type="file"
                 multiple
                 className="sr-only"
-                accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.tiff,.tif"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv"
                 onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
               />
             </div>
 
             {/* ── Body ── */}
             <div className="relative flex-1 overflow-y-auto custom-scroll p-4">
-              {/* Drag overlay while dragging files over the window */}
               {dragging && (
                 <div className="absolute inset-3 z-10 rounded-2xl border-2 border-dashed border-blue-400 bg-blue-50/70 dark:bg-blue-500/10 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-300 pointer-events-none">
                   Drop files to add them
                 </div>
               )}
 
-              {isEmpty ? (
+              {loading ? (
+                <div className="w-full h-full min-h-[320px] flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  <Loader2 size={22} className="animate-spin" />
+                </div>
+              ) : isEmpty ? (
                 /* Empty state — drag & drop zone */
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -325,7 +508,7 @@ export default function DrawingRegisterPanel() {
                               <span
                                 role="button"
                                 tabIndex={0}
-                                onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id); }}
+                                onClick={(e) => { e.stopPropagation(); deleteFolder(folder); }}
                                 className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
                                   [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
                                 aria-label="Delete folder"
@@ -340,20 +523,63 @@ export default function DrawingRegisterPanel() {
                   )}
 
                   {/* Files */}
-                  {visibleFiles.length > 0 && (
+                  {(visibleFiles.length > 0 || visiblePending.length > 0) && (
                     <div>
                       <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
                         Drawings
                       </p>
                       <div className="flex flex-col gap-0.5">
+                        {/* In-flight uploads */}
+                        {visiblePending.map((p) => (
+                          <div
+                            key={p.tempId}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-white/[0.03]"
+                          >
+                            <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                              p.status === "failed"
+                                ? "bg-red-50 dark:bg-red-500/10 text-red-500"
+                                : "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400"
+                            }`}>
+                              {p.status === "failed"
+                                ? <AlertCircle size={18} />
+                                : <Loader2 size={18} className="animate-spin" />}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
+                              <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                                {p.status === "uploading" && `Uploading… ${p.progress}%`}
+                                {p.status === "indexing" && "Processing for AI…"}
+                                {p.status === "failed" && (
+                                  <span className="text-red-500 dark:text-red-400">{p.error}</span>
+                                )}
+                              </p>
+                            </div>
+                            {p.status === "failed" && (
+                              <button
+                                onClick={() => dismissPending(p.tempId)}
+                                aria-label="Dismiss"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+                              >
+                                <X size={15} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Committed files */}
                         {visibleFiles.map((file) => (
                           <div
                             key={file.id}
                             className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                           >
-                            <span className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400">
+                            <a
+                              href={file.url || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
+                            >
                               <FileText size={18} />
-                            </span>
+                            </a>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
                               <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
@@ -366,7 +592,7 @@ export default function DrawingRegisterPanel() {
                               </p>
                             </div>
                             <button
-                              onClick={() => deleteFile(file.id)}
+                              onClick={() => deleteFile(file)}
                               aria-label="Delete drawing"
                               className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
                                 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
@@ -411,4 +637,12 @@ export default function DrawingRegisterPanel() {
     </AnimatePresence>,
     portalTarget
   );
+}
+
+// Human-readable reason when a file couldn't be indexed for AI search.
+function prettyStatus(status = "") {
+  if (status.startsWith("skipped:visual")) return "No readable text found";
+  if (status.startsWith("skipped:unsupported")) return "Unsupported file type";
+  if (status.startsWith("skipped:empty")) return "File is empty";
+  return "Couldn't process file";
 }
