@@ -367,20 +367,29 @@ const fileSearchGuidance = hasDocs
     ].join("\n")
   : null;
 
-// Pre-analyzed spatial index — built once at upload time, reused on every query.
-// Gives the model precise room/equipment locations without repeated vision calls.
+// Per-page spatial index: only the pages most relevant to this query are included.
+// Built once at upload time; here we only receive what the client pre-selected.
 const drawingAnalyses = vesselDrawings
-  .filter((d) => d.spatialSummary)
-  .map((d) => `=== ${d.name} ===\n${d.spatialSummary}`)
+  .filter((d) => d.selectedPages?.some((p) => p.description))
+  .map((d) => {
+    const pagesWithDesc = d.selectedPages.filter((p) => p.description);
+    const pagesText =
+      pagesWithDesc.length === 1
+        ? pagesWithDesc[0].description
+        : pagesWithDesc
+            .map((p) => `--- Page ${p.pageNum} ---\n${p.description}`)
+            .join("\n\n");
+    return `=== ${d.name} ===\n${pagesText}`;
+  })
   .join("\n\n");
 
 const drawingAnalysisBlock = drawingAnalyses
   ? [
       "═══════════════════════════════════════════",
-      "VESSEL DRAWINGS — PRE-ANALYZED SPATIAL INDEX",
+      "VESSEL DRAWINGS — SPATIAL INDEX (RELEVANT PAGES)",
       "═══════════════════════════════════════════",
-      "These drawings were analyzed when uploaded. Use this spatial index for precise answers about room locations, equipment positions, safety routes, and layout.",
-      "The actual drawing images are also attached for visual verification — use them together.",
+      "The pages below were selected as most relevant to this query from the pre-analyzed drawing index. Use them for precise answers about room locations, equipment positions, safety routes, and layout.",
+      "The actual drawing images are also attached for visual verification.",
       "",
       drawingAnalyses,
       "═══════════════════════════════════════════",
@@ -395,7 +404,13 @@ const drawingsGuidance = hasDrawings
       "VESSEL DRAWINGS — VISUAL CONTEXT",
       "═══════════════════════════════════════════",
       `The following vessel drawing(s) are attached as images for this query:`,
-      vesselDrawings.map((d, i) => `  [Drawing ${i + 1}] ${d.name}`).join("\n"),
+      vesselDrawings
+        .map((d, i) => {
+          const pages = d.selectedPages || [];
+          const pageNote = pages.length > 1 ? ` (${pages.length} pages)` : pages.length === 1 && pages[0].pageNum > 1 ? ` (page ${pages[0].pageNum})` : "";
+          return `  [Drawing ${i + 1}] ${d.name}${pageNote}`;
+        })
+        .join("\n"),
       "",
       "Examine each drawing carefully. You can read labels, dimensions, room names, equipment positions, escape routes, pipe runs, or any other markings visible on the drawing.",
       "When answering, cite the specific drawing name you are referencing (e.g. \"According to the General Arrangement plan…\").",
@@ -465,25 +480,19 @@ const assembledSystemPrompt = [
               role: "user",
               content: [
                 { type: "input_text", text: String(question) },
-                // Vessel drawings come first (background context), then any
-                // images explicitly attached by the user to this message.
-                // PDFs are stored as rendered JPEG pages (d.pages[]); non-PDF
-                // images use their direct URL. PDF URLs without page renders are
-                // skipped (OpenAI Vision can't decode raw PDFs).
-                ...vesselDrawings.flatMap((d) => {
-                  const isPdfType =
-                    d.type === "application/pdf" || /\.pdf$/i.test(d.name || "");
-                  const imgUrls = d.pages?.length
-                    ? d.pages.map((p) => p.url)
-                    : isPdfType
-                    ? []
-                    : [d.url];
-                  return imgUrls.map((url) => ({
-                    type: "input_image",
-                    image_url: url,
-                    detail: "high",
-                  }));
-                }),
+                // Vessel drawings: only the pre-selected relevant page images.
+                // selectedPages[] URLs are always JPEG (PDF pages were rendered
+                // client-side; images use their direct URL). Raw PDF URLs never
+                // appear here — Vision can't decode them.
+                ...vesselDrawings.flatMap((d) =>
+                  (d.selectedPages || [])
+                    .filter((p) => p.url)
+                    .map((p) => ({
+                      type: "input_image",
+                      image_url: p.url,
+                      detail: "high",
+                    }))
+                ),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,

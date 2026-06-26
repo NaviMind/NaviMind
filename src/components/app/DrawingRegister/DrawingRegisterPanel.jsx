@@ -378,22 +378,24 @@ export default function DrawingRegisterPanel() {
           setPending((prev) => prev.filter((x) => x.tempId !== tempId));
           if (rec) {
             setFiles((prev) => [rec, ...prev]);
-            // 5) Fire-and-forget vision pre-analysis so subsequent queries use
-            //    cached spatial descriptions instead of repeating vision calls.
+            // 5) Fire-and-forget vision pre-analysis: analyse each page independently
+            //    so the query layer can select only the relevant pages later.
             if (isVisualFile(file)) {
-              const pageUrls = pages.length ? pages.map((p) => p.url) : [uploaded.url];
+              const inputPages = pages.length
+                ? pages.map((p) => ({ url: p.url, pageNum: p.pageNum }))
+                : [{ url: uploaded.url, pageNum: 1 }];
               setAnalyzingIds((prev) => new Set([...prev, rec.id]));
               fetch("/api/drawings/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pageUrls, fileName: uploaded.name }),
+                body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
               })
                 .then((r) => r.json())
-                .then(({ spatialSummary }) => {
-                  if (spatialSummary) {
-                    updateDrawingFileRecord({ uid, id: rec.id, updates: { spatialSummary } }).catch(() => {});
+                .then(({ pages: pageAnalyses }) => {
+                  if (Array.isArray(pageAnalyses) && pageAnalyses.length) {
+                    updateDrawingFileRecord({ uid, id: rec.id, updates: { pageAnalyses } }).catch(() => {});
                     setFiles((prev) =>
-                      prev.map((f) => (f.id === rec.id ? { ...f, spatialSummary } : f))
+                      prev.map((f) => (f.id === rec.id ? { ...f, pageAnalyses } : f))
                     );
                   }
                 })
@@ -720,7 +722,7 @@ export default function DrawingRegisterPanel() {
                                       Analyzing…
                                     </span>
                                   )}
-                                  {!isAnalyzing && file.spatialSummary && (
+                                  {!isAnalyzing && (file.pageAnalyses?.length || file.spatialSummary) && (
                                     <span className="ml-2 text-emerald-500 dark:text-emerald-400 font-normal normal-case tracking-normal">
                                       ✓ Indexed
                                     </span>

@@ -76,6 +76,67 @@ function selectDrawings(files, question) {
     .map((s) => s.f);
 }
 
+// For a multi-page drawing, score each page description against the question
+// to pick only the most relevant page(s) — avoids sending all 10+ pages every time.
+const STOP_WORDS = new Set([
+  "what","where","when","which","does","this","that","with","from","have",
+  "will","about","these","those","into","onto","over","under","after",
+  "before","какой","какая","какие","какое","который","которая","которые",
+]);
+
+function scorePageForQuestion(description, questionLower) {
+  const desc = (description || "").toLowerCase();
+  let score = 0;
+  const words = (questionLower.match(/\b[a-zа-я]{4,}\b/g) || []).filter(
+    (w) => !STOP_WORDS.has(w)
+  );
+  for (const word of words) {
+    if (desc.includes(word)) score += 1;
+  }
+  // Extra credit for exact deck/frame number matches.
+  const nums = questionLower.match(/\b\d+\b/g) || [];
+  for (const n of nums) {
+    if (desc.includes(n)) score += 2;
+  }
+  return score;
+}
+
+const MAX_PAGES_PER_DRAWING = 3;
+
+// Pick the most relevant pages of a drawing for the current question.
+// Falls back gracefully when per-page analysis is not yet available.
+function selectPages(drawing, question) {
+  const q = question.toLowerCase();
+
+  // New format: per-page descriptions stored in pageAnalyses[].
+  if (drawing.pageAnalyses?.length) {
+    const analyses = drawing.pageAnalyses;
+    if (analyses.length <= MAX_PAGES_PER_DRAWING) return analyses;
+    return analyses
+      .map((p) => ({ ...p, _s: scorePageForQuestion(p.description || "", q) }))
+      .sort((a, b) => b._s - a._s)
+      .slice(0, MAX_PAGES_PER_DRAWING)
+      .map(({ _s: _ignored, ...p }) => p);
+  }
+
+  // Legacy format: single spatialSummary string.
+  if (drawing.spatialSummary) {
+    const url = drawing.pages?.[0]?.url || drawing.url;
+    return [{ pageNum: 1, url, description: drawing.spatialSummary }];
+  }
+
+  // Rendered pages with no analysis yet — send up to MAX for vision only.
+  if (drawing.pages?.length) {
+    return drawing.pages.slice(0, MAX_PAGES_PER_DRAWING).map((p) => ({
+      pageNum: p.pageNum,
+      url: p.url,
+    }));
+  }
+
+  // Image file: use the direct URL (no multi-page concept).
+  return drawing.url ? [{ pageNum: 1, url: drawing.url }] : [];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
@@ -387,8 +448,8 @@ sendLocks.add(sendKey);
       url: f.url,
       name: f.name,
       type: f.type,
-      pages: Array.isArray(f.pages) ? f.pages : [],
-      spatialSummary: f.spatialSummary || null,
+      // Pre-select the most relevant pages so the API only receives what's needed.
+      selectedPages: selectPages(f, question),
     }));
 
   // Everything attached is shown & openable in the message (regardless of how

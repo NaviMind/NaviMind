@@ -21,20 +21,33 @@ async function resolveImageUrl(url) {
 
 export async function POST(req) {
   try {
-    const { pageUrls, fileName } = await req.json();
+    const body = await req.json();
+    const { fileName } = body;
 
-    if (!Array.isArray(pageUrls) || pageUrls.length === 0) {
-      return NextResponse.json({ error: "pageUrls required" }, { status: 400 });
+    // Normalise input: accept both {pages: [{url, pageNum}]} and legacy {pageUrls: string[]}.
+    let pageList;
+    if (Array.isArray(body.pages) && body.pages.length) {
+      pageList = body.pages.slice(0, MAX_PAGES).map((p) =>
+        typeof p === "string"
+          ? { url: p, pageNum: body.pages.indexOf(p) + 1 }
+          : p
+      );
+    } else if (Array.isArray(body.pageUrls) && body.pageUrls.length) {
+      pageList = body.pageUrls
+        .slice(0, MAX_PAGES)
+        .map((url, i) => ({ url, pageNum: i + 1 }));
+    } else {
+      return NextResponse.json({ error: "pages required" }, { status: 400 });
     }
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
 
-    const urls = pageUrls.slice(0, MAX_PAGES);
-
-    const descriptions = await Promise.all(
-      urls.map(async (rawUrl, i) => {
-        const imageUrl = await resolveImageUrl(rawUrl);
+    // Analyse all pages in parallel — each description is independent.
+    const analyzed = await Promise.all(
+      pageList.map(async ({ url, pageNum }) => {
+        const imageUrl = await resolveImageUrl(url);
         const resp = await openai.responses.create({
           model: "gpt-4o",
           input: [
@@ -43,7 +56,7 @@ export async function POST(req) {
               content: [
                 {
                   type: "input_text",
-                  text: `This is page ${i + 1} of a vessel technical drawing called "${fileName}". Extract ALL spatial and structural information visible: room names and exact locations, deck levels, equipment names and positions, pipe routing and valve positions, evacuation and escape routes, muster stations, compartment labels, tank names, machinery spaces, dimensions, scale indicators, notes, and any other technical details. Be comprehensive and precise — this index will be used to answer specific maritime navigation, safety, and engineering questions about this vessel.`,
+                  text: `This is page ${pageNum} of a vessel technical drawing called "${fileName}". Extract ALL spatial and structural information visible: room names and exact locations, deck levels and identifiers, equipment names and positions, pipe routing and valve positions, evacuation and escape routes, muster/lifeboat stations, compartment labels, tank names, machinery space identifiers, dimensions, scale indicators, and any other technical details or annotations. Be comprehensive and precise — this will be used to answer specific maritime navigation, safety, and engineering questions.`,
                 },
                 {
                   type: "input_image",
@@ -54,11 +67,11 @@ export async function POST(req) {
             },
           ],
         });
-        return `=== Page ${i + 1} ===\n${resp.output_text}`;
+        return { pageNum, url, description: resp.output_text };
       })
     );
 
-    return NextResponse.json({ spatialSummary: descriptions.join("\n\n") });
+    return NextResponse.json({ pages: analyzed });
   } catch (e) {
     console.error("drawings/analyze error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
