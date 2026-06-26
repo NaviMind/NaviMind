@@ -2,9 +2,9 @@
 
 export default function AuthCard({ children, variant = "login" }) {
   let mobileStyles = "";
-  if (variant === "login")    mobileStyles = "px-4 pt-5 pb-10 min-h-[350px]";
-  if (variant === "forgot")   mobileStyles = "px-4 pt-5 pb-6 min-h-[240px]";
-  if (variant === "register") mobileStyles = "px-4 pt-5 pb-4 min-h-[320px]";
+  if (variant === "login")    mobileStyles = "px-4 pt-5 pb-6";
+  if (variant === "forgot")   mobileStyles = "px-4 pt-5 pb-6";
+  if (variant === "register") mobileStyles = "px-4 pt-5 pb-6";
 
   return (
     <div
@@ -13,7 +13,7 @@ export default function AuthCard({ children, variant = "login" }) {
         border border-white/[0.08]
         bg-white/[0.05] backdrop-blur-xl shadow-2xl
         ${mobileStyles}
-        md:max-w-xl md:rounded-2xl md:px-10 md:pt-6 md:pb-14 md:min-h-[420px]
+        md:max-w-xl md:rounded-2xl md:px-10 md:pt-8 md:pb-10
       `}
     >
       {children}

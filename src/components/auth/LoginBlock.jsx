@@ -18,7 +18,7 @@ export default function LoginBlock({
   return (
     <div className="w-full max-w-xl rounded-xl p-0 bg-transparent">
 
-      <h2 className="text-xl font-semibold mb-5 text-white text-center">Welcome back</h2>
+      <h2 className="text-xl font-semibold mb-5 text-white text-center">Sign in</h2>
 
       {/* Email */}
       <div className="relative mb-4">
