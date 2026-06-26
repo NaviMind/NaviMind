@@ -136,14 +136,14 @@ forgot: {
 <motion.div
   initial={{ opacity: 0, x: -30 }}
   animate={{ opacity: 1, x: 0 }}
-  transition={{ duration: 1.0, ease: "easeOut" }}
+  transition={{ duration: 0.45, ease: "easeOut" }}
   className="w-full md:w-1/2 flex flex-col items-center md:justify-center px-6 md:px-12 pt-6 md:py-10 text-center"
 >
   <div className="max-w-2xl">
     <motion.img
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.6, delay: 1 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
       src="/logo-navi.png"
       alt="NaviMind AI"
       className="w-[200px] md:w-[280px] h-auto object-contain mb-2 mx-auto"
@@ -152,7 +152,7 @@ forgot: {
     <motion.h2
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 1 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
       className="text-[14px] font-medium text-white/70 tracking-wide mb-2 md:mb-6"
     >
       Your AI Copilot for Maritime Operations.
@@ -174,11 +174,9 @@ forgot: {
 
       {/* Правая часть — логика смены стейджей */}
       <motion.div
-        key={authStage}
   initial={{ opacity: 0, x: 30 }}
   animate={{ opacity: 1, x: 0 }}
-  exit={{ opacity: 0, x: -30 }}
-  transition={{ duration: 1.6, ease: "easeOut" }}
+  transition={{ duration: 0.35, ease: "easeOut" }}
         className="w-full md:w-1/2 flex justify-center md:items-center px-6 pt-0 md:p-8 mt-3 md:mt-0 
                    flex-none md:flex-none overflow-visible pb-8 md:pb-8"
       >
