@@ -10,6 +10,7 @@ import Tooltip from "@/components/common/Tooltip";
 import MaskIcon from "@/components/common/MaskIcon";
 import Icon from "@/components/common/Icon";
 import InventoryIcon from "./InventoryIcon";
+import { getViewerSrc, getFileUrl } from "@/components/app/MessageAttachments";
 import { auth, storage } from "@/firebase/config";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import {
@@ -157,6 +158,7 @@ export default function DrawingRegisterPanel() {
   const [dragging, setDragging] = useState(false);
   const [quotaError, setQuotaError] = useState("");
   const [analyzingIds, setAnalyzingIds] = useState(new Set());
+  const [activeDoc, setActiveDoc] = useState(null); // { name, url, src, isImage }
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -200,6 +202,27 @@ export default function DrawingRegisterPanel() {
 
   const close = () => setOpen(false);
 
+  // Open a drawing in the in-app viewer (stays inside the work area, doesn't
+  // navigate away). Images render directly; PDFs/Office go through the iframe viewer.
+  const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
+  const openDoc = (file) => {
+    const url = getFileUrl(file);
+    if (!url) return;
+    const isImage =
+      file.type?.startsWith("image/") || IMAGE_EXT_RE.test(file.name || "");
+    // TIFF can't be shown natively; fall back to its first rendered page if present.
+    if (/\.tiff?$/i.test(file.name || "") && file.pages?.[0]?.url) {
+      setActiveDoc({ name: file.name, url, src: file.pages[0].url, isImage: true });
+      return;
+    }
+    setActiveDoc({
+      name: file.name,
+      url,
+      src: isImage ? url : getViewerSrc(file),
+      isImage,
+    });
+  };
+
   // Load folders + files from Firestore each time the panel opens.
   useEffect(() => {
     if (!isDrawingRegisterOpen) return;
@@ -233,10 +256,15 @@ export default function DrawingRegisterPanel() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      // Escape closes the viewer first (if open), otherwise the panel.
+      if (activeDoc) setActiveDoc(null);
+      else close();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, activeDoc]);
 
   useEffect(() => {
     if (creatingFolder) {
@@ -550,6 +578,7 @@ export default function DrawingRegisterPanel() {
   if (!portalTarget) return null;
 
   return createPortal(
+    <>
     <AnimatePresence
       onExitComplete={() => {
         setDrawingRegisterOpen(false);
@@ -802,17 +831,21 @@ export default function DrawingRegisterPanel() {
                               key={file.id}
                               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
-                              <a
-                                href={file.url || undefined}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                onClick={() => openDoc(file)}
+                                aria-label={`Open ${file.name}`}
                                 className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
                               >
                                 <FileText size={18} />
-                              </a>
+                              </button>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
+                                  <button
+                                    onClick={() => openDoc(file)}
+                                    className="text-sm text-gray-800 dark:text-white/90 truncate text-left hover:text-blue-600 dark:hover:text-blue-400 transition"
+                                  >
+                                    {file.name}
+                                  </button>
                                   {file.drawingType && DRAWING_TYPE_COLORS[file.drawingType] && (
                                     <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${DRAWING_TYPE_COLORS[file.drawingType]}`}>
                                       {file.drawingType}
@@ -883,7 +916,71 @@ export default function DrawingRegisterPanel() {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>
+
+    {/* ── In-app document viewer — constrained to the work area (portalled into
+          nm-workarea, whose transform makes `fixed` relative to it), so it
+          never covers the sidebar or navigates away. Separate AnimatePresence so
+          closing the viewer doesn't trigger the panel's onExitComplete. ── */}
+    <AnimatePresence>
+      {activeDoc && (
+        <motion.div
+          key="dr-doc-viewer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`fixed top-0 bottom-0 left-0 z-[400] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${
+            splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"
+          }`}
+          onClick={(e) => { if (e.target === e.currentTarget) setActiveDoc(null); }}
+        >
+          <div
+            className="flex flex-col w-full max-w-4xl h-[88vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 shrink-0">
+              <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
+                {activeDoc.name}
+              </span>
+              <a
+                href={activeDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0"
+              >
+                Open in new tab
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+              <button
+                onClick={() => setActiveDoc(null)}
+                aria-label="Close"
+                className="shrink-0 p-1.5 -mr-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {activeDoc.isImage ? (
+              <div className="flex-1 overflow-auto bg-gray-50 dark:bg-black/40 flex items-center justify-center p-4">
+                <img
+                  src={activeDoc.src}
+                  alt={activeDoc.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            ) : (
+              <iframe src={activeDoc.src} className="w-full flex-1 bg-white" title={activeDoc.name} />
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>,
     portalTarget
   );
 }
