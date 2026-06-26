@@ -67,7 +67,7 @@ export async function loginWithEmail(email, password) {
 }
 
 const actionCodeSettings = {
-  url: "https://navimind.io/landing",
+  url: "https://navimind.io/welcome",
   handleCodeInApp: false,
 };
 
