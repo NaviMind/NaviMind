@@ -33,6 +33,7 @@ export function UIProvider({ children }) {
   const [isVesselProfileOpen, setVesselProfileOpen] = useState(false);
   const [openAdvancedDirectly, setOpenAdvancedDirectly] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
+  const [isDrawingRegisterOpen, setDrawingRegisterOpen] = useState(false);
 
   // Step 1: immediately hydrate from localStorage (no network delay)
   useEffect(() => {
@@ -190,6 +191,8 @@ export function UIProvider({ children }) {
         setOpenAdvancedDirectly,
         isTopicModalOpen,
         setIsTopicModalOpen,
+        isDrawingRegisterOpen,
+        setDrawingRegisterOpen,
       }}
     >
       {children}

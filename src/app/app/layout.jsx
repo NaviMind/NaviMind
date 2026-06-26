@@ -16,6 +16,7 @@ import InstallPrompt from "@/components/common/InstallPrompt";
 import ThemeColorMeta from "@/components/common/ThemeColorMeta";
 import PinnedPane from "@/components/app/PinnedPane";
 import MaskIcon from "@/components/common/MaskIcon";
+import DrawingRegisterPanel from "@/components/app/DrawingRegister/DrawingRegisterPanel";
 
 
 /* ---------------------- */
@@ -180,6 +181,7 @@ function AppShell({ children }) {
       <MobileSidebarOverlay />
       <Toast />
       <WelcomeModal />
+      <DrawingRegisterPanel />
     </>
   );
 }
