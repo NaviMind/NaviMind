@@ -162,6 +162,10 @@ export async function POST(req) {
       searchPastChats = true,
       crossTopicMemory = "",
       crossTopicStoreIds = [],
+      // Vessel drawings selected for this query: [{url, name}].
+      // Passed as vision inputs so the model can read layouts, schematics, and
+      // annotations directly — not just indexed text extracted from the file.
+      vesselDrawings = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -169,6 +173,7 @@ export async function POST(req) {
     // carries the filenames attached in THIS message, so the citation
     // instruction can name them; the actual retrieval is `vectorStoreIds`.
     const hasImages = imageUrls.length > 0;
+    const hasDrawings = vesselDrawings.length > 0;
     // Merge cross-topic store IDs into the search pool (deduplicated)
     const allVectorStoreIds = [...new Set([...vectorStoreIds, ...(Array.isArray(crossTopicStoreIds) ? crossTopicStoreIds : [])])];
     const hasDocs = allVectorStoreIds.length > 0;
@@ -358,8 +363,26 @@ const fileSearchGuidance = hasDocs
     ].join("\n")
   : null;
 
+// When vessel drawings are present, tell the model what it is looking at so it
+// can cite specific drawing names and describe spatial layout from the images.
+const drawingsGuidance = hasDrawings
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL DRAWINGS — VISUAL CONTEXT",
+      "═══════════════════════════════════════════",
+      `The following vessel drawing(s) are attached as images for this query:`,
+      vesselDrawings.map((d, i) => `  [Drawing ${i + 1}] ${d.name}`).join("\n"),
+      "",
+      "Examine each drawing carefully. You can read labels, dimensions, room names, equipment positions, escape routes, pipe runs, or any other markings visible on the drawing.",
+      "When answering, cite the specific drawing name you are referencing (e.g. \"According to the General Arrangement plan…\").",
+      "If the drawing is a scanned or low-resolution image and certain details are unclear, say so rather than guessing.",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 const contextualBlocks = [
   vesselBlock,
+  hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
   fileSearchGuidance,
@@ -417,6 +440,13 @@ const assembledSystemPrompt = [
               role: "user",
               content: [
                 { type: "input_text", text: String(question) },
+                // Vessel drawings come first (background context), then any
+                // images explicitly attached by the user to this message.
+                ...vesselDrawings.map((d) => ({
+                  type: "input_image",
+                  image_url: d.url,
+                  detail: "high",
+                })),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,

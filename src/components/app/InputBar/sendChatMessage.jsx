@@ -11,6 +11,7 @@ import {
   loadUserTopics,
   getUserLibraryStoreId,
   getUserDrawingsStoreId,
+  getDrawingFiles,
   setTopicVectorStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
@@ -25,6 +26,57 @@ import { updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+
+// ─── Vessel drawings: cached load + smart selection ──────────────────────────
+
+let _drawingsCache = { uid: null, files: [], ts: 0 };
+
+async function getCachedDrawings(uid) {
+  const TTL = 5 * 60 * 1000; // 5 minutes
+  if (_drawingsCache.uid === uid && Date.now() - _drawingsCache.ts < TTL) {
+    return _drawingsCache.files;
+  }
+  const files = await getDrawingFiles(uid).catch(() => []);
+  _drawingsCache = { uid, files, ts: Date.now() };
+  return files;
+}
+
+// Keywords that suggest the user is asking about spatial layout or engineering.
+const DRAWING_QUESTION_RE =
+  /plan|drawing|chart|layout|deck|fire|escape|evacuati|tank|pump|cargo|engine|boiler|ga |general arrangement|where is|where are|location|diagram|схем|чертеж|план|где|эвакуац|насос|танк|палуб/i;
+
+function selectDrawings(files, question) {
+  if (!files.length) return [];
+
+  // Always attach all drawings when there are very few — zero selection cost.
+  if (files.length <= 3) return files;
+
+  // For longer libraries, only attach drawings when the question looks spatial
+  // or engineering-related. General questions ("what's the weather?") get none.
+  if (!DRAWING_QUESTION_RE.test(question)) return [];
+
+  // Score each drawing by how many question words appear in its name.
+  const words = question.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+  const scored = files.map((f) => {
+    const name = (f.name || "").toLowerCase();
+    const score = words.reduce((s, w) => s + (name.includes(w) ? 2 : 0), 0);
+    // Boost the GA plan for any spatial question.
+    const gaBoost =
+      /general arrangement|ga plan|ga\.pdf/i.test(f.name) &&
+      /where|location|deck|layout|где|палуб/i.test(question)
+        ? 3
+        : 0;
+    return { f, score: score + gaBoost };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4) // cap at 4 drawings per query
+    .filter((s) => s.score > 0 || files.length <= 6) // include top-scored or all if library is small
+    .map((s) => s.f);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
   const ref = topicId
@@ -320,8 +372,18 @@ sendLocks.add(sendKey);
   }
   // The user's drawings store is account-wide: always searchable, in every chat
   // and topic, so the assistant can consult vessel drawings/manuals anywhere.
-  const drawingsStoreId = await getUserDrawingsStoreId(currentUser.uid).catch(() => "");
+  const [drawingsStoreId, allDrawingFiles] = await Promise.all([
+    getUserDrawingsStoreId(currentUser.uid).catch(() => ""),
+    getCachedDrawings(currentUser.uid),
+  ]);
   const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
+
+  // Select the most relevant drawings to attach as vision inputs. The model
+  // will see the actual image — layout, labels, pipe runs — not just OCR text.
+  const selectedDrawings = selectDrawings(allDrawingFiles, question);
+  const vesselDrawings = selectedDrawings
+    .filter((f) => f.url)
+    .map((f) => ({ url: f.url, name: f.name }));
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).
@@ -397,6 +459,7 @@ if (inTopic) {
       searchPastChats: memorySettings.searchPastChats !== false,
       crossTopicMemory: memorySettings.searchPastChats === false ? "" : crossTopicMemory,
       crossTopicStoreIds,
+      vesselDrawings,
     }),
     signal: genAbortController.signal,
   });
