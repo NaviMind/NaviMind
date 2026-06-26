@@ -18,6 +18,8 @@ export default function LoginBlock({
   return (
     <div className="w-full max-w-xl rounded-xl p-0 bg-transparent">
 
+      <h2 className="text-xl font-semibold mb-5 text-white text-center">Welcome back</h2>
+
       {/* Email */}
       <div className="relative mb-4">
         <img
@@ -101,14 +103,6 @@ export default function LoginBlock({
         </button>
       </div>
 
-      <div className="mt-10">
-        <p className="hidden md:block text-sm text-white/50 text-center">
-          NaviMind saves hours of manual search. Ask once, get it right.
-        </p>
-        <p className="md:hidden block text-[13px] text-white/40 text-center leading-relaxed">
-          NaviMind saves hours of manual search.<br />Ask once, get it right.
-        </p>
-      </div>
     </div>
   );
 }
