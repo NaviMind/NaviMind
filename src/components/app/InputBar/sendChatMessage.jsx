@@ -383,7 +383,7 @@ sendLocks.add(sendKey);
   const selectedDrawings = selectDrawings(allDrawingFiles, question);
   const vesselDrawings = selectedDrawings
     .filter((f) => f.url)
-    .map((f) => ({ url: f.url, name: f.name }));
+    .map((f) => ({ url: f.url, name: f.name, type: f.type }));
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).
@@ -564,7 +564,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // scope (so citations to earlier uploads still open).
   let fileSources = [];
   if (finalText.includes("[[cite:")) {
-    let candidates = [...searchableDocs];
+    let candidates = [...searchableDocs, ...vesselDrawings];
     try {
       const prior = await getLibraryFiles({
         uid: currentUser.uid,

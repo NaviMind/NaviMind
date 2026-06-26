@@ -182,14 +182,18 @@ export async function POST(req) {
     // from, so the client can render clickable source pills (Level 1). Works for
     // both files attached now and files retrieved from earlier uploads.
     const docNames = documentFiles.map((d) => d?.name).filter(Boolean);
-    const fileCitationBlock = hasDocs
+    const drawingNames = vesselDrawings.map((d) => d?.name).filter(Boolean);
+    const fileCitationBlock = (hasDocs || hasDrawings)
       ? [
           "═══════════════════════════════════════════",
-          "SOURCE FILE CITATION — REQUIRED WHEN USING DOCUMENTS",
+          "SOURCE FILE CITATION — REQUIRED WHEN USING DOCUMENTS OR DRAWINGS",
           "═══════════════════════════════════════════",
           "You have access to the user's documents through the File Search tool.",
           ...(docNames.length
             ? ["Files attached in this message:", ...docNames.map((n) => `- ${n}`), ""]
+            : []),
+          ...(drawingNames.length
+            ? ["Vessel drawings provided as images:", ...drawingNames.map((n) => `- ${n}`), ""]
             : []),
           "When a sentence or claim in your answer is based on a document returned by File Search, place an INLINE citation marker IMMEDIATELY AFTER that sentence, in EXACTLY this format:",
           "[[cite:EXACT_FILENAME]]",
