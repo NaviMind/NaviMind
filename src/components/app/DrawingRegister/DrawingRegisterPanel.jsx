@@ -162,7 +162,7 @@ export default function DrawingRegisterPanel() {
                     aria-label="New folder"
                     className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
                   >
-                    <Icon name="create-new" size={20} />
+                    <Icon name="folder-close" size={22} />
                   </button>
                 </Tooltip>
               )}
@@ -225,7 +225,7 @@ export default function DrawingRegisterPanel() {
                       {currentFolder ? "Drop drawings into this folder" : "Drag & drop your drawings here"}
                     </p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
-                      Upload vessel drawings, manuals, general arrangement plans, pipe plans.
+                      Upload vessel drawings, manuals, general arrangement plans, final plans.
                     </p>
                   </div>
                 </button>
@@ -240,7 +240,7 @@ export default function DrawingRegisterPanel() {
                       <div className="flex flex-col gap-0.5">
                         {creatingFolder && (
                           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-400/60 bg-blue-50/50 dark:bg-blue-500/10">
-                            <Icon name="folder-close" size={20} className="text-blue-500 shrink-0" />
+                            <Icon name="folder-close" size={22} className="text-blue-500 shrink-0" />
                             <input
                               ref={folderInputRef}
                               value={newFolderName}
@@ -264,7 +264,7 @@ export default function DrawingRegisterPanel() {
                               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full
                                 hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
-                              <Icon name="folder-close" size={20} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                              <Icon name="folder-close" size={22} className="text-gray-500 dark:text-gray-400 shrink-0" />
                               <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-white/90 truncate">
                                 {folder.name}
                               </span>
