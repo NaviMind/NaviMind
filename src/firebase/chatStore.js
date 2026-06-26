@@ -572,6 +572,7 @@ export async function addDrawingFileRecords({ uid, files = [] }) {
           type: f.type || "",
           url: f.url || "",
           path: f.path || "",
+          pages: Array.isArray(f.pages) ? f.pages : [],
           openaiFileId: f.openaiFileId,
           vectorStoreId: f.vectorStoreId || "",
           hash: f.hash || "",
@@ -584,6 +585,12 @@ export async function addDrawingFileRecords({ uid, files = [] }) {
       })
   );
   return created;
+}
+
+// Patch specific fields on a drawing record (e.g. spatialSummary after analysis).
+export async function updateDrawingFileRecord({ uid, id, updates }) {
+  if (!uid || !id) return;
+  await updateDoc(doc(db, "users", uid, "drawings", id), updates);
 }
 
 // Delete specific drawing records by Firestore doc id.

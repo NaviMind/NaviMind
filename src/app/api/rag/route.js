@@ -367,6 +367,26 @@ const fileSearchGuidance = hasDocs
     ].join("\n")
   : null;
 
+// Pre-analyzed spatial index — built once at upload time, reused on every query.
+// Gives the model precise room/equipment locations without repeated vision calls.
+const drawingAnalyses = vesselDrawings
+  .filter((d) => d.spatialSummary)
+  .map((d) => `=== ${d.name} ===\n${d.spatialSummary}`)
+  .join("\n\n");
+
+const drawingAnalysisBlock = drawingAnalyses
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL DRAWINGS — PRE-ANALYZED SPATIAL INDEX",
+      "═══════════════════════════════════════════",
+      "These drawings were analyzed when uploaded. Use this spatial index for precise answers about room locations, equipment positions, safety routes, and layout.",
+      "The actual drawing images are also attached for visual verification — use them together.",
+      "",
+      drawingAnalyses,
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 // When vessel drawings are present, tell the model what it is looking at so it
 // can cite specific drawing names and describe spatial layout from the images.
 const drawingsGuidance = hasDrawings
@@ -386,6 +406,7 @@ const drawingsGuidance = hasDrawings
 
 const contextualBlocks = [
   vesselBlock,
+  drawingAnalysisBlock,
   hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
@@ -446,11 +467,23 @@ const assembledSystemPrompt = [
                 { type: "input_text", text: String(question) },
                 // Vessel drawings come first (background context), then any
                 // images explicitly attached by the user to this message.
-                ...vesselDrawings.map((d) => ({
-                  type: "input_image",
-                  image_url: d.url,
-                  detail: "high",
-                })),
+                // PDFs are stored as rendered JPEG pages (d.pages[]); non-PDF
+                // images use their direct URL. PDF URLs without page renders are
+                // skipped (OpenAI Vision can't decode raw PDFs).
+                ...vesselDrawings.flatMap((d) => {
+                  const isPdfType =
+                    d.type === "application/pdf" || /\.pdf$/i.test(d.name || "");
+                  const imgUrls = d.pages?.length
+                    ? d.pages.map((p) => p.url)
+                    : isPdfType
+                    ? []
+                    : [d.url];
+                  return imgUrls.map((url) => ({
+                    type: "input_image",
+                    image_url: url,
+                    detail: "high",
+                  }));
+                }),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,

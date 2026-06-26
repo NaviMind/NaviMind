@@ -5,6 +5,12 @@ const nextConfig = {
       bodySizeLimit: "30mb",
     },
   },
+  webpack: (config) => {
+    // pdfjs-dist optionally imports the native `canvas` module for Node.js;
+    // we only use the browser renderer so alias it away to prevent build errors.
+    config.resolve.alias.canvas = false;
+    return config;
+  },
 };
 
 module.exports = nextConfig;

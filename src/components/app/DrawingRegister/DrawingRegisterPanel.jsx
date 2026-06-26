@@ -23,6 +23,7 @@ import {
   setUserDrawingsStoreId,
   getDrawingFiles,
   addDrawingFileRecords,
+  updateDrawingFileRecord,
   deleteDrawingFileRecordsByIds,
   getDrawingFolders,
   addDrawingFolder,
@@ -30,6 +31,54 @@ import {
 } from "@/firebase/chatStore";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+// ── PDF rendering helpers ─────────────────────────────────────────────────────
+// pdfjs-dist is loaded lazily so it doesn't bloat the initial bundle.
+let _pdfJs = null;
+async function loadPdfJs() {
+  if (!_pdfJs) {
+    const lib = await import("pdfjs-dist");
+    lib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+    _pdfJs = lib;
+  }
+  return _pdfJs;
+}
+
+function isPdf(file) {
+  return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+}
+
+function isVisualFile(file) {
+  return (
+    isPdf(file) ||
+    /^image\//.test(file?.type || "") ||
+    /\.(png|jpe?g|webp|tiff?|bmp)$/i.test(file?.name || "")
+  );
+}
+
+// Renders each page of a PDF to a JPEG Blob (up to MAX_PDF_PAGES pages).
+const MAX_PDF_PAGES = 8;
+async function renderPdfPages(file) {
+  const pdfJs = await loadPdfJs();
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfJs.getDocument({ data: buffer }).promise;
+  const count = Math.min(pdf.numPages, MAX_PDF_PAGES);
+  const blobs = [];
+  for (let n = 1; n <= count; n++) {
+    const page = await pdf.getPage(n);
+    const viewport = page.getViewport({ scale: 2.0 }); // high-DPI for readability
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    blobs.push(blob);
+  }
+  return blobs;
+}
 
 // Storage quota for drawings. Flat value for now — in the subscription phase this
 // will be derived from the user's plan (higher tier → larger quota).
@@ -62,6 +111,7 @@ export default function DrawingRegisterPanel() {
   const [newFolderName, setNewFolderName] = useState("");
   const [dragging, setDragging] = useState(false);
   const [quotaError, setQuotaError] = useState("");
+  const [analyzingIds, setAnalyzingIds] = useState(new Set());
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -172,6 +222,9 @@ export default function DrawingRegisterPanel() {
         });
       }
       if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
+      for (const page of f.pages || []) {
+        if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+      }
     }
     if (uid) {
       if (inFolder.length) {
@@ -193,6 +246,10 @@ export default function DrawingRegisterPanel() {
       });
     }
     if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
+    // Delete rendered page images (PDF → JPEG).
+    for (const page of file.pages || []) {
+      if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+    }
     if (uid && file.id) {
       deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
     }
@@ -235,6 +292,7 @@ export default function DrawingRegisterPanel() {
       const file = items[i];
       const { tempId } = queued[i];
       let uploaded = null;
+      let pages = [];
       try {
         // 1) Upload bytes to Firebase Storage (with progress).
         uploaded = await uploadFileToStorage({
@@ -253,6 +311,34 @@ export default function DrawingRegisterPanel() {
             x.tempId === tempId ? { ...x, status: "indexing", progress: 100 } : x
           )
         );
+
+        // 2b) PDFs → render each page to JPEG and upload for vision access.
+        //     This runs client-side using pdfjs-dist and is non-fatal on failure.
+        if (isPdf(file)) {
+          try {
+            setPending((prev) =>
+              prev.map((x) => (x.tempId === tempId ? { ...x, status: "rendering" } : x))
+            );
+            const pageBlobs = await renderPdfPages(file);
+            pages = await Promise.all(
+              pageBlobs.map(async (blob, idx) => {
+                const baseName = file.name.replace(/\.pdf$/i, "");
+                const pageFile = new File(
+                  [blob],
+                  `${baseName}_p${idx + 1}.jpg`,
+                  { type: "image/jpeg" }
+                );
+                const p = await uploadFileToStorage({ uid, file: pageFile });
+                return { url: p.url, path: p.path, pageNum: idx + 1 };
+              })
+            );
+          } catch {
+            pages = []; // rendering failed — continue without page images
+          }
+          setPending((prev) =>
+            prev.map((x) => (x.tempId === tempId ? { ...x, status: "indexing" } : x))
+          );
+        }
 
         // 3) Chunk + embed into the user's persistent drawings store.
         const result = await indexDocuments({
@@ -280,6 +366,7 @@ export default function DrawingRegisterPanel() {
                 type: uploaded.type,
                 url: uploaded.url,
                 path: uploaded.path,
+                pages,
                 openaiFileId,
                 vectorStoreId: newStoreId,
                 hash,
@@ -289,11 +376,43 @@ export default function DrawingRegisterPanel() {
             ],
           });
           setPending((prev) => prev.filter((x) => x.tempId !== tempId));
-          if (rec) setFiles((prev) => [rec, ...prev]);
+          if (rec) {
+            setFiles((prev) => [rec, ...prev]);
+            // 5) Fire-and-forget vision pre-analysis so subsequent queries use
+            //    cached spatial descriptions instead of repeating vision calls.
+            if (isVisualFile(file)) {
+              const pageUrls = pages.length ? pages.map((p) => p.url) : [uploaded.url];
+              setAnalyzingIds((prev) => new Set([...prev, rec.id]));
+              fetch("/api/drawings/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pageUrls, fileName: uploaded.name }),
+              })
+                .then((r) => r.json())
+                .then(({ spatialSummary }) => {
+                  if (spatialSummary) {
+                    updateDrawingFileRecord({ uid, id: rec.id, updates: { spatialSummary } }).catch(() => {});
+                    setFiles((prev) =>
+                      prev.map((f) => (f.id === rec.id ? { ...f, spatialSummary } : f))
+                    );
+                  }
+                })
+                .catch(() => {})
+                .finally(() => {
+                  setAnalyzingIds((prev) => {
+                    const s = new Set(prev);
+                    s.delete(rec.id);
+                    return s;
+                  });
+                });
+            }
+          }
         } else {
-          // Not indexable (e.g. visual-only image, unsupported type) — don't keep
-          // the orphaned Storage object around eating quota.
+          // Not indexable — clean up Storage objects.
           if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+          for (const p of pages) {
+            if (p.path) deleteObject(storageRef(storage, p.path)).catch(() => {});
+          }
           setPending((prev) =>
             prev.map((x) =>
               x.tempId === tempId
@@ -302,8 +421,11 @@ export default function DrawingRegisterPanel() {
             )
           );
         }
-      } catch (e) {
+      } catch {
         if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+        for (const p of pages) {
+          if (p.path) deleteObject(storageRef(storage, p.path)).catch(() => {});
+        }
         setPending((prev) =>
           prev.map((x) =>
             x.tempId === tempId ? { ...x, status: "failed", error: "Upload failed" } : x
@@ -548,6 +670,7 @@ export default function DrawingRegisterPanel() {
                               <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
                               <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                                 {p.status === "uploading" && `Uploading… ${p.progress}%`}
+                                {p.status === "rendering" && "Converting pages…"}
                                 {p.status === "indexing" && "Processing for AI…"}
                                 {p.status === "failed" && (
                                   <span className="text-red-500 dark:text-red-400">{p.error}</span>
@@ -567,40 +690,54 @@ export default function DrawingRegisterPanel() {
                         ))}
 
                         {/* Committed files */}
-                        {visibleFiles.map((file) => (
-                          <div
-                            key={file.id}
-                            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
-                          >
-                            <a
-                              href={file.url || undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
+                        {visibleFiles.map((file) => {
+                          const isAnalyzing = analyzingIds.has(file.id);
+                          return (
+                            <div
+                              key={file.id}
+                              className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
-                              <FileText size={18} />
-                            </a>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
-                              <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-                                {(file.name.split(".").pop() || "file").toUpperCase()}
-                                {file.size ? (
-                                  <span className="text-gray-400 dark:text-gray-500 font-normal normal-case tracking-normal">
-                                    {" · "}{formatBytes(file.size)}
-                                  </span>
-                                ) : null}
-                              </p>
+                              <a
+                                href={file.url || undefined}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
+                              >
+                                <FileText size={18} />
+                              </a>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
+                                  {(file.name.split(".").pop() || "file").toUpperCase()}
+                                  {file.size ? (
+                                    <span className="text-gray-400 dark:text-gray-500 font-normal normal-case tracking-normal">
+                                      {" · "}{formatBytes(file.size)}
+                                    </span>
+                                  ) : null}
+                                  {isAnalyzing && (
+                                    <span className="ml-2 inline-flex items-center gap-1 text-amber-500 dark:text-amber-400 font-normal normal-case tracking-normal">
+                                      <Loader2 size={10} className="animate-spin" />
+                                      Analyzing…
+                                    </span>
+                                  )}
+                                  {!isAnalyzing && file.spatialSummary && (
+                                    <span className="ml-2 text-emerald-500 dark:text-emerald-400 font-normal normal-case tracking-normal">
+                                      ✓ Indexed
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => deleteFile(file)}
+                                aria-label="Delete drawing"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
-                            <button
-                              onClick={() => deleteFile(file)}
-                              aria-label="Delete drawing"
-                              className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
-                                [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

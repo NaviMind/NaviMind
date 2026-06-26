@@ -383,7 +383,13 @@ sendLocks.add(sendKey);
   const selectedDrawings = selectDrawings(allDrawingFiles, question);
   const vesselDrawings = selectedDrawings
     .filter((f) => f.url)
-    .map((f) => ({ url: f.url, name: f.name, type: f.type }));
+    .map((f) => ({
+      url: f.url,
+      name: f.name,
+      type: f.type,
+      pages: Array.isArray(f.pages) ? f.pages : [],
+      spatialSummary: f.spatialSummary || null,
+    }));
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).
