@@ -141,7 +141,7 @@ export default function LoginBlock({
         <div className="flex justify-center mt-5">
           <button type="button" onClick={onBackToWelcome}
                   className="text-sm text-white/40 hover:text-white/70 hover:underline transition-colors">
-            ← Other sign-in options
+            Other sign-in options
           </button>
         </div>
       )}
