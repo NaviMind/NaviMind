@@ -20,33 +20,28 @@ export default function RegistrationBlock({
 
   const [error, setError] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [country, setCountry] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState("");
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  if (!firstName || !lastName || !email || !password) {
-    setError("Please fill in all required fields.");
-    return;
-  }
+    if (!firstName || !lastName || !email || !password) {
+      setError("Please fill in all required fields.");
+      return;
+    }
 
- try {
-  await registerWithEmail({
-    email,
-    password,
-    firstName,
-    lastName,
-    country,
-  });
-
-  setEmailSent(true);
-} catch (err) {
-  setError(err.message);
-}
-};
+    setIsLoading(true);
+    try {
+      await registerWithEmail({ email, password, firstName, lastName, country });
+      setEmailSent(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
   <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
@@ -137,17 +132,19 @@ export default function RegistrationBlock({
 
     {error && <p className="text-red-500 text-sm">{error}</p>}
 
-    {/* Register button: блокируем после успешной отправки */}
     <button
       type="submit"
-      disabled={emailSent}
-      className={`text-white text-sm font-medium py-2.5 rounded mt-6 transition
+      disabled={emailSent || isLoading}
+      className={`flex items-center justify-center gap-2 text-white text-sm font-medium py-2.5 rounded mt-6 transition
                   ${emailSent
                     ? "bg-gray-600 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"}`}
-      aria-disabled={emailSent}
+                    : "bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"}`}
+      aria-disabled={emailSent || isLoading}
     >
-      {emailSent ? "Email sent" : "Register"}
+      {isLoading && (
+        <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+      )}
+      {emailSent ? "Email sent" : isLoading ? "Registering…" : "Register"}
     </button>
 
     {/* Информационное сообщение + действия после отправки */}
