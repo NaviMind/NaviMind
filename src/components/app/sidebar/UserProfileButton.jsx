@@ -4,8 +4,6 @@ import { useContext } from "react";
 import { UIContext } from "@/context/UIContext";
 import { auth } from "@/firebase/config";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
-import Icon from "@/components/common/Icon";
-
 export default function UserAvatar() {
   const { toggleSettings } = useContext(UIContext);
   const { data: userDoc, loading } = useCurrentUserDoc();
@@ -32,6 +30,13 @@ export default function UserAvatar() {
     "User";
   const photoURL = userDoc?.photoURL || u?.photoURL || "";
 
+  const initials = displayName
+    .split(/\s+/)
+    .map((w) => w[0]?.toUpperCase())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("");
+
   const handleClick = () => {
     toggleSettings(true);
   };
@@ -50,8 +55,8 @@ export default function UserAvatar() {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 flex-shrink-0">
-            <Icon name="person" size={20} />
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex-shrink-0 text-white text-[13px] font-semibold select-none">
+            {initials}
           </span>
         )}
 

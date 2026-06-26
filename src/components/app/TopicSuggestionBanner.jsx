@@ -61,9 +61,6 @@ export default function TopicSuggestionBanner() {
       setIsLoadingMessages?.(true);
       setActiveProject(topicId);
       setActiveChatId(activeChatId);
-      window.dispatchEvent(
-        new CustomEvent("navimind-toast", { detail: { message: `Topic created: ${selected}` } })
-      );
       router.push(`/app/projects/${topicId}`);
     } catch (e) {
       console.error("Topic migration failed:", e);

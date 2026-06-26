@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from "openai";
 import * as XLSX from "xlsx";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 // OCR of scanned PDFs (vision) can take a while for multi-page docs — allow a
@@ -40,8 +41,21 @@ function isPdf(file) {
 function isImage(file) {
   return (
     (file?.type || "").startsWith("image/") ||
-    /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file?.name || "")
+    /\.(png|jpe?g|gif|webp|bmp|heic|heif|tiff?)$/i.test(file?.name || "")
   );
+}
+
+function isTiff(file) {
+  return (
+    file?.type === "image/tiff" ||
+    /\.tiff?$/i.test(file?.name || "")
+  );
+}
+
+// TIFF is not accepted by the OpenAI vision endpoint — convert to JPEG first.
+// Uses sharp (bundled with Next.js) so no extra dependency is needed.
+async function tiffToJpegBuffer(tiffBuffer) {
+  return sharp(tiffBuffer).jpeg({ quality: 92 }).toBuffer();
 }
 
 function isSpreadsheet(file) {
@@ -226,7 +240,16 @@ export async function POST(req) {
       // (faster answers). Purely-visual images aren't indexed (no store junk).
       if (isImage(file)) {
         try {
-          const { text, visualRequired } = await ocrAndClassifyImage(file.url);
+          // TIFF files are not accepted by the OpenAI vision endpoint — convert
+          // to JPEG in-process so they follow the same OCR path as other images.
+          let visionUrl = file.url;
+          if (isTiff(file)) {
+            const tiffBuf = await fetch(file.url).then((r) => r.arrayBuffer()).then(Buffer.from);
+            const jpegBuf = await tiffToJpegBuffer(tiffBuf);
+            visionUrl = `data:image/jpeg;base64,${jpegBuf.toString("base64")}`;
+          }
+
+          const { text, visualRequired } = await ocrAndClassifyImage(visionUrl);
           if (text && text.length > 20) {
             // Index OCR text as .txt (an image extension would be rejected).
             const uploadable = await toFile(

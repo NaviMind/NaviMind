@@ -54,6 +54,11 @@ const IcMoon = () => (
     <path d="M480-120q-150 0-255-105T120-480q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-41 29-65.5 75.5T444-660q0 90 63 153t153 63q55 0 101-24.5t75-65.5q2 13 3 26.5t1 27.5q0 150-105 255T480-120Zm0-80q88 0 158-48.5T740-375q-20 5-40 8t-40 3q-123 0-209.5-86.5T364-660q0-20 3-40t8-40q-78 30-126.5 100T200-480q0 116 82 198t198 82Zm-10-270Z" />
   </svg>
 );
+const IcLogout = () => (
+  <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[28px] h-[28px] flex-shrink-0">
+    <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-56-58 102-102H360v-80h326L584-622l56-58 200 200-200 200Z" />
+  </svg>
+);
 
 const THEME_OPTIONS = [
   { value: "light",  label: "Light",  icon: <IcSun /> },
@@ -207,12 +212,6 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             />
           </div>
 
-          {/* Appearance */}
-          <div className="mt-2.5">
-            <p className="px-1 mb-2 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Appearance</p>
-            <ThemeToggle themePreference={themePreference} setThemePreference={setThemePreference} />
-          </div>
-
           {/* Privacy & Data */}
           <div className="mt-2.5">
             <SettingCell
@@ -245,18 +244,19 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             />
           </div>
 
+          {/* Appearance */}
+          <div className="mt-2.5">
+            <p className="px-1 mb-2 text-[11.5px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Appearance</p>
+            <ThemeToggle themePreference={themePreference} setThemePreference={setThemePreference} />
+          </div>
+
           {/* Logout */}
           <button
             onClick={onLogout}
-            className="mt-2.5 w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15"
+            className="mt-2.5 w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15 text-red-400"
           >
-            <img
-              src="/Logout.svg"
-              alt=""
-              className="w-[28px] h-[28px] flex-shrink-0"
-              style={{ filter: "brightness(0) saturate(100%) invert(58%) sepia(45%) saturate(714%) hue-rotate(307deg) brightness(99%) contrast(102%)" }}
-            />
-            <span className="flex-1 text-[14px] text-red-400">Log Out</span>
+            <IcLogout />
+            <span className="flex-1 text-[14px]">Log Out</span>
           </button>
         </div>
       </div>
@@ -332,7 +332,7 @@ export default function SettingsModal() {
             transition={slideTransition}
             className="w-full max-w-[360px] sm:max-w-lg"
           >
-            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75vh] sm:max-h-[95vh]">
+            <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75dvh] sm:max-h-[95dvh]">
               <AnimatePresence mode="wait">
                 {step === "main" ? (
                   <motion.div

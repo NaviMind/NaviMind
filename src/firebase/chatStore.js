@@ -521,6 +521,124 @@ export async function addLibraryFileRecords({ uid, topicId = null, chatId, files
   );
 }
 
+// ─────────── DRAWINGS (vessel drawings — account-wide File Search store) ───────────
+//
+// Drawings are the user's vessel documents (GA plans, manuals, drawings). Unlike
+// chat-library files (per-user store with TTL) and topic files (per-topic store),
+// drawings live in ONE persistent per-user vector store that the assistant can
+// search in every chat and topic. Folders are a Firestore-only organisational
+// layer — the OpenAI store is flat, so the assistant always searches all drawings.
+//
+//   users/{uid}.drawingsVectorStoreId   ← the persistent store id
+//   users/{uid}/drawings/{fileId}       ← file records (with size + folderId)
+//   users/{uid}/drawingFolders/{id}     ← folders (name only)
+
+export async function getUserDrawingsStoreId(uid) {
+  if (!uid) return "";
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data()?.drawingsVectorStoreId || "" : "";
+}
+
+export async function setUserDrawingsStoreId(uid, vectorStoreId) {
+  if (!uid || !vectorStoreId) return;
+  const ref = doc(db, "users", uid);
+  await setDoc(ref, { drawingsVectorStoreId: vectorStoreId }, { merge: true });
+}
+
+// Read all drawing file records for the user (across every folder).
+export async function getDrawingFiles(uid) {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "drawings"));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+}
+
+// Record each indexed drawing. Returns the created records (with Firestore ids)
+// so the UI can reconcile its optimistic state.
+export async function addDrawingFileRecords({ uid, files = [] }) {
+  if (!uid || !Array.isArray(files) || files.length === 0) return [];
+  const colRef = collection(db, "users", uid, "drawings");
+  const created = [];
+  await Promise.all(
+    files
+      .filter((f) => f?.openaiFileId)
+      .map(async (f) => {
+        const data = {
+          name: f.name || "",
+          type: f.type || "",
+          url: f.url || "",
+          path: f.path || "",
+          pages: Array.isArray(f.pages) ? f.pages : [],
+          pageAnalyses: Array.isArray(f.pageAnalyses) ? f.pageAnalyses : [],
+          drawingType: f.drawingType || null,
+          openaiFileId: f.openaiFileId,
+          vectorStoreId: f.vectorStoreId || "",
+          hash: f.hash || "",
+          size: f.size || 0,
+          folderId: f.folderId || null,
+          addedAt: serverTimestamp(),
+        };
+        const ref = await addDoc(colRef, data);
+        created.push({ id: ref.id, ...data });
+      })
+  );
+  return created;
+}
+
+// Patch specific fields on a drawing record (e.g. spatialSummary after analysis).
+export async function updateDrawingFileRecord({ uid, id, updates }) {
+  if (!uid || !id) return;
+  await updateDoc(doc(db, "users", uid, "drawings", id), updates);
+}
+
+// Delete specific drawing records by Firestore doc id.
+export async function deleteDrawingFileRecordsByIds({ uid, ids = [] }) {
+  if (!uid || !Array.isArray(ids) || ids.length === 0) return;
+  try {
+    await Promise.all(
+      ids.map((id) => deleteDoc(doc(db, "users", uid, "drawings", id)))
+    );
+  } catch (e) {
+    console.error("❌ Failed to delete drawing records:", e);
+  }
+}
+
+// Folders are organisational only (no vector-store impact).
+export async function getDrawingFolders(uid) {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(
+      query(collection(db, "users", uid, "drawingFolders"), orderBy("createdAt", "desc"))
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+}
+
+export async function addDrawingFolder({ uid, name }) {
+  const trimmed = (name || "").trim();
+  if (!uid || !trimmed) return null;
+  const ref = await addDoc(collection(db, "users", uid, "drawingFolders"), {
+    name: trimmed,
+    createdAt: serverTimestamp(),
+  });
+  return { id: ref.id, name: trimmed };
+}
+
+export async function deleteDrawingFolder({ uid, folderId }) {
+  if (!uid || !folderId) return;
+  try {
+    await deleteDoc(doc(db, "users", uid, "drawingFolders", folderId));
+  } catch (e) {
+    console.error("❌ Failed to delete drawing folder:", e);
+  }
+}
+
 export async function updateChatSummary({
   uid,
   chatId,

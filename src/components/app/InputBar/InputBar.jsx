@@ -252,7 +252,8 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
 
   const [inputValue, setInputValue] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [fileAlert, setFileAlert] = useState("");
+  const fireErrorToast = (message) =>
+    window.dispatchEvent(new CustomEvent("navimind-toast", { detail: { message, type: "error" } }));
   const [currentUser, setCurrentUser] = useState(null);
   const [isActive, setIsActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -817,8 +818,7 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
     if (!files?.length) return;
 
     if (filesRef.current.length + files.length > FILES_LIMIT) {
-      setFileAlert(`You can upload up to ${FILES_LIMIT} files`);
-      setTimeout(() => setFileAlert(""), 7000);
+      fireErrorToast(`You can upload up to ${FILES_LIMIT} files`);
       return;
     }
 
@@ -829,20 +829,17 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
       const isImage = file.type.startsWith("image/");
 
       if (isImage && file.size > MAX_IMAGE_SIZE) {
-        setFileAlert(`Image "${file.name}" exceeds 15MB limit`);
-        setTimeout(() => setFileAlert(""), 7000);
+        fireErrorToast(`Image "${file.name}" exceeds 15MB limit`);
         continue;
       }
 
       if (!isImage && file.size > MAX_DOCUMENT_SIZE) {
-        setFileAlert(`File "${file.name}" exceeds 30MB limit`);
-        setTimeout(() => setFileAlert(""), 7000);
+        fireErrorToast(`File "${file.name}" exceeds 30MB limit`);
         continue;
       }
 
       if (totalSize + file.size > MAX_TOTAL_SIZE) {
-        setFileAlert(`Total upload limit is 100MB`);
-        setTimeout(() => setFileAlert(""), 7000);
+        fireErrorToast(`Total upload limit is 100MB`);
         break;
       }
 
@@ -1064,25 +1061,6 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
               </div>
             </div>
 
-            {fileAlert && (
-              <div className="mx-auto my-2 px-4 py-2 rounded-lg flex items-center gap-2 bg-red-600 text-white shadow font-medium w-fit min-w-[160px] max-w-full animate-fade-in">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-                  <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="flex-1">{fileAlert}</span>
-                <button
-                  onClick={() => setFileAlert("")}
-                  className="ml-2 flex items-center justify-center text-white hover:text-gray-200 transition"
-                  tabIndex={0}
-                  aria-label="Close alert"
-                  type="button"
-                  style={{ lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -10,6 +10,8 @@ import {
   updateTopicMemory,
   loadUserTopics,
   getUserLibraryStoreId,
+  getUserDrawingsStoreId,
+  getDrawingFiles,
   setTopicVectorStoreId,
   addLibraryFileRecords,
   getLibraryFiles,
@@ -24,6 +26,139 @@ import { updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+
+// ─── Vessel drawings: cached load + smart selection ──────────────────────────
+
+let _drawingsCache = { uid: null, files: [], ts: 0 };
+
+async function getCachedDrawings(uid) {
+  const TTL = 5 * 60 * 1000; // 5 minutes
+  if (_drawingsCache.uid === uid && Date.now() - _drawingsCache.ts < TTL) {
+    return _drawingsCache.files;
+  }
+  const files = await getDrawingFiles(uid).catch(() => []);
+  _drawingsCache = { uid, files, ts: Date.now() };
+  return files;
+}
+
+// Keywords that suggest the user is asking about spatial layout or engineering.
+const DRAWING_QUESTION_RE =
+  /plan|drawing|chart|layout|deck|fire|escape|evacuati|tank|pump|cargo|engine|boiler|ga |general arrangement|where is|where are|location|diagram|схем|чертеж|план|где|эвакуац|насос|танк|палуб/i;
+
+// Maps a classified drawing type to the question patterns it matches best.
+// When the question hits the pattern, that drawing gets a +4 relevance boost.
+const DRAWING_TYPE_PATTERNS = {
+  "GA Plan":          /where is|where are|location|layout|deck|general arrangement|где|расположени|палуб|plan view/i,
+  "Fire Plan":        /fire|пожар|co2|foam|sprinkler|smoke|fire station|fire zone|противопожар/i,
+  "Escape Routes":    /escape|evacuation|muster|lifeboat|emergency exit|эвакуац|шлюпк|спасательн|мастер/i,
+  "Tank Plan":        /tank|насос|pump|ballast|cargo tank|bunker|fuel|танк|балласт|цистерн/i,
+  "Engine Room":      /engine room|machinery|машинн|двигатель|compressor|generator|mechanical/i,
+  "Cargo Plan":       /cargo|stability|loading|груз|погрузк|stowage/i,
+  "Piping":           /pipe|valve|hydraul|трубопровод|клапан|piping|line diagram/i,
+  "Electrical":       /electric|power|switch|generator|электр|генератор|distribution/i,
+  "Safety Equipment": /life raft|fire extinguisher|epirb|спасательн|огнетушитель|safety appliance/i,
+};
+
+function selectDrawings(files, question) {
+  if (!files.length) return [];
+
+  // Always attach all drawings when there are very few — zero selection cost.
+  if (files.length <= 3) return files;
+
+  // For longer libraries, only attach drawings when the question looks spatial
+  // or engineering-related. General questions ("what's the weather?") get none.
+  if (!DRAWING_QUESTION_RE.test(question)) return [];
+
+  const words = question.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+  const scored = files.map((f) => {
+    const name = (f.name || "").toLowerCase();
+
+    // Base score: question words found in the file name.
+    const nameScore = words.reduce((s, w) => s + (name.includes(w) ? 2 : 0), 0);
+
+    // GA plan boost for spatial/location questions.
+    const gaBoost =
+      /general arrangement|ga plan|ga\.pdf/i.test(f.name) &&
+      /where|location|deck|layout|где|палуб/i.test(question)
+        ? 3
+        : 0;
+
+    // Drawing type boost: +4 when the classified type matches the question topic.
+    const typePattern = f.drawingType ? DRAWING_TYPE_PATTERNS[f.drawingType] : null;
+    const typeBoost = typePattern?.test(question) ? 4 : 0;
+
+    return { f, score: nameScore + gaBoost + typeBoost };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .filter((s) => s.score > 0 || files.length <= 6)
+    .map((s) => s.f);
+}
+
+// For a multi-page drawing, score each page description against the question
+// to pick only the most relevant page(s) — avoids sending all 10+ pages every time.
+const STOP_WORDS = new Set([
+  "what","where","when","which","does","this","that","with","from","have",
+  "will","about","these","those","into","onto","over","under","after",
+  "before","какой","какая","какие","какое","который","которая","которые",
+]);
+
+function scorePageForQuestion(description, questionLower) {
+  const desc = (description || "").toLowerCase();
+  let score = 0;
+  const words = (questionLower.match(/\b[a-zа-я]{4,}\b/g) || []).filter(
+    (w) => !STOP_WORDS.has(w)
+  );
+  for (const word of words) {
+    if (desc.includes(word)) score += 1;
+  }
+  // Extra credit for exact deck/frame number matches.
+  const nums = questionLower.match(/\b\d+\b/g) || [];
+  for (const n of nums) {
+    if (desc.includes(n)) score += 2;
+  }
+  return score;
+}
+
+const MAX_PAGES_PER_DRAWING = 3;
+
+// Pick the most relevant pages of a drawing for the current question.
+// Falls back gracefully when per-page analysis is not yet available.
+function selectPages(drawing, question) {
+  const q = question.toLowerCase();
+
+  // New format: per-page descriptions stored in pageAnalyses[].
+  if (drawing.pageAnalyses?.length) {
+    const analyses = drawing.pageAnalyses;
+    if (analyses.length <= MAX_PAGES_PER_DRAWING) return analyses;
+    return analyses
+      .map((p) => ({ ...p, _s: scorePageForQuestion(p.description || "", q) }))
+      .sort((a, b) => b._s - a._s)
+      .slice(0, MAX_PAGES_PER_DRAWING)
+      .map(({ _s: _ignored, ...p }) => p);
+  }
+
+  // Legacy format: single spatialSummary string.
+  if (drawing.spatialSummary) {
+    const url = drawing.pages?.[0]?.url || drawing.url;
+    return [{ pageNum: 1, url, description: drawing.spatialSummary }];
+  }
+
+  // Rendered pages with no analysis yet — send up to MAX for vision only.
+  if (drawing.pages?.length) {
+    return drawing.pages.slice(0, MAX_PAGES_PER_DRAWING).map((p) => ({
+      pageNum: p.pageNum,
+      url: p.url,
+    }));
+  }
+
+  // Image file: use the direct URL (no multi-page concept).
+  return drawing.url ? [{ pageNum: 1, url: drawing.url }] : [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchChatSummaryFromStore({ uid, chatId, topicId }) {
   const ref = topicId
@@ -317,7 +452,27 @@ sendLocks.add(sendKey);
       ? topicStoreId
       : await getUserLibraryStoreId(currentUser.uid).catch(() => "");
   }
-  const vectorStoreIds = vectorStoreId ? [vectorStoreId] : [];
+  // The user's drawings store is account-wide: always searchable, in every chat
+  // and topic, so the assistant can consult vessel drawings/manuals anywhere.
+  const [drawingsStoreId, allDrawingFiles] = await Promise.all([
+    getUserDrawingsStoreId(currentUser.uid).catch(() => ""),
+    getCachedDrawings(currentUser.uid),
+  ]);
+  const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
+
+  // Select the most relevant drawings to attach as vision inputs. The model
+  // will see the actual image — layout, labels, pipe runs — not just OCR text.
+  const selectedDrawings = selectDrawings(allDrawingFiles, question);
+  const vesselDrawings = selectedDrawings
+    .filter((f) => f.url)
+    .map((f) => ({
+      url: f.url,
+      name: f.name,
+      type: f.type,
+      drawingType: f.drawingType || null,
+      // Pre-select the most relevant pages so the API only receives what's needed.
+      selectedPages: selectPages(f, question),
+    }));
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).
@@ -393,6 +548,7 @@ if (inTopic) {
       searchPastChats: memorySettings.searchPastChats !== false,
       crossTopicMemory: memorySettings.searchPastChats === false ? "" : crossTopicMemory,
       crossTopicStoreIds,
+      vesselDrawings,
     }),
     signal: genAbortController.signal,
   });
@@ -497,7 +653,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // scope (so citations to earlier uploads still open).
   let fileSources = [];
   if (finalText.includes("[[cite:")) {
-    let candidates = [...searchableDocs];
+    let candidates = [...searchableDocs, ...vesselDrawings];
     try {
       const prior = await getLibraryFiles({
         uid: currentUser.uid,

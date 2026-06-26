@@ -66,6 +66,11 @@ export async function loginWithEmail(email, password) {
   return user;
 }
 
+const actionCodeSettings = {
+  url: "https://navimind.io/welcome",
+  handleCodeInApp: false,
+};
+
 // Регистрация по email/паролю
 export async function registerWithEmail({ email, password, firstName, lastName, country }) {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -75,9 +80,9 @@ export async function registerWithEmail({ email, password, firstName, lastName, 
   if (displayName) {
     await updateProfile(cred.user, { displayName });
   }
-  
-  await sendEmailVerification(cred.user); 
-  
+
+  await sendEmailVerification(cred.user, actionCodeSettings);
+
   await ensureUserDoc(cred.user, { firstName, lastName, country });
   return cred.user;
 }
@@ -106,6 +111,6 @@ export async function loginWithGoogle() {
 export const resetPasswordByEmail = async (email) => {
   const trimmed = (email || "").trim();
   if (!trimmed) throw new Error("Enter your email.");
-  await sendPasswordResetEmail(auth, trimmed);
+  await sendPasswordResetEmail(auth, trimmed, actionCodeSettings);
 };
 

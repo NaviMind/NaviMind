@@ -116,6 +116,11 @@ export default function AccountScreen({ userDoc, onBack }) {
 
   const pickAvatar = () => fileRef.current?.click();
 
+  const onInputFocus = (e) => {
+    const el = e.target;
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 320);
+  };
+
   const onAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -204,7 +209,7 @@ export default function AccountScreen({ userDoc, onBack }) {
   };
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col flex-1 min-h-0">
       <div className="flex items-center gap-1 px-3 pt-4 pb-3 border-b border-gray-100 dark:border-white/[0.06] flex-shrink-0">
         <button
           onClick={onBack}
@@ -268,6 +273,7 @@ export default function AccountScreen({ userDoc, onBack }) {
               value={first}
               onChange={(e) => setFirst(e.target.value)}
               placeholder="First name"
+              onFocus={onInputFocus}
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
             />
           </div>
@@ -278,6 +284,7 @@ export default function AccountScreen({ userDoc, onBack }) {
               value={last}
               onChange={(e) => setLast(e.target.value)}
               placeholder="Last name"
+              onFocus={onInputFocus}
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-[14px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
             />
           </div>

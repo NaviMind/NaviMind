@@ -162,6 +162,10 @@ export async function POST(req) {
       searchPastChats = true,
       crossTopicMemory = "",
       crossTopicStoreIds = [],
+      // Vessel drawings selected for this query: [{url, name}].
+      // Passed as vision inputs so the model can read layouts, schematics, and
+      // annotations directly — not just indexed text extracted from the file.
+      vesselDrawings = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -169,6 +173,7 @@ export async function POST(req) {
     // carries the filenames attached in THIS message, so the citation
     // instruction can name them; the actual retrieval is `vectorStoreIds`.
     const hasImages = imageUrls.length > 0;
+    const hasDrawings = vesselDrawings.length > 0;
     // Merge cross-topic store IDs into the search pool (deduplicated)
     const allVectorStoreIds = [...new Set([...vectorStoreIds, ...(Array.isArray(crossTopicStoreIds) ? crossTopicStoreIds : [])])];
     const hasDocs = allVectorStoreIds.length > 0;
@@ -177,14 +182,18 @@ export async function POST(req) {
     // from, so the client can render clickable source pills (Level 1). Works for
     // both files attached now and files retrieved from earlier uploads.
     const docNames = documentFiles.map((d) => d?.name).filter(Boolean);
-    const fileCitationBlock = hasDocs
+    const drawingNames = vesselDrawings.map((d) => d?.name).filter(Boolean);
+    const fileCitationBlock = (hasDocs || hasDrawings)
       ? [
           "═══════════════════════════════════════════",
-          "SOURCE FILE CITATION — REQUIRED WHEN USING DOCUMENTS",
+          "SOURCE FILE CITATION — REQUIRED WHEN USING DOCUMENTS OR DRAWINGS",
           "═══════════════════════════════════════════",
           "You have access to the user's documents through the File Search tool.",
           ...(docNames.length
             ? ["Files attached in this message:", ...docNames.map((n) => `- ${n}`), ""]
+            : []),
+          ...(drawingNames.length
+            ? ["Vessel drawings provided as images:", ...drawingNames.map((n) => `- ${n}`), ""]
             : []),
           "When a sentence or claim in your answer is based on a document returned by File Search, place an INLINE citation marker IMMEDIATELY AFTER that sentence, in EXACTLY this format:",
           "[[cite:EXACT_FILENAME]]",
@@ -358,8 +367,63 @@ const fileSearchGuidance = hasDocs
     ].join("\n")
   : null;
 
+// Per-page spatial index: only the pages most relevant to this query are included.
+// Built once at upload time; here we only receive what the client pre-selected.
+const drawingAnalyses = vesselDrawings
+  .filter((d) => d.selectedPages?.some((p) => p.description))
+  .map((d) => {
+    const pagesWithDesc = d.selectedPages.filter((p) => p.description);
+    const pagesText =
+      pagesWithDesc.length === 1
+        ? pagesWithDesc[0].description
+        : pagesWithDesc
+            .map((p) => `--- Page ${p.pageNum} ---\n${p.description}`)
+            .join("\n\n");
+    return `=== ${d.name} ===\n${pagesText}`;
+  })
+  .join("\n\n");
+
+const drawingAnalysisBlock = drawingAnalyses
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL DRAWINGS — SPATIAL INDEX (RELEVANT PAGES)",
+      "═══════════════════════════════════════════",
+      "The pages below were selected as most relevant to this query from the pre-analyzed drawing index. Use them for precise answers about room locations, equipment positions, safety routes, and layout.",
+      "The actual drawing images are also attached for visual verification.",
+      "",
+      drawingAnalyses,
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
+// When vessel drawings are present, tell the model what it is looking at so it
+// can cite specific drawing names and describe spatial layout from the images.
+const drawingsGuidance = hasDrawings
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL DRAWINGS — VISUAL CONTEXT",
+      "═══════════════════════════════════════════",
+      `The following vessel drawing(s) are attached as images for this query:`,
+      vesselDrawings
+        .map((d, i) => {
+          const pages = d.selectedPages || [];
+          const typeNote = d.drawingType ? ` [${d.drawingType}]` : "";
+          const pageNote = pages.length > 1 ? ` (${pages.length} pages)` : pages.length === 1 && pages[0].pageNum > 1 ? ` (page ${pages[0].pageNum})` : "";
+          return `  [Drawing ${i + 1}] ${d.name}${typeNote}${pageNote}`;
+        })
+        .join("\n"),
+      "",
+      "Examine each drawing carefully. You can read labels, dimensions, room names, equipment positions, escape routes, pipe runs, or any other markings visible on the drawing.",
+      "When answering, cite the specific drawing name you are referencing (e.g. \"According to the General Arrangement plan…\").",
+      "If the drawing is a scanned or low-resolution image and certain details are unclear, say so rather than guessing.",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 const contextualBlocks = [
   vesselBlock,
+  drawingAnalysisBlock,
+  hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,
   hasDocs ? documentAnalysisGuidance : null,
   fileSearchGuidance,
@@ -417,6 +481,19 @@ const assembledSystemPrompt = [
               role: "user",
               content: [
                 { type: "input_text", text: String(question) },
+                // Vessel drawings: only the pre-selected relevant page images.
+                // selectedPages[] URLs are always JPEG (PDF pages were rendered
+                // client-side; images use their direct URL). Raw PDF URLs never
+                // appear here — Vision can't decode them.
+                ...vesselDrawings.flatMap((d) =>
+                  (d.selectedPages || [])
+                    .filter((p) => p.url)
+                    .map((p) => ({
+                      type: "input_image",
+                      image_url: p.url,
+                      detail: "high",
+                    }))
+                ),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,

@@ -1,0 +1,994 @@
+"use client";
+
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle } from "lucide-react";
+import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
+import Tooltip from "@/components/common/Tooltip";
+import MaskIcon from "@/components/common/MaskIcon";
+import Icon from "@/components/common/Icon";
+import InventoryIcon from "./InventoryIcon";
+import { getViewerSrc, getFileUrl } from "@/components/app/MessageAttachments";
+import { auth, storage } from "@/firebase/config";
+import { ref as storageRef, deleteObject } from "firebase/storage";
+import {
+  uploadFileToStorage,
+  indexDocuments,
+  hashFile,
+  expireIndexedFile,
+} from "@/components/app/InputBar/attachmentProcessing";
+import {
+  getUserDrawingsStoreId,
+  setUserDrawingsStoreId,
+  getDrawingFiles,
+  addDrawingFileRecords,
+  updateDrawingFileRecord,
+  deleteDrawingFileRecordsByIds,
+  getDrawingFolders,
+  addDrawingFolder,
+  deleteDrawingFolder,
+} from "@/firebase/chatStore";
+
+const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const DRAWING_TYPE_COLORS = {
+  "GA Plan":          "bg-blue-100   dark:bg-blue-500/20   text-blue-600   dark:text-blue-300",
+  "Fire Plan":        "bg-red-100    dark:bg-red-500/20    text-red-600    dark:text-red-300",
+  "Escape Routes":    "bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-300",
+  "Tank Plan":        "bg-teal-100   dark:bg-teal-500/20   text-teal-600   dark:text-teal-300",
+  "Engine Room":      "bg-slate-100  dark:bg-slate-500/20  text-slate-600  dark:text-slate-300",
+  "Cargo Plan":       "bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300",
+  "Electrical":       "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-300",
+  "Piping":           "bg-cyan-100   dark:bg-cyan-500/20   text-cyan-600   dark:text-cyan-300",
+  "Stability":        "bg-green-100  dark:bg-green-500/20  text-green-600  dark:text-green-300",
+  "Safety Equipment": "bg-pink-100   dark:bg-pink-500/20   text-pink-600   dark:text-pink-300",
+};
+
+// ── PDF rendering helpers ─────────────────────────────────────────────────────
+// pdfjs-dist is loaded lazily so it doesn't bloat the initial bundle.
+let _pdfJs = null;
+async function loadPdfJs() {
+  if (!_pdfJs) {
+    const lib = await import("pdfjs-dist");
+    lib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+    _pdfJs = lib;
+  }
+  return _pdfJs;
+}
+
+function isPdf(file) {
+  return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+}
+
+function isVisualFile(file) {
+  return (
+    isPdf(file) ||
+    /^image\//.test(file?.type || "") ||
+    /\.(png|jpe?g|webp|tiff?|bmp)$/i.test(file?.name || "")
+  );
+}
+
+// ── Vision-analysis queue (cost guard) ───────────────────────────────────────
+// Each analysis triggers up to 8 gpt-4o vision calls. Without a cap, uploading
+// 20 files at once would fire 20 analyses in parallel — a sudden, expensive
+// burst. This queue runs at most ANALYZE_CONCURRENCY analyses at a time; the
+// rest wait their turn. Module-level so it persists across re-renders and is
+// shared by every upload batch.
+const ANALYZE_CONCURRENCY = 2;
+let _activeAnalyses = 0;
+const _analyzeQueue = [];
+
+function _drainAnalyzeQueue() {
+  while (_activeAnalyses < ANALYZE_CONCURRENCY && _analyzeQueue.length) {
+    const job = _analyzeQueue.shift();
+    _activeAnalyses++;
+    Promise.resolve()
+      .then(job)
+      .catch(() => {})
+      .finally(() => {
+        _activeAnalyses--;
+        _drainAnalyzeQueue();
+      });
+  }
+}
+
+// Schedule an async job; resolves with the job's result once it actually runs.
+function enqueueAnalysis(job) {
+  return new Promise((resolve) => {
+    _analyzeQueue.push(() => Promise.resolve().then(job).then(resolve));
+    _drainAnalyzeQueue();
+  });
+}
+
+// Renders each page of a PDF to a JPEG Blob (up to MAX_PDF_PAGES pages).
+const MAX_PDF_PAGES = 8;
+async function renderPdfPages(file) {
+  const pdfJs = await loadPdfJs();
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfJs.getDocument({ data: buffer }).promise;
+  const count = Math.min(pdf.numPages, MAX_PDF_PAGES);
+  const blobs = [];
+  for (let n = 1; n <= count; n++) {
+    const page = await pdf.getPage(n);
+    const viewport = page.getViewport({ scale: 2.0 }); // high-DPI for readability
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    blobs.push(blob);
+  }
+  return blobs;
+}
+
+// Storage quota for drawings. Flat value for now — in the subscription phase this
+// will be derived from the user's plan (higher tier → larger quota).
+const STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+
+const formatBytes = (bytes) => {
+  if (!bytes || bytes < 0) return "0 MB";
+  const gb = bytes / 1024 ** 3;
+  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+  const mb = bytes / 1024 ** 2;
+  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
+export default function DrawingRegisterPanel() {
+  const { isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
+  const { splitMode } = useContext(ChatContext);
+
+  const [portalTarget, setPortalTarget] = useState(null);
+  const [open, setOpen] = useState(false);
+
+  // Firestore-backed state
+  const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [pending, setPending] = useState([]); // in-flight uploads: { tempId, name, size, folderId, status, progress, error }
+  const [loading, setLoading] = useState(false);
+
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [quotaError, setQuotaError] = useState("");
+  const [analyzingIds, setAnalyzingIds] = useState(new Set());
+  const [activeDoc, setActiveDoc] = useState(null); // { name, url, src, isImage }
+
+  const folderInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const storeIdRef = useRef(""); // the user's drawings vector store id
+
+  // Batch progress tracking — lets the user leave the panel while drawings
+  // process in the background and get a toast when the whole batch is ready.
+  const batchInFlightRef = useRef(0); // files still uploading/indexing/analysing
+  const batchReadyRef = useRef(0);    // successfully finished in the current batch
+  const batchActiveRef = useRef(false);
+
+  // Fire a global toast (mounted in the app layout; survives navigation).
+  const fireToast = (message, type = "success") => {
+    window.dispatchEvent(new CustomEvent("navimind-toast", { detail: { message, type } }));
+  };
+
+  // Called exactly once per file when its full lifecycle ends (ready or failed).
+  // When the whole batch drains, announce how many drawings became usable.
+  const markFileWorkDone = (success) => {
+    if (success) batchReadyRef.current += 1;
+    batchInFlightRef.current = Math.max(0, batchInFlightRef.current - 1);
+    if (batchInFlightRef.current === 0 && batchActiveRef.current) {
+      batchActiveRef.current = false;
+      const n = batchReadyRef.current;
+      batchReadyRef.current = 0;
+      if (n > 0) {
+        fireToast(
+          n === 1
+            ? "Your drawing is processed and ready to use."
+            : `Your ${n} drawings are processed and ready to use.`
+        );
+      }
+    }
+  };
+
+  // Sync local open state with the context flag in both directions.
+  useEffect(() => {
+    if (isDrawingRegisterOpen) setOpen(true);
+    else setOpen(false);
+  }, [isDrawingRegisterOpen]);
+
+  const close = () => setOpen(false);
+
+  // Open a drawing in the in-app viewer (stays inside the work area, doesn't
+  // navigate away). Images render directly; PDFs/Office go through the iframe viewer.
+  const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
+  const openDoc = (file) => {
+    const url = getFileUrl(file);
+    if (!url) return;
+    const isImage =
+      file.type?.startsWith("image/") || IMAGE_EXT_RE.test(file.name || "");
+    // TIFF can't be shown natively; fall back to its first rendered page if present.
+    if (/\.tiff?$/i.test(file.name || "") && file.pages?.[0]?.url) {
+      setActiveDoc({ name: file.name, url, src: file.pages[0].url, isImage: true });
+      return;
+    }
+    setActiveDoc({
+      name: file.name,
+      url,
+      src: isImage ? url : getViewerSrc(file),
+      isImage,
+    });
+  };
+
+  // Load folders + files from Firestore each time the panel opens.
+  useEffect(() => {
+    if (!isDrawingRegisterOpen) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const [sid, fl, fo] = await Promise.all([
+        getUserDrawingsStoreId(uid).catch(() => ""),
+        getDrawingFolders(uid).catch(() => []),
+        getDrawingFiles(uid).catch(() => []),
+      ]);
+      if (cancelled) return;
+      storeIdRef.current = sid || "";
+      setFolders(fl);
+      setFiles(fo);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isDrawingRegisterOpen]);
+
+  // Desktop: overlay the work area (sidebar stays visible). Mobile: work area is
+  // transformed off-screen with the sidebar, so portal to <body>.
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      // Escape closes the viewer first (if open), otherwise the panel.
+      if (activeDoc) setActiveDoc(null);
+      else close();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, activeDoc]);
+
+  useEffect(() => {
+    if (creatingFolder) {
+      const t = setTimeout(() => folderInputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [creatingFolder]);
+
+  const currentFolder = folders.find((f) => f.id === currentFolderId) ?? null;
+  const visibleFolders = currentFolderId ? [] : folders;
+  const visibleFiles = files.filter((f) => f.folderId === (currentFolderId ?? null));
+  const visiblePending = pending.filter((p) => p.folderId === (currentFolderId ?? null));
+
+  // Storage usage — committed files plus in-flight uploads, against one global pool.
+  const usedBytes = useMemo(() => {
+    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
+    return committed + inflight;
+  }, [files, pending]);
+  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  const barColor =
+    usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
+  // Auto-dismiss the "out of storage" notice after a moment.
+  useEffect(() => {
+    if (!quotaError) return;
+    const t = setTimeout(() => setQuotaError(""), 5000);
+    return () => clearTimeout(t);
+  }, [quotaError]);
+
+  // ── Folder create / delete ──
+  const commitFolder = async () => {
+    const name = newFolderName.trim();
+    setNewFolderName("");
+    setCreatingFolder(false);
+    if (!name) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const folder = await addDrawingFolder({ uid, name }).catch(() => null);
+    if (folder) setFolders((prev) => [folder, ...prev]);
+  };
+
+  const deleteFolder = async (folder) => {
+    const uid = auth.currentUser?.uid;
+    const inFolder = files.filter((f) => f.folderId === folder.id);
+
+    // Optimistic UI
+    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    setFiles((prev) => prev.filter((f) => f.folderId !== folder.id));
+    if (currentFolderId === folder.id) setCurrentFolderId(null);
+
+    // Tear down each file's OpenAI + Storage footprint
+    for (const f of inFolder) {
+      if (f.openaiFileId) {
+        expireIndexedFile({
+          vectorStoreId: f.vectorStoreId || storeIdRef.current,
+          openaiFileId: f.openaiFileId,
+        });
+      }
+      if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
+      for (const page of f.pages || []) {
+        if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+      }
+    }
+    if (uid) {
+      if (inFolder.length) {
+        deleteDrawingFileRecordsByIds({ uid, ids: inFolder.map((f) => f.id) }).catch(() => {});
+      }
+      deleteDrawingFolder({ uid, folderId: folder.id }).catch(() => {});
+    }
+  };
+
+  // ── File delete ──
+  const deleteFile = async (file) => {
+    const uid = auth.currentUser?.uid;
+    setFiles((prev) => prev.filter((f) => f.id !== file.id));
+
+    if (file.openaiFileId) {
+      expireIndexedFile({
+        vectorStoreId: file.vectorStoreId || storeIdRef.current,
+        openaiFileId: file.openaiFileId,
+      });
+    }
+    if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
+    // Delete rendered page images (PDF → JPEG).
+    for (const page of file.pages || []) {
+      if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+    }
+    if (uid && file.id) {
+      deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
+    }
+  };
+
+  const dismissPending = (tempId) =>
+    setPending((prev) => prev.filter((p) => p.tempId !== tempId));
+
+  // ── Upload + index pipeline ──
+  const addFiles = async (fileList) => {
+    const items = Array.from(fileList || []);
+    if (!items.length) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    // Quota gate (committed + in-flight + incoming).
+    const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
+    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
+      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+      setQuotaError(
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some drawings or upgrade your plan.`
+      );
+      return;
+    }
+    setQuotaError("");
+
+    const folderId = currentFolderId ?? null;
+    const queued = items.map((f) => ({
+      tempId: rid(),
+      name: f.name,
+      type: f.type,
+      size: f.size || 0,
+      folderId,
+      status: "uploading",
+      progress: 0,
+    }));
+    setPending((prev) => [...queued, ...prev]);
+
+    // Start (or extend) the background batch. Pre-count every file so the batch
+    // only "drains" once the very last one finishes — no premature toast.
+    const startingFresh = !batchActiveRef.current;
+    batchActiveRef.current = true;
+    batchInFlightRef.current += items.length;
+    if (startingFresh) {
+      fireToast(
+        items.length === 1
+          ? "Drawing is processing in the background — you can keep working."
+          : `${items.length} drawings are processing in the background — you can keep working.`
+      );
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const file = items[i];
+      const { tempId } = queued[i];
+      let uploaded = null;
+      let pages = [];
+      try {
+        // 1) Upload bytes to Firebase Storage (with progress).
+        uploaded = await uploadFileToStorage({
+          uid,
+          file,
+          onProgress: (p) =>
+            setPending((prev) =>
+              prev.map((x) => (x.tempId === tempId ? { ...x, progress: p } : x))
+            ),
+        });
+
+        // 2) Hash for future dedupe; switch the row to "indexing".
+        const hash = await hashFile(file).catch(() => "");
+        setPending((prev) =>
+          prev.map((x) =>
+            x.tempId === tempId ? { ...x, status: "indexing", progress: 100 } : x
+          )
+        );
+
+        // 2b) PDFs → render each page to JPEG and upload for vision access.
+        //     This runs client-side using pdfjs-dist and is non-fatal on failure.
+        if (isPdf(file)) {
+          try {
+            setPending((prev) =>
+              prev.map((x) => (x.tempId === tempId ? { ...x, status: "rendering" } : x))
+            );
+            const pageBlobs = await renderPdfPages(file);
+            pages = await Promise.all(
+              pageBlobs.map(async (blob, idx) => {
+                const baseName = file.name.replace(/\.pdf$/i, "");
+                const pageFile = new File(
+                  [blob],
+                  `${baseName}_p${idx + 1}.jpg`,
+                  { type: "image/jpeg" }
+                );
+                const p = await uploadFileToStorage({ uid, file: pageFile });
+                return { url: p.url, path: p.path, pageNum: idx + 1 };
+              })
+            );
+          } catch {
+            pages = []; // rendering failed — continue without page images
+          }
+          setPending((prev) =>
+            prev.map((x) => (x.tempId === tempId ? { ...x, status: "indexing" } : x))
+          );
+        }
+
+        // 3) Chunk + embed into the user's persistent drawings store.
+        const result = await indexDocuments({
+          vectorStoreId: storeIdRef.current || "",
+          label: "NaviMind Drawings",
+          docs: [{ url: uploaded.url, name: uploaded.name, type: uploaded.type }],
+        });
+
+        const newStoreId = result?.vectorStoreId || storeIdRef.current || "";
+        if (newStoreId && newStoreId !== storeIdRef.current) {
+          storeIdRef.current = newStoreId;
+          setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+        }
+
+        const indexed = result?.files?.[0];
+        const openaiFileId = indexed?.openaiFileId || "";
+
+        if (openaiFileId) {
+          // 4) Persist the record; reconcile optimistic state.
+          const [rec] = await addDrawingFileRecords({
+            uid,
+            files: [
+              {
+                name: uploaded.name,
+                type: uploaded.type,
+                url: uploaded.url,
+                path: uploaded.path,
+                pages,
+                openaiFileId,
+                vectorStoreId: newStoreId,
+                hash,
+                size: file.size || 0,
+                folderId,
+              },
+            ],
+          });
+          setPending((prev) => prev.filter((x) => x.tempId !== tempId));
+          if (rec) {
+            setFiles((prev) => [rec, ...prev]);
+            // 5) Vision pre-analysis, throttled through a concurrency-limited queue
+            //    (cost guard) so a big upload batch can't fire dozens of gpt-4o
+            //    calls at once. The file shows a spinner while it waits + runs.
+            if (isVisualFile(file)) {
+              const inputPages = pages.length
+                ? pages.map((p) => ({ url: p.url, pageNum: p.pageNum }))
+                : [{ url: uploaded.url, pageNum: 1 }];
+              setAnalyzingIds((prev) => new Set([...prev, rec.id]));
+              enqueueAnalysis(() =>
+                fetch("/api/drawings/analyze", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
+                })
+                  .then((r) => r.json())
+                  .then(({ pages: pageAnalyses, drawingType }) => {
+                    const updates = {};
+                    if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
+                    if (drawingType) updates.drawingType = drawingType;
+                    if (Object.keys(updates).length) {
+                      updateDrawingFileRecord({ uid, id: rec.id, updates }).catch(() => {});
+                      setFiles((prev) =>
+                        prev.map((f) => (f.id === rec.id ? { ...f, ...updates } : f))
+                      );
+                    }
+                  })
+                  .catch(() => {})
+                  .finally(() => {
+                    setAnalyzingIds((prev) => {
+                      const s = new Set(prev);
+                      s.delete(rec.id);
+                      return s;
+                    });
+                    // Visual file's full lifecycle (upload → index → analyse) is done.
+                    markFileWorkDone(true);
+                  })
+              );
+            } else {
+              // Non-visual file (e.g. manual .docx): indexed and usable, no vision step.
+              markFileWorkDone(true);
+            }
+          } else {
+            markFileWorkDone(false); // record failed to persist
+          }
+        } else {
+          // Not indexable — clean up Storage objects.
+          if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+          for (const p of pages) {
+            if (p.path) deleteObject(storageRef(storage, p.path)).catch(() => {});
+          }
+          setPending((prev) =>
+            prev.map((x) =>
+              x.tempId === tempId
+                ? { ...x, status: "failed", error: prettyStatus(indexed?.status) }
+                : x
+            )
+          );
+          markFileWorkDone(false);
+        }
+      } catch {
+        if (uploaded?.path) deleteObject(storageRef(storage, uploaded.path)).catch(() => {});
+        for (const p of pages) {
+          if (p.path) deleteObject(storageRef(storage, p.path)).catch(() => {});
+        }
+        setPending((prev) =>
+          prev.map((x) =>
+            x.tempId === tempId ? { ...x, status: "failed", error: "Upload failed" } : x
+          )
+        );
+        markFileWorkDone(false);
+      }
+    }
+  };
+
+  const isEmpty =
+    !loading &&
+    visibleFolders.length === 0 &&
+    visibleFiles.length === 0 &&
+    visiblePending.length === 0 &&
+    !creatingFolder;
+
+  if (!portalTarget) return null;
+
+  return createPortal(
+    <>
+    <AnimatePresence
+      onExitComplete={() => {
+        setDrawingRegisterOpen(false);
+        setCurrentFolderId(null);
+        setCreatingFolder(false);
+        setNewFolderName("");
+        setQuotaError("");
+      }}
+    >
+      {open && (
+        <motion.div
+          key="dr-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className={`fixed top-0 bottom-0 left-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-hidden ${
+            splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"
+          }`}
+          onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+        >
+          <motion.div
+            variants={{
+              initial: { y: "100%", opacity: 0 },
+              animate: { y: 0, opacity: 1 },
+              exit: { y: "100%", opacity: 0 },
+            }}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-3xl h-[680px] max-h-[88vh] flex flex-col
+              bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl
+              ring-1 ring-black/5 dark:ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
+          >
+            {/* ── Header ── */}
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100 dark:border-white/10">
+              <div className="min-w-0 flex-1 flex items-center gap-2.5">
+                {currentFolder ? (
+                  <>
+                    <button
+                      onClick={() => setCurrentFolderId(null)}
+                      className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-400 transition shrink-0"
+                    >
+                      <ChevronLeft size={16} /> Drawings
+                    </button>
+                    <span className="text-gray-300 dark:text-white/20">/</span>
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                      {currentFolder.name}
+                    </h2>
+                  </>
+                ) : (
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
+                    Drawings
+                  </h2>
+                )}
+              </div>
+
+              {/* New folder — only at the top level */}
+              {!currentFolder && (
+                <Tooltip content="New folder" position="top" align="right">
+                  <button
+                    onClick={() => setCreatingFolder(true)}
+                    aria-label="New folder"
+                    className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                  >
+                    <Icon name="folder-close" size={22} />
+                  </button>
+                </Tooltip>
+              )}
+
+              {/* Upload */}
+              <Tooltip content="Upload drawings" position="top" align="right">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Upload drawings"
+                  className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition"
+                >
+                  <MaskIcon src="/library_add.svg" size={20} />
+                </button>
+              </Tooltip>
+
+              <button
+                onClick={close}
+                aria-label="Close"
+                className="shrink-0 p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="sr-only"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv"
+                onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+              />
+            </div>
+
+            {/* ── Body ── */}
+            <div className="relative flex-1 overflow-y-auto custom-scroll p-4">
+              {dragging && (
+                <div className="absolute inset-3 z-10 rounded-2xl border-2 border-dashed border-blue-400 bg-blue-50/70 dark:bg-blue-500/10 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-300 pointer-events-none">
+                  Drop files to add them
+                </div>
+              )}
+
+              {loading ? (
+                <div className="w-full h-full min-h-[320px] flex items-center justify-center text-gray-400 dark:text-gray-500">
+                  <Loader2 size={22} className="animate-spin" />
+                </div>
+              ) : isEmpty ? (
+                /* Empty state — drag & drop zone */
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group w-full h-full min-h-[320px] rounded-2xl border-2 border-dashed
+                    border-gray-200 dark:border-white/10
+                    hover:border-blue-400/70 dark:hover:border-blue-400/50
+                    hover:bg-blue-50/40 dark:hover:bg-blue-500/[0.04]
+                    transition flex flex-col items-center justify-center text-center px-8 gap-4"
+                >
+                  <span className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.06]
+                    text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400
+                    flex items-center justify-center transition-colors">
+                    <InventoryIcon size={32} />
+                  </span>
+                  <div className="max-w-md">
+                    <p className="text-base font-medium text-gray-700 dark:text-gray-200">
+                      {currentFolder ? "Drop drawings into this folder" : "Drag & drop your drawings here"}
+                    </p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
+                      Upload vessel drawings, manuals, general arrangement plans, final plans.
+                    </p>
+                  </div>
+                </button>
+              ) : (
+                <div className="space-y-6">
+                  {/* Folders */}
+                  {(visibleFolders.length > 0 || creatingFolder) && (
+                    <div>
+                      <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                        Folders
+                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        {creatingFolder && (
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-400/60 bg-blue-50/50 dark:bg-blue-500/10">
+                            <Icon name="folder-close" size={22} className="text-blue-500 shrink-0" />
+                            <input
+                              ref={folderInputRef}
+                              value={newFolderName}
+                              onChange={(e) => setNewFolderName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitFolder();
+                                if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                              }}
+                              onBlur={commitFolder}
+                              placeholder="Folder name"
+                              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder-gray-400 dark:placeholder-gray-500"
+                            />
+                          </div>
+                        )}
+                        {visibleFolders.map((folder) => {
+                          const count = files.filter((f) => f.folderId === folder.id).length;
+                          return (
+                            <button
+                              key={folder.id}
+                              onClick={() => setCurrentFolderId(folder.id)}
+                              className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full
+                                hover:bg-gray-100 dark:hover:bg-white/5 transition"
+                            >
+                              <Icon name="folder-close" size={22} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                              <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-white/90 truncate">
+                                {folder.name}
+                              </span>
+                              <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                                {count} {count === 1 ? "file" : "files"}
+                              </span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.stopPropagation(); deleteFolder(folder); }}
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                                aria-label="Delete folder"
+                              >
+                                <Trash2 size={15} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Files */}
+                  {(visibleFiles.length > 0 || visiblePending.length > 0) && (
+                    <div>
+                      <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                        Drawings
+                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        {/* In-flight uploads */}
+                        {visiblePending.map((p) => (
+                          <div
+                            key={p.tempId}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-white/[0.03]"
+                          >
+                            <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                              p.status === "failed"
+                                ? "bg-red-50 dark:bg-red-500/10 text-red-500"
+                                : "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400"
+                            }`}>
+                              {p.status === "failed"
+                                ? <AlertCircle size={18} />
+                                : <Loader2 size={18} className="animate-spin" />}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
+                              <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                                {p.status === "uploading" && `Uploading… ${p.progress}%`}
+                                {p.status === "rendering" && "Converting pages…"}
+                                {p.status === "indexing" && "Processing for AI…"}
+                                {p.status === "failed" && (
+                                  <span className="text-red-500 dark:text-red-400">{p.error}</span>
+                                )}
+                              </p>
+                            </div>
+                            {p.status === "failed" && (
+                              <button
+                                onClick={() => dismissPending(p.tempId)}
+                                aria-label="Dismiss"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+                              >
+                                <X size={15} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Committed files */}
+                        {visibleFiles.map((file) => {
+                          const isAnalyzing = analyzingIds.has(file.id);
+                          return (
+                            <div
+                              key={file.id}
+                              className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
+                            >
+                              <button
+                                onClick={() => openDoc(file)}
+                                aria-label={`Open ${file.name}`}
+                                className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition"
+                              >
+                                <FileText size={18} />
+                              </button>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <button
+                                    onClick={() => openDoc(file)}
+                                    className="text-sm text-gray-800 dark:text-white/90 truncate text-left hover:text-blue-600 dark:hover:text-blue-400 transition"
+                                  >
+                                    {file.name}
+                                  </button>
+                                  {file.drawingType && DRAWING_TYPE_COLORS[file.drawingType] && (
+                                    <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${DRAWING_TYPE_COLORS[file.drawingType]}`}>
+                                      {file.drawingType}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
+                                  {(file.name.split(".").pop() || "file").toUpperCase()}
+                                  {file.size ? (
+                                    <span className="text-gray-400 dark:text-gray-500 font-normal normal-case tracking-normal">
+                                      {" · "}{formatBytes(file.size)}
+                                    </span>
+                                  ) : null}
+                                  {isAnalyzing && (
+                                    <span className="ml-2 inline-flex items-center gap-1 text-amber-500 dark:text-amber-400 font-normal normal-case tracking-normal">
+                                      <Loader2 size={10} className="animate-spin" />
+                                      Analyzing…
+                                    </span>
+                                  )}
+                                  {!isAnalyzing && (file.pageAnalyses?.length || file.spatialSummary) && (
+                                    <span className="ml-2 text-emerald-500 dark:text-emerald-400 font-normal normal-case tracking-normal">
+                                      ✓ Indexed
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => deleteFile(file)}
+                                aria-label="Delete drawing"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Footer: storage quota ── */}
+            <div className="px-6 py-3.5 border-t border-gray-100 dark:border-white/10">
+              {quotaError && (
+                <p className="mb-2.5 text-xs font-medium text-red-500 dark:text-red-400">
+                  {quotaError}
+                </p>
+              )}
+              <div className="flex items-center justify-between mb-1.5 text-xs">
+                <span className="text-gray-500 dark:text-gray-400">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">
+                    {formatBytes(usedBytes)}
+                  </span>{" "}
+                  of {formatBytes(STORAGE_LIMIT_BYTES)} used
+                </span>
+                <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${barColor} transition-all duration-300`}
+                  style={{ width: `${usedPct}%` }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* ── In-app document viewer — constrained to the work area (portalled into
+          nm-workarea, whose transform makes `fixed` relative to it), so it
+          never covers the sidebar or navigates away. Separate AnimatePresence so
+          closing the viewer doesn't trigger the panel's onExitComplete. ── */}
+    <AnimatePresence>
+      {activeDoc && (
+        <motion.div
+          key="dr-doc-viewer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`fixed top-0 bottom-0 left-0 z-[400] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${
+            splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"
+          }`}
+          onClick={(e) => { if (e.target === e.currentTarget) setActiveDoc(null); }}
+        >
+          <div
+            className="flex flex-col w-full max-w-4xl h-[88vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 shrink-0">
+              <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
+                {activeDoc.name}
+              </span>
+              <a
+                href={activeDoc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 shrink-0"
+              >
+                Open in new tab
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline points="15 3 21 3 21 9" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="10" y1="14" x2="21" y2="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+              <button
+                onClick={() => setActiveDoc(null)}
+                aria-label="Close"
+                className="shrink-0 p-1.5 -mr-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {activeDoc.isImage ? (
+              <div className="flex-1 overflow-auto bg-gray-50 dark:bg-black/40 flex items-center justify-center p-4">
+                <img
+                  src={activeDoc.src}
+                  alt={activeDoc.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            ) : (
+              <iframe src={activeDoc.src} className="w-full flex-1 bg-white" title={activeDoc.name} />
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>,
+    portalTarget
+  );
+}
+
+// Human-readable reason when a file couldn't be indexed for AI search.
+function prettyStatus(status = "") {
+  if (status.startsWith("skipped:visual")) return "No readable text found";
+  if (status.startsWith("skipped:unsupported")) return "Unsupported file type";
+  if (status.startsWith("skipped:empty")) return "File is empty";
+  return "Couldn't process file";
+}

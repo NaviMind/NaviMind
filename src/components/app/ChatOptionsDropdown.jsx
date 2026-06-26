@@ -99,9 +99,6 @@ export default function ChatOptionsDropdown({
     try {
       await moveChatToTopic({ uid: user.uid, chatId, fromTopicId: topicId, toTopicId });
       const name = (customProjects || {})[toTopicId]?.name || "topic";
-      window.dispatchEvent(
-        new CustomEvent("navimind-toast", { detail: { message: `Moved to topic: ${name}` } })
-      );
       // Open the destination topic (its overview/chat list) — the moved chat
       // shows up there; we don't drop the user straight into the chat.
       setActiveProject(toTopicId);
@@ -227,7 +224,7 @@ export default function ChatOptionsDropdown({
 {onNewChat && (
   <button
     onClick={() => { onNewChat(); onClose(); }}
-    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
     <Plus size={19} className="opacity-80" />
     <span>New chat</span>
@@ -237,7 +234,7 @@ export default function ChatOptionsDropdown({
 {onEditInstructions && (
   <button
     onClick={() => { onEditInstructions(); onClose(); }}
-    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
     <FileText size={19} className="opacity-80" />
     <span>Instructions</span>
@@ -247,7 +244,7 @@ export default function ChatOptionsDropdown({
 {onOpenLibrary && (
   <button
     onClick={() => { onOpenLibrary(); onClose(); }}
-    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
     <MaskIcon src="/library_books.svg" size={19} className="opacity-80" />
     <span>Library</span>
@@ -264,7 +261,7 @@ export default function ChatOptionsDropdown({
     setIsPinned(newState);
     onClose();
   }}
-  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
 >
   <Icon name={isPinned ? "unpin" : "pin"} size={20} className="opacity-80" />
   <span>{isPinned ? "Unpin" : "Pin"}</span>
@@ -275,7 +272,7 @@ export default function ChatOptionsDropdown({
 {!isTopic && enableSplit && !(splitMode && pinned?.chatId === chatId) && (
   <button
     onClick={() => { enableSplit(chatId, topicId); onClose(); }}
-    className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+    className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
     <MaskIcon src="/Split_scene_right.svg" size={19} className="opacity-80" />
     <span>{splitMode ? "Move to split" : "Open in split"}</span>
@@ -292,7 +289,7 @@ export default function ChatOptionsDropdown({
     await exportChatAsTxt(messages, currentTitle);
     onClose();
   }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
             >
               <Icon name="share" size={20} className="opacity-80" />
               <span>Share</span>
@@ -304,7 +301,7 @@ export default function ChatOptionsDropdown({
                 onRename(chatId);
                 onClose();
               }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
             >
               <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
@@ -316,7 +313,7 @@ export default function ChatOptionsDropdown({
                 onMouseEnter={openSubmenu}
                 onMouseLeave={scheduleCloseSubmenu}
                 onClick={() => (submenuCoords ? setSubmenuCoords(null) : openSubmenu())}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
               >
                 <Folder size={19} className="opacity-80" />
                 <span className="flex-1 text-left">Move to topic</span>
@@ -330,7 +327,7 @@ export default function ChatOptionsDropdown({
                   onEnterSelectMode();
                   onClose();
                 }}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
               >
                 <Icon name="select" size={20} className="opacity-80" />
                 <span>Select</span>
@@ -373,7 +370,7 @@ export default function ChatOptionsDropdown({
                 key={t.id}
                 onClick={() => handleMove(t.id)}
                 disabled={moving}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/8 transition disabled:opacity-60"
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition disabled:opacity-60"
               >
                 <Folder size={16} className="opacity-70 shrink-0" />
                 <span className="truncate text-left flex-1">{t.name}</span>
