@@ -3,23 +3,19 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, Upload, FolderPlus, Folder, ChevronRight, Trash2, FileText } from "lucide-react";
+import { X, Upload, FolderPlus, Folder, ChevronLeft, Trash2, FileText, Search } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const BOX_PATH =
-  "M200-80q-33 0-56.5-23.5T120-160v-451q-18-11-29-28.5T80-680v-120q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v120q0 23-11 40.5T840-611v451q0 33-23.5 56.5T760-80H200Zm0-520v440h560v-440H200Zm-40-80h640v-120H160v120Zm200 280h240v-80H360v80Zm120 20Z";
-
 export default function DrawingRegisterPanel() {
   const { isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
 
-  const [portalTarget, setPortalTarget] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Local UI state (will be backed by Firestore in the technical phase).
-  const [folders, setFolders] = useState([]); // [{ id, name }]
-  const [files, setFiles] = useState([]);      // [{ id, name, type, folderId|null }]
+  // Folder / file state (local for now — Firestore in the technical phase)
+  const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [search, setSearch] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -28,31 +24,17 @@ export default function DrawingRegisterPanel() {
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Sync internal open state with context (drives the slide-up / fade-out).
-  useEffect(() => {
-    if (isDrawingRegisterOpen) setOpen(true);
-  }, [isDrawingRegisterOpen]);
-
-  const close = () => setOpen(false);
-
-  // Desktop: overlay the work area (keeps the sidebar visible). Mobile: the work
-  // area is transformed off-screen with the sidebar, so portal to <body>.
-  useEffect(() => {
-    const desktop = window.matchMedia?.("(hover: hover)").matches;
-    setPortalTarget(
-      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
-    );
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   // Escape closes
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") close(); };
+    if (!isDrawingRegisterOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setDrawingRegisterOpen(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [isDrawingRegisterOpen, setDrawingRegisterOpen]);
 
-  // Focus the folder-name input when the inline creator appears
+  // Focus folder name input when creator appears
   useEffect(() => {
     if (creatingFolder) {
       const t = setTimeout(() => folderInputRef.current?.focus(), 60);
@@ -60,10 +42,20 @@ export default function DrawingRegisterPanel() {
     }
   }, [creatingFolder]);
 
-  const currentFolder = folders.find((f) => f.id === currentFolderId) || null;
+  // Reset breadcrumb when panel closes
+  useEffect(() => {
+    if (!isDrawingRegisterOpen) {
+      setCurrentFolderId(null);
+      setSearch("");
+      setCreatingFolder(false);
+      setNewFolderName("");
+    }
+  }, [isDrawingRegisterOpen]);
+
+  const currentFolder = folders.find((f) => f.id === currentFolderId) ?? null;
 
   const visibleFolders = useMemo(() => {
-    if (currentFolderId) return []; // nested folders not supported yet
+    if (currentFolderId) return [];
     const q = search.trim().toLowerCase();
     return folders.filter((f) => !q || f.name.toLowerCase().includes(q));
   }, [folders, currentFolderId, search]);
@@ -75,10 +67,9 @@ export default function DrawingRegisterPanel() {
     );
   }, [files, currentFolderId, search]);
 
-  const createFolder = () => {
+  const commitFolder = () => {
     const name = newFolderName.trim();
-    if (!name) { setCreatingFolder(false); setNewFolderName(""); return; }
-    setFolders((prev) => [{ id: rid(), name }, ...prev]);
+    if (name) setFolders((prev) => [{ id: rid(), name }, ...prev]);
     setNewFolderName("");
     setCreatingFolder(false);
   };
@@ -87,12 +78,7 @@ export default function DrawingRegisterPanel() {
     const items = Array.from(e.target.files || []);
     if (items.length) {
       setFiles((prev) => [
-        ...items.map((f) => ({
-          id: rid(),
-          name: f.name,
-          type: f.type,
-          folderId: currentFolderId,
-        })),
+        ...items.map((f) => ({ id: rid(), name: f.name, type: f.type, folderId: currentFolderId })),
         ...prev,
       ]);
     }
@@ -102,278 +88,256 @@ export default function DrawingRegisterPanel() {
   const deleteFolder = (id) => {
     setFolders((prev) => prev.filter((f) => f.id !== id));
     setFiles((prev) => prev.filter((f) => f.folderId !== id));
+    if (currentFolderId === id) setCurrentFolderId(null);
   };
+
   const deleteFile = (id) => setFiles((prev) => prev.filter((f) => f.id !== id));
 
   const isEmpty = visibleFolders.length === 0 && visibleFiles.length === 0 && !creatingFolder;
 
-  if (!portalTarget) return null;
-
-  // Desktop overlays only the work area (absolute, contained by #nm-workarea's
-  // transform). Mobile portals to <body>, so cover the viewport with fixed.
-  const positionCls = portalTarget === document.body ? "fixed" : "absolute";
+  if (!mounted) return null;
 
   return createPortal(
-    <AnimatePresence onExitComplete={() => setDrawingRegisterOpen(false)}>
-      {open && (
-        <motion.div
-          key="dr-overlay"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 24 }}
-          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-          className={`${positionCls} inset-0 z-[120] flex flex-col bg-[var(--bg-app)] text-gray-900 dark:text-white`}
-        >
-          {/* ── Header ── */}
-          <div className="flex items-center justify-between px-5 md:px-7 py-4 border-b border-gray-200 dark:border-white/[0.08] flex-shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                <svg width="20" height="20" viewBox="0 -960 960 960" fill="currentColor">
-                  <path d={BOX_PATH} />
-                </svg>
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold tracking-tight leading-tight truncate">
-                  Drawing Register
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  Vessel drawings the AI can reference across all chats.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close Drawing Register"
-              className="flex-shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/[0.08] hover:text-gray-900 dark:hover:text-white transition"
-            >
-              <X size={18} />
-            </button>
-          </div>
+    <>
+      {/* Backdrop — mobile only */}
+      <AnimatePresence>
+        {isDrawingRegisterOpen && (
+          <motion.div
+            key="dr-backdrop"
+            className="fixed inset-0 z-[110] md:hidden bg-black/40 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            onClick={() => setDrawingRegisterOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-          {/* ── Toolbar ── */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 md:px-7 py-3 border-b border-gray-100 dark:border-white/[0.05] flex-shrink-0">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-sm flex-shrink-0">
-              <button
-                onClick={() => setCurrentFolderId(null)}
-                className={`transition-colors ${
-                  currentFolder
-                    ? "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                    : "text-gray-900 dark:text-white font-medium"
-                }`}
-              >
-                All drawings
-              </button>
-              {currentFolder && (
-                <>
-                  <ChevronRight size={14} className="text-gray-400" />
-                  <span className="text-gray-900 dark:text-white font-medium truncate max-w-[180px]">
-                    {currentFolder.name}
-                  </span>
-                </>
-              )}
-            </div>
+      {/* Panel */}
+      <AnimatePresence>
+        {isDrawingRegisterOpen && (
+          <motion.aside
+            key="dr-panel"
+            className={`
+              fixed inset-y-0 right-0 z-[111]
+              w-full md:w-[480px]
+              flex flex-col
+              bg-[var(--bg-sidebar)] text-gray-900 dark:text-white
+              border-l border-gray-200 dark:border-white/[0.08]
+              shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.6)]
+            `}
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+          >
 
-            <div className="flex-1" />
-
-            {/* Search */}
-            <div className="relative w-full sm:w-56">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search…"
-                className="w-full pl-9 pr-3 py-2 rounded-lg text-sm
-                  bg-gray-100 dark:bg-white/[0.06]
-                  placeholder-gray-400 dark:placeholder-gray-500
-                  border border-transparent
-                  focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30
-                  outline-none transition"
-              />
-            </div>
-
-            {/* Actions */}
-            {!currentFolder && (
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+              <h2 className="text-[18px] font-semibold tracking-tight">Drawings</h2>
               <button
                 type="button"
-                onClick={() => setCreatingFolder(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                  bg-gray-100 dark:bg-white/[0.07] hover:bg-gray-200 dark:hover:bg-white/[0.12]
-                  text-gray-700 dark:text-gray-200 transition flex-shrink-0"
+                onClick={() => setDrawingRegisterOpen(false)}
+                aria-label="Close"
+                className="p-2 rounded-lg text-gray-500 dark:text-gray-400
+                  hover:bg-gray-100 dark:hover:bg-white/[0.08]
+                  hover:text-gray-900 dark:hover:text-white transition"
               >
-                <FolderPlus size={15} />
-                <span className="hidden sm:inline">New folder</span>
+                <X size={18} />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white transition flex-shrink-0"
-            >
-              <Upload size={15} />
-              <span className="hidden sm:inline">Upload</span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="sr-only"
-              accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.tiff,.tif"
-              onChange={handleUpload}
-            />
-          </div>
+            </div>
 
-          {/* ── Body ── */}
-          <div className="flex-1 overflow-y-auto custom-scroll px-5 md:px-7 py-5">
-            {isEmpty ? (
-              <div className="flex flex-col items-center justify-center text-center h-full min-h-[280px] gap-4">
-                <span className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.05] text-gray-400 dark:text-gray-500 flex items-center justify-center">
-                  <svg width="32" height="32" viewBox="0 -960 960 960" fill="currentColor">
-                    <path d={BOX_PATH} />
-                  </svg>
-                </span>
-                <div>
-                  <p className="text-base font-medium text-gray-700 dark:text-gray-200">
-                    {currentFolder ? "This folder is empty" : "No drawings yet"}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm leading-relaxed">
-                    Upload vessel drawings — GA plans, P&IDs, mooring arrangements — and
-                    organise them into folders. NaviMind will reference them in every chat.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  {!currentFolder && (
-                    <button
-                      onClick={() => setCreatingFolder(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                        bg-gray-100 dark:bg-white/[0.07] hover:bg-gray-200 dark:hover:bg-white/[0.12]
-                        text-gray-700 dark:text-gray-200 transition"
-                    >
-                      <FolderPlus size={15} /> New folder
-                    </button>
-                  )}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                      bg-blue-600 hover:bg-blue-500 text-white transition"
-                  >
-                    <Upload size={15} /> Upload drawing
-                  </button>
-                </div>
+            {/* ── Action bar — always visible ── */}
+            <div className="flex items-center gap-2 px-5 pb-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                  bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white transition"
+              >
+                <Upload size={14} /> Upload
+              </button>
+              {!currentFolder && (
+                <button
+                  type="button"
+                  onClick={() => setCreatingFolder(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                    bg-gray-100 dark:bg-white/[0.07]
+                    hover:bg-gray-200 dark:hover:bg-white/[0.12]
+                    text-gray-700 dark:text-gray-200 transition"
+                >
+                  <FolderPlus size={14} /> New folder
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="sr-only"
+                accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.tiff,.tif"
+                onChange={handleUpload}
+              />
+              {/* Search */}
+              <div className="relative flex-1 ml-1">
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="w-full pl-7 pr-2.5 py-2 rounded-lg text-sm
+                    bg-gray-100 dark:bg-white/[0.06]
+                    placeholder-gray-400 dark:placeholder-gray-500
+                    border border-transparent
+                    focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30
+                    outline-none transition"
+                />
               </div>
-            ) : (
-              <div className="max-w-5xl mx-auto space-y-6">
-                {/* Folders */}
-                {(visibleFolders.length > 0 || creatingFolder) && (
-                  <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
-                      Folders
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {/* Inline new-folder creator */}
-                      {creatingFolder && (
-                        <div className="flex items-center gap-2 px-3 py-3 rounded-xl border border-blue-400/60 bg-blue-50/60 dark:bg-blue-500/10">
-                          <Folder size={18} className="text-blue-500 flex-shrink-0" />
-                          <input
-                            ref={folderInputRef}
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") createFolder();
-                              if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                            }}
-                            onBlur={createFolder}
-                            placeholder="Folder name"
-                            className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder-gray-400 dark:placeholder-gray-500"
-                          />
-                        </div>
-                      )}
+            </div>
 
-                      {visibleFolders.map((folder) => {
-                        const count = files.filter((f) => f.folderId === folder.id).length;
-                        return (
-                          <button
-                            key={folder.id}
-                            onClick={() => setCurrentFolderId(folder.id)}
-                            className="group relative flex items-center gap-2.5 px-3 py-3 rounded-xl text-left
-                              border border-gray-200 dark:border-white/[0.07]
-                              bg-white dark:bg-white/[0.03]
-                              hover:border-blue-400/60 hover:bg-blue-50/40 dark:hover:bg-white/[0.06]
-                              transition"
+            {/* ── Breadcrumb (inside a folder) ── */}
+            {currentFolder && (
+              <div className="flex items-center gap-1.5 px-5 pb-2 flex-shrink-0">
+                <button
+                  onClick={() => setCurrentFolderId(null)}
+                  className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-400 transition"
+                >
+                  <ChevronLeft size={15} /> Back
+                </button>
+                <span className="text-sm text-gray-400 dark:text-gray-500 truncate">
+                  · {currentFolder.name}
+                </span>
+              </div>
+            )}
+
+            <div className="h-px bg-gray-200 dark:bg-white/[0.07] mx-5 flex-shrink-0" />
+
+            {/* ── Body ── */}
+            <div className="flex-1 overflow-y-auto custom-scroll px-5 py-4">
+              {isEmpty ? (
+                <div className="flex flex-col justify-center h-full min-h-[200px] gap-1.5">
+                  {currentFolder ? (
+                    <>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        This folder is empty
+                      </p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500">
+                        Upload drawings using the button above.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                        No drawings yet
+                      </p>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 leading-relaxed">
+                        Upload vessel drawings — GA plans, P&IDs, mooring
+                        arrangements — and organise them into folders. NaviMind will
+                        reference them in every chat.
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Folders */}
+                  {(visibleFolders.length > 0 || creatingFolder) && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                        Folders
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {/* Inline folder creator */}
+                        {creatingFolder && (
+                          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-blue-400/60 bg-blue-50/50 dark:bg-blue-500/10">
+                            <Folder size={16} className="text-blue-500 flex-shrink-0" />
+                            <input
+                              ref={folderInputRef}
+                              value={newFolderName}
+                              onChange={(e) => setNewFolderName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitFolder();
+                                if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                              }}
+                              onBlur={commitFolder}
+                              placeholder="Folder name"
+                              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder-gray-400 dark:placeholder-gray-500"
+                            />
+                          </div>
+                        )}
+                        {visibleFolders.map((folder) => {
+                          const count = files.filter((f) => f.folderId === folder.id).length;
+                          return (
+                            <button
+                              key={folder.id}
+                              onClick={() => setCurrentFolderId(folder.id)}
+                              className="group flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left w-full
+                                hover:bg-gray-100 dark:hover:bg-white/[0.06] transition"
+                            >
+                              <Folder size={16} className="text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                              <span className="flex-1 min-w-0 text-sm truncate">{folder.name}</span>
+                              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                                {count}
+                              </span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id); }}
+                                className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                                aria-label="Delete folder"
+                              >
+                                <Trash2 size={13} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Files */}
+                  {visibleFiles.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                        Drawings
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {visibleFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="group flex items-center gap-2.5 px-3 py-2.5 rounded-xl
+                              hover:bg-gray-100 dark:hover:bg-white/[0.06] transition"
                           >
-                            <Folder size={18} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{folder.name}</p>
-                              <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                                {count} {count === 1 ? "file" : "files"}
-                              </p>
-                            </div>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id); }}
+                            <FileText size={16} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                            <span className="flex-1 min-w-0 text-sm truncate">{file.name}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400 flex-shrink-0">
+                              {(file.name.split(".").pop() || "").toUpperCase()}
+                            </span>
+                            <button
+                              onClick={() => deleteFile(file.id)}
+                              aria-label="Delete drawing"
                               className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-500/10
                                 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
-                              aria-label="Delete folder"
                             >
-                              <Trash2 size={14} />
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Files */}
-                {visibleFiles.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
-                      Drawings
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {visibleFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          className="group flex items-center gap-3 px-3 py-3 rounded-xl
-                            border border-gray-200 dark:border-white/[0.07]
-                            bg-white dark:bg-white/[0.03]
-                            hover:border-gray-300 dark:hover:border-white/[0.14] transition"
-                        >
-                          <span className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center flex-shrink-0 text-gray-500 dark:text-gray-400">
-                            <FileText size={18} />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{file.name}</p>
-                            <p className="text-[11px] uppercase tracking-wider text-blue-500 dark:text-blue-400 font-semibold">
-                              {(file.name.split(".").pop() || "file").toUpperCase()}
-                            </p>
+                              <Trash2 size={13} />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => deleteFile(file.id)}
-                            aria-label="Delete drawing"
-                            className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-500/10
-                              [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    portalTarget
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    </>,
+    document.body
   );
 }
