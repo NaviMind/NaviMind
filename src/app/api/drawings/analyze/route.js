@@ -20,6 +20,7 @@ const DRAWING_TYPES = [
   "Piping",
   "Stability",
   "Safety Equipment",
+  "Manual",
   "Other",
 ];
 
@@ -76,7 +77,7 @@ export async function POST(req) {
               content: [
                 {
                   type: "input_text",
-                  text: `Classify this vessel technical drawing into exactly one of the following categories. Reply with ONLY the category name, nothing else.\n\nCategories:\n${DRAWING_TYPES.map((t) => `- ${t}`).join("\n")}\n\nDescription hints:\n- GA Plan: full ship profile/cross-section or deck overview showing all spaces\n- Fire Plan: fire detection, suppression equipment, fire zones\n- Escape Routes: muster stations, lifeboats, emergency escape paths\n- Tank Plan: ballast tanks, fuel tanks, cargo tanks arrangement\n- Engine Room: machinery spaces, main engine, auxiliary equipment\n- Cargo Plan: cargo loading, stability, capacity plan\n- Electrical: electrical diagrams, switchboards, power distribution\n- Piping: pipe routing, valve positions, hydraulic schematics\n- Stability: stability curves, trim/displacement tables\n- Safety Equipment: fire extinguishers, EPIRB, lifesaving appliances positions\n- Other: anything not listed above`,
+                  text: `Classify this vessel technical drawing into exactly one of the following categories. Reply with ONLY the category name, nothing else.\n\nCategories:\n${DRAWING_TYPES.map((t) => `- ${t}`).join("\n")}\n\nDescription hints:\n- GA Plan: full ship profile/cross-section or deck overview showing all spaces\n- Fire Plan: fire detection, suppression equipment, fire zones\n- Escape Routes: muster stations, lifeboats, emergency escape paths\n- Tank Plan: ballast tanks, fuel tanks, cargo tanks arrangement\n- Engine Room: machinery spaces, main engine, auxiliary equipment\n- Cargo Plan: cargo loading, stability, capacity plan\n- Electrical: electrical diagrams, switchboards, power distribution\n- Piping: pipe routing, valve positions, hydraulic schematics\n- Stability: stability curves, trim/displacement tables\n- Safety Equipment: fire extinguishers, EPIRB, lifesaving appliances positions\n- Manual: equipment operation/maintenance manual or handbook — mostly text pages with instructions (e.g. radar, ECDIS, pump, separator manuals)\n- Other: anything not listed above`,
                 },
                 {
                   type: "input_image",

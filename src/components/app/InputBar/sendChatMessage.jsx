@@ -57,6 +57,7 @@ const DRAWING_TYPE_PATTERNS = {
   "Piping":           /pipe|valve|hydraul|трубопровод|клапан|piping|line diagram/i,
   "Electrical":       /electric|power|switch|generator|электр|генератор|distribution/i,
   "Safety Equipment": /life raft|fire extinguisher|epirb|спасательн|огнетушитель|safety appliance/i,
+  "Manual":           /manual|instruction|procedure|how to|operate|maintenance|setting|menu|мануал|инструкц|руководств|настройк|эксплуатац|обслуживан|radar|ecdis/i,
 };
 
 function selectDrawings(files, question) {

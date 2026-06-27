@@ -26,7 +26,7 @@ export default function DrawingRegisterButton({ onSidebarItemClick }) {
         <InventoryIcon size={20} />
       </span>
       <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-        Drawings
+        Drawings / Manuals
       </span>
     </button>
   );

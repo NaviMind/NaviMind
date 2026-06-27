@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
@@ -44,6 +44,7 @@ const DRAWING_TYPE_COLORS = {
   "Piping":           "bg-cyan-100   dark:bg-cyan-500/20   text-cyan-600   dark:text-cyan-300",
   "Stability":        "bg-green-100  dark:bg-green-500/20  text-green-600  dark:text-green-300",
   "Safety Equipment": "bg-pink-100   dark:bg-pink-500/20   text-pink-600   dark:text-pink-300",
+  "Manual":           "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300",
 };
 
 // ── PDF rendering helpers ─────────────────────────────────────────────────────
@@ -71,6 +72,11 @@ function isVisualFile(file) {
     /^image\//.test(file?.type || "") ||
     /\.(png|jpe?g|webp|tiff?|bmp)$/i.test(file?.name || "")
   );
+}
+
+// Native CAD formats — OpenAI can't read these. The user must export to PDF/PNG.
+function isCadFile(file) {
+  return /\.(dwg|dxf)$/i.test(file?.name || "");
 }
 
 // ── Vision-analysis queue (cost guard) ───────────────────────────────────────
@@ -134,28 +140,49 @@ async function analyzeAllPages(inputPages, fileName) {
   return { pages: allPages, drawingType };
 }
 
-// Renders each page of a PDF to a JPEG Blob. We render the WHOLE document — a
-// technical drawing's key schematic can be on any page, so capping pages would
-// mean the assistant only ever sees part of the file. The high backstop only
-// guards against a pathological PDF spawning thousands of renders.
+// Renders the pages of a PDF that actually need VISION to JPEG blobs.
+//
+// Drawings vs manuals: a drawing/schematic is sparse text + heavy graphics and
+// must be read visually; a manual page is dense prose that File Search already
+// indexes from the original PDF — running vision on it would be pure wasted cost.
+// So we measure each page's text density and only render (→ vision) the visual
+// pages. Page 1 is always rendered: it drives type classification and is cheap.
+//
+// Bias is toward rendering: a drawing with many labels still falls under the
+// threshold, and a false "render" only costs money, while a false "skip" would
+// lose a schematic — the whole point. We render the WHOLE document (high page
+// backstop guards only against a pathological PDF).
 const MAX_PDF_PAGES = 100;
+const TEXT_PAGE_CHAR_THRESHOLD = 1200; // above this much text → manual page → File Search only
+
 async function renderPdfPages(file) {
   const pdfJs = await loadPdfJs();
   const buffer = await file.arrayBuffer();
   const pdf = await pdfJs.getDocument({ data: buffer }).promise;
   const count = Math.min(pdf.numPages, MAX_PDF_PAGES);
-  const blobs = [];
+  const rendered = []; // [{ pageNum, blob }]
   for (let n = 1; n <= count; n++) {
     const page = await pdf.getPage(n);
+
+    // Text density — a manual page is dense prose, a drawing has sparse labels.
+    let textLen = 0;
+    try {
+      const tc = await page.getTextContent();
+      textLen = tc.items.reduce((s, it) => s + (it.str?.length || 0), 0);
+    } catch { textLen = 0; }
+
+    // Skip vision for text-heavy pages (page 1 always rendered for classification).
+    if (n > 1 && textLen >= TEXT_PAGE_CHAR_THRESHOLD) continue;
+
     const viewport = page.getViewport({ scale: 2.0 }); // high-DPI for readability
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
     const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-    blobs.push(blob);
+    rendered.push({ pageNum: n, blob });
   }
-  return blobs;
+  return rendered;
 }
 
 // Storage quota for drawings. Flat value for now — in the subscription phase this
@@ -219,8 +246,8 @@ export default function DrawingRegisterPanel() {
       if (n > 0) {
         fireToast(
           n === 1
-            ? "Your drawing is processed and ready to use."
-            : `Your ${n} drawings are processed and ready to use.`
+            ? "Your file is processed and ready to use."
+            : `Your ${n} files are processed and ready to use.`
         );
       }
     }
@@ -390,15 +417,70 @@ export default function DrawingRegisterPanel() {
     }
   };
 
+  // ── Re-run vision analysis for a file whose analysis failed or was lost ──
+  // Reuses the already-rendered page images (no re-render/re-upload), so it only
+  // repeats the vision step. Goes through the same concurrency-limited queue.
+  const retryAnalysis = (file) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !file?.id) return;
+    const inputPages = file.pages?.length
+      ? file.pages.map((p) => ({ url: p.url, pageNum: p.pageNum }))
+      : file.url
+      ? [{ url: file.url, pageNum: 1 }]
+      : [];
+    if (!inputPages.length) return;
+    setAnalyzingIds((prev) => new Set([...prev, file.id]));
+    enqueueAnalysis(() =>
+      analyzeAllPages(inputPages, file.name)
+        .then(({ pages: pageAnalyses, drawingType }) => {
+          const updates = {};
+          if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
+          if (drawingType) updates.drawingType = drawingType;
+          if (Object.keys(updates).length) {
+            updateDrawingFileRecord({ uid, id: file.id, updates }).catch(() => {});
+            setFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, ...updates } : f)));
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          setAnalyzingIds((prev) => {
+            const s = new Set(prev);
+            s.delete(file.id);
+            return s;
+          });
+        })
+    );
+  };
+
   const dismissPending = (tempId) =>
     setPending((prev) => prev.filter((p) => p.tempId !== tempId));
 
   // ── Upload + index pipeline ──
   const addFiles = async (fileList) => {
-    const items = Array.from(fileList || []);
+    let items = Array.from(fileList || []);
     if (!items.length) return;
     const uid = auth.currentUser?.uid;
     if (!uid) return;
+
+    // Reject native CAD formats up front — neither File Search nor Vision can
+    // read .dwg/.dxf. Show a failed row explaining how to make them usable.
+    const cadFiles = items.filter(isCadFile);
+    if (cadFiles.length) {
+      setPending((prev) => [
+        ...cadFiles.map((f) => ({
+          tempId: rid(),
+          name: f.name,
+          type: f.type,
+          size: f.size || 0,
+          folderId: currentFolderId ?? null,
+          status: "failed",
+          error: "CAD files can't be read — export to PDF or PNG first",
+        })),
+        ...prev,
+      ]);
+      items = items.filter((f) => !isCadFile(f));
+      if (!items.length) return;
+    }
 
     // Quota gate (committed + in-flight + incoming).
     const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
@@ -431,8 +513,8 @@ export default function DrawingRegisterPanel() {
     if (startingFresh) {
       fireToast(
         items.length === 1
-          ? "Drawing is processing in the background — you can keep working."
-          : `${items.length} drawings are processing in the background — you can keep working.`
+          ? "File is processing in the background — you can keep working."
+          : `${items.length} files are processing in the background — you can keep working.`
       );
     }
 
@@ -460,24 +542,25 @@ export default function DrawingRegisterPanel() {
           )
         );
 
-        // 2b) PDFs → render each page to JPEG and upload for vision access.
-        //     This runs client-side using pdfjs-dist and is non-fatal on failure.
+        // 2b) PDFs → render the VISUAL pages to JPEG and upload for vision access.
+        //     Text-heavy (manual) pages are skipped here — File Search covers them.
+        //     Runs client-side via pdfjs-dist and is non-fatal on failure.
         if (isPdf(file)) {
           try {
             setPending((prev) =>
               prev.map((x) => (x.tempId === tempId ? { ...x, status: "rendering" } : x))
             );
-            const pageBlobs = await renderPdfPages(file);
+            const rendered = await renderPdfPages(file); // [{ pageNum, blob }]
+            const baseName = file.name.replace(/\.pdf$/i, "");
             pages = await Promise.all(
-              pageBlobs.map(async (blob, idx) => {
-                const baseName = file.name.replace(/\.pdf$/i, "");
+              rendered.map(async ({ pageNum, blob }) => {
                 const pageFile = new File(
                   [blob],
-                  `${baseName}_p${idx + 1}.jpg`,
+                  `${baseName}_p${pageNum}.jpg`,
                   { type: "image/jpeg" }
                 );
                 const p = await uploadFileToStorage({ uid, file: pageFile });
-                return { url: p.url, path: p.path, pageNum: idx + 1 };
+                return { url: p.url, path: p.path, pageNum };
               })
             );
           } catch {
@@ -654,7 +737,7 @@ export default function DrawingRegisterPanel() {
                       onClick={() => setCurrentFolderId(null)}
                       className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-400 transition shrink-0"
                     >
-                      <ChevronLeft size={16} /> Drawings
+                      <ChevronLeft size={16} /> Drawings / Manuals
                     </button>
                     <span className="text-gray-300 dark:text-white/20">/</span>
                     <h2 className="text-base font-semibold text-gray-900 dark:text-white truncate">
@@ -663,7 +746,7 @@ export default function DrawingRegisterPanel() {
                   </>
                 ) : (
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-                    Drawings
+                    Drawings / Manuals
                   </h2>
                 )}
               </div>
@@ -705,7 +788,7 @@ export default function DrawingRegisterPanel() {
                 type="file"
                 multiple
                 className="sr-only"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.tif,.doc,.docx,.txt,.md,.pptx,.ppt,.xlsx,.xls,.csv,.dwg,.dxf"
                 onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
               />
             </div>
@@ -739,10 +822,10 @@ export default function DrawingRegisterPanel() {
                   </span>
                   <div className="max-w-md">
                     <p className="text-base font-medium text-gray-700 dark:text-gray-200">
-                      {currentFolder ? "Drop drawings into this folder" : "Drag & drop your drawings here"}
+                      {currentFolder ? "Drop files into this folder" : "Drag & drop your drawings & manuals here"}
                     </p>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
-                      Upload vessel drawings, manuals, general arrangement plans, final plans.
+                      Upload vessel drawings, equipment manuals, general arrangement plans, schematics.
                     </p>
                   </div>
                 </button>
@@ -809,7 +892,7 @@ export default function DrawingRegisterPanel() {
                   {(visibleFiles.length > 0 || visiblePending.length > 0) && (
                     <div>
                       <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
-                        Drawings
+                        Files
                       </p>
                       <div className="flex flex-col gap-0.5">
                         {/* In-flight uploads */}
@@ -853,6 +936,9 @@ export default function DrawingRegisterPanel() {
                         {/* Committed files */}
                         {visibleFiles.map((file) => {
                           const isAnalyzing = analyzingIds.has(file.id);
+                          const isIndexed = !!(file.pageAnalyses?.length || file.spatialSummary);
+                          // Visual file with no analysis = the vision step failed and can be retried.
+                          const needsAnalysis = !isAnalyzing && !isIndexed && isVisualFile(file);
                           return (
                             <div
                               key={file.id}
@@ -892,16 +978,31 @@ export default function DrawingRegisterPanel() {
                                       Analyzing…
                                     </span>
                                   )}
-                                  {!isAnalyzing && (file.pageAnalyses?.length || file.spatialSummary) && (
+                                  {isIndexed && !isAnalyzing && (
                                     <span className="ml-2 text-emerald-500 dark:text-emerald-400 font-normal normal-case tracking-normal">
                                       ✓ Indexed
                                     </span>
                                   )}
+                                  {needsAnalysis && (
+                                    <span className="ml-2 text-amber-500 dark:text-amber-400 font-normal normal-case tracking-normal">
+                                      Not analyzed
+                                    </span>
+                                  )}
                                 </p>
                               </div>
+                              {needsAnalysis && (
+                                <button
+                                  onClick={() => retryAnalysis(file)}
+                                  aria-label="Retry analysis"
+                                  title="Retry AI analysis"
+                                  className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition"
+                                >
+                                  <RefreshCw size={15} />
+                                </button>
+                              )}
                               <button
                                 onClick={() => deleteFile(file)}
-                                aria-label="Delete drawing"
+                                aria-label="Delete file"
                                 className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
                                   [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
                               >
