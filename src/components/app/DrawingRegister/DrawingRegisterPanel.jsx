@@ -186,7 +186,13 @@ async function renderPdfPages(file) {
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const ctx = canvas.getContext("2d");
+    // Fill white FIRST. pdf.js renders on a transparent canvas; scanned pages
+    // (B&W image masks) and transparent-background PDFs otherwise flatten to a
+    // blank/black JPEG. A white base guarantees the page content is visible.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport, background: "#ffffff" }).promise;
     const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
     rendered.push({ pageNum: n, blob });
   }
