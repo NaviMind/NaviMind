@@ -66,15 +66,14 @@ function selectDrawings(files, question) {
   // Always attach all drawings when there are very few — zero selection cost.
   if (files.length <= 3) return files;
 
-  // For longer libraries, only attach drawings when the question looks spatial
-  // or engineering-related. General questions ("what's the weather?") get none.
-  if (!DRAWING_QUESTION_RE.test(question)) return [];
-
+  const isSpatial = DRAWING_QUESTION_RE.test(question);
   const words = question.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+
   const scored = files.map((f) => {
     const name = (f.name || "").toLowerCase();
 
-    // Base score: question words found in the file name.
+    // Base score: question words found in the file name (e.g. "VHF" in the
+    // question matching a "VHF radiotelephone manual").
     const nameScore = words.reduce((s, w) => s + (name.includes(w) ? 2 : 0), 0);
 
     // GA plan boost for spatial/location questions.
@@ -84,17 +83,24 @@ function selectDrawings(files, question) {
         ? 3
         : 0;
 
-    // Drawing type boost: +4 when the classified type matches the question topic.
+    // Drawing/manual type boost: +4 when the classified type matches the topic.
     const typePattern = f.drawingType ? DRAWING_TYPE_PATTERNS[f.drawingType] : null;
     const typeBoost = typePattern?.test(question) ? 4 : 0;
 
     return { f, score: nameScore + gaBoost + typeBoost };
   });
 
-  return scored
+  // Files with a positive relevance signal (name/type match) are always eligible
+  // — even for non-spatial questions, so a VHF question pulls in the VHF manual.
+  const relevant = scored.filter((s) => s.score > 0);
+
+  // Fall back to top drawings only for clearly spatial questions; otherwise, with
+  // no name/type match, attach nothing (File Search still covers text content).
+  const pool = relevant.length ? relevant : (isSpatial ? scored : []);
+
+  return pool
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
-    .filter((s) => s.score > 0 || files.length <= 6)
     .map((s) => s.f);
 }
 
@@ -459,12 +465,21 @@ sendLocks.add(sendKey);
   // any failure here must NOT block sending the message or getting an answer.
   let drawingsStoreId = "";
   let vesselDrawings = [];
+  let vesselLibrary = []; // names/types of ALL drawings & manuals, so the model knows what it can search
   try {
     let allDrawingFiles = [];
     [drawingsStoreId, allDrawingFiles] = await Promise.all([
       getUserDrawingsStoreId(currentUser.uid).catch(() => ""),
       getCachedDrawings(currentUser.uid),
     ]);
+
+    // Make the model aware of the whole vessel library (not just this message's
+    // attachments) so it consults File Search for equipment/vessel questions
+    // instead of falling back to generic knowledge.
+    vesselLibrary = allDrawingFiles
+      .filter((f) => f.name)
+      .slice(0, 60)
+      .map((f) => ({ name: f.name, kind: f.drawingType || null }));
 
     // Select the most relevant drawings to attach as vision inputs. The model
     // will see the actual image — layout, labels, pipe runs — not just OCR text.
@@ -561,6 +576,7 @@ if (inTopic) {
       crossTopicMemory: memorySettings.searchPastChats === false ? "" : crossTopicMemory,
       crossTopicStoreIds,
       vesselDrawings,
+      vesselLibrary,
     }),
     signal: genAbortController.signal,
   });

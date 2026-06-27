@@ -172,6 +172,10 @@ export async function POST(req) {
       // Passed as vision inputs so the model can read layouts, schematics, and
       // annotations directly — not just indexed text extracted from the file.
       vesselDrawings = [],
+      // Names/types of the WHOLE vessel library (drawings + manuals) the user has
+      // uploaded. Their content is searchable via File Search; this list makes the
+      // model AWARE of what exists so it searches instead of answering generically.
+      vesselLibrary = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -426,8 +430,29 @@ const drawingsGuidance = hasDrawings
     ].join("\n")
   : null;
 
+// Make the model aware of the user's uploaded vessel library so it consults
+// File Search for vessel/equipment-specific questions instead of answering from
+// generic knowledge. This is the difference between "a standard VHF usually has
+// 25W/1W" and actually reading THIS vessel's VHF manual.
+const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length)
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL LIBRARY — UPLOADED DRAWINGS & MANUALS (SEARCHABLE)",
+      "═══════════════════════════════════════════",
+      "The user has uploaded the following vessel-specific documents. Their full content is available to you through the File Search tool:",
+      ...vesselLibrary.map((d) => `- ${d.name}${d.kind ? ` [${d.kind}]` : ""}`),
+      "",
+      "RULES:",
+      "- When a question concerns this vessel's equipment, systems, drawings, or anything one of these documents would cover, you MUST search them via File Search BEFORE answering. Do NOT answer vessel-specific questions from generic knowledge when a relevant document is listed above.",
+      "- If File Search returns nothing useful for a listed document (e.g. it is a scan with no text layer), say so plainly and tell the user the document may need re-uploading — do not silently fall back to generic figures.",
+      "- Cite the specific document you used (inline [[cite:EXACT_FILENAME]]).",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 const contextualBlocks = [
   vesselBlock,
+  vesselLibraryBlock,
   drawingAnalysisBlock,
   hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,
