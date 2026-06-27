@@ -154,6 +154,7 @@ async function analyzeAllPages(inputPages, fileName) {
 // backstop guards only against a pathological PDF).
 const MAX_PDF_PAGES = 100;
 const TEXT_PAGE_CHAR_THRESHOLD = 1200; // above this much text → manual page → File Search only
+const TARGET_LONG_EDGE_PX = 2048;      // render size matched to what Vision "high" detail uses
 
 async function renderPdfPages(file) {
   const pdfJs = await loadPdfJs();
@@ -174,12 +175,18 @@ async function renderPdfPages(file) {
     // Skip vision for text-heavy pages (page 1 always rendered for classification).
     if (n > 1 && textLen >= TEXT_PAGE_CHAR_THRESHOLD) continue;
 
-    const viewport = page.getViewport({ scale: 2.0 }); // high-DPI for readability
+    // Right-size the render to what Vision actually uses (~2048px on the long
+    // side for "high" detail). Rendering bigger just produces huge images the
+    // model downscales anyway — wasted upload bytes, slow on ship internet.
+    // Never upscale beyond 2× the native page size.
+    const base = page.getViewport({ scale: 1 });
+    const scale = Math.min(2.0, TARGET_LONG_EDGE_PX / Math.max(base.width, base.height));
+    const viewport = page.getViewport({ scale: Math.max(scale, 0.1) });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
     rendered.push({ pageNum: n, blob });
   }
   return rendered;
