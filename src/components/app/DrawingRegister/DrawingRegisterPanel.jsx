@@ -437,9 +437,15 @@ export default function DrawingRegisterPanel() {
   const indexVisionText = async ({ uid, name, pageAnalyses }) => {
     const withDesc = (pageAnalyses || []).filter((p) => p?.description);
     if (!withDesc.length) return null;
+    // Lead with the document name/code repeated, so File Search reliably matches
+    // queries that name this specific document (e.g. "E-302") to ITS content and
+    // not another file's. The base name (without extension) is emphasized.
+    const baseName = name.replace(/\.[a-z0-9]+$/i, "");
     const content =
-      `Vision-extracted content of the vessel document "${name}".\n\n` +
-      withDesc.map((p) => `--- Page ${p.pageNum} ---\n${p.description}`).join("\n\n");
+      `DOCUMENT: ${name}\n` +
+      `This is the complete content of the vessel document "${name}" (${baseName}). ` +
+      `Any question that names "${baseName}" or this document must be answered from here and from no other document.\n\n` +
+      withDesc.map((p) => `--- ${baseName} — Page ${p.pageNum} ---\n${p.description}`).join("\n\n");
     try {
       const res = await indexTextSnippet({
         vectorStoreId: storeIdRef.current || "",
