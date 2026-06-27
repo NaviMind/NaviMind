@@ -115,6 +115,12 @@ function needsWebSearch(question, vesselProfile = null) {
 
 export const runtime = "nodejs";
 
+// Hard cap on how many drawing page images are sent to vision in a single
+// request. The pre-analyzed text index already grounds the model; the images
+// are for visual verification, so a handful is plenty — and it keeps latency and
+// cost bounded (too many high-detail images can stall the request).
+const MAX_DRAWING_IMAGES = 4;
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -467,6 +473,14 @@ const assembledSystemPrompt = [
               }
             : null;
 
+          // Collect drawing page images, skipping anything that isn't a fetchable
+          // raster image (OpenAI Vision can't decode PDF/TIFF URLs). Cap the total
+          // so a multi-drawing query can't flood the request with high-detail images.
+          const drawingImageUrls = vesselDrawings
+            .flatMap((d) => (d.selectedPages || []).map((p) => p?.url))
+            .filter((u) => typeof u === "string" && /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u))
+            .slice(0, MAX_DRAWING_IMAGES);
+
           const messages = [
             { role: "system", content: assembledSystemPrompt },
             ...(topicInstructionBlock ? [{ role: "system", content: topicInstructionBlock }] : []),
@@ -481,19 +495,11 @@ const assembledSystemPrompt = [
               role: "user",
               content: [
                 { type: "input_text", text: String(question) },
-                // Vessel drawings: only the pre-selected relevant page images.
-                // selectedPages[] URLs are always JPEG (PDF pages were rendered
-                // client-side; images use their direct URL). Raw PDF URLs never
-                // appear here — Vision can't decode them.
-                ...vesselDrawings.flatMap((d) =>
-                  (d.selectedPages || [])
-                    .filter((p) => p.url)
-                    .map((p) => ({
-                      type: "input_image",
-                      image_url: p.url,
-                      detail: "high",
-                    }))
-                ),
+                ...drawingImageUrls.map((url) => ({
+                  type: "input_image",
+                  image_url: url,
+                  detail: "high",
+                })),
                 ...imageUrls.map((url) => ({
                   type: "input_image",
                   image_url: url,
