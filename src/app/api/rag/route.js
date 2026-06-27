@@ -443,12 +443,11 @@ const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length
       ...vesselLibrary.map((d) => `- ${d.name}${d.kind ? ` [${d.kind}]` : ""}`),
       "",
       "RULES:",
-      "- When a question concerns this vessel's equipment, systems, drawings, or anything one of these documents would cover, you MUST search them via File Search BEFORE answering. Do NOT answer vessel-specific questions from generic knowledge when a relevant document is listed above.",
-      "- TARGETED DOCUMENTS: if the question names a specific document — by filename, equipment name, model, or code (e.g. \"E-302\", \"the motor manual\", \"the VHF\") — answer ONLY from THAT document. Match the named document against the list above. Do NOT answer from a different document and present it as if it were the requested one.",
-      "- If the named document is not found or returns no usable content, say exactly that (e.g. \"I couldn't find readable content in E-302 — it may need re-uploading\"). NEVER substitute another document's figures (e.g. answering an E-302 motor question with data from a booster-pump document) — that is a dangerous error.",
-      "- Always state which document your answer came from, and confirm it is the one the user asked about. If they differ, flag it.",
-      "- If File Search returns nothing useful for a listed document (e.g. it is a scan with no text layer), say so plainly and tell the user the document may need re-uploading — do not silently fall back to generic figures.",
-      "- Cite the specific document you used (inline [[cite:EXACT_FILENAME]]).",
+      "- Search the library by MEANING, not by filename. File Search retrieves the relevant passages even from large, multi-topic documents — rely on the content that actually answers the question, wherever it sits.",
+      "- When a question concerns this vessel's equipment, systems, or drawings, search the library FIRST. Do NOT answer vessel-specific questions from generic knowledge when a relevant document exists.",
+      "- SOURCE HONESTY (critical): always state which document each fact came from, and cite it inline ([[cite:EXACT_FILENAME]]). NEVER present data from one document as if it came from another.",
+      "- If the user asks about a specific item (e.g. \"E-302\", \"the motor\") and the content you found actually comes from a DIFFERENT document, say so explicitly — e.g. \"I don't see readable E-302 content; the closest match is the booster-pump document, which says…\". Let the captain decide; do not silently imply it answers the original item.",
+      "- If nothing in the library answers the question (or a document is a scan with no readable content yet), say so plainly — the file may still be processing or may need re-uploading. Do not fall back to generic figures and present them as this vessel's.",
       "═══════════════════════════════════════════",
     ].join("\n")
   : null;
