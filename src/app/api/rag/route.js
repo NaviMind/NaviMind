@@ -114,9 +114,6 @@ function needsWebSearch(question, vesselProfile = null) {
 }
 
 export const runtime = "nodejs";
-// Streaming a reasoning model with vision inputs can run well past the default
-// serverless timeout. Give the function room so the stream isn't killed mid-answer.
-export const maxDuration = 300;
 
 // Hard cap on how many drawing page images are sent to vision in a single
 // request. The pre-analyzed text index already grounds the model; the images
