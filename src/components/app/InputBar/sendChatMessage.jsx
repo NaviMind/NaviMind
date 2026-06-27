@@ -698,12 +698,21 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 
+  // Drawings consulted for this answer — surfaced as openable pills so the user
+  // can always open the referenced drawing, even when the model doesn't emit a
+  // [[cite:]] marker (drawings are described from vision, not File Search). We
+  // already selected these as relevant, so they are the answer's visual sources.
+  const referencedDrawings = (vesselDrawings || [])
+    .map((d) => ({ name: d.name, url: d.url, type: d.type }))
+    .filter((d) => d.name && d.url);
+
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
   content: finalText || (aborted ? "⏹️ Stopped." : " "),
   sources: streamedSources,
   fileSources,
+  referencedDrawings,
 };
     if (inTopic) {
       await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);
