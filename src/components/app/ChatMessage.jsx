@@ -351,6 +351,15 @@ export default function ChatMessage({ message, isLast = false }) {
     ? body.replace(/\[\[\s*cite:[^\]]*\]\]/gi, "").trim()
     : body;
 
+  // The bottom "Drawings" row should only list drawings NOT already shown as
+  // inline citation pills in the answer — otherwise the same file appears twice.
+  const citedKeys = new Set(
+    (citations || []).flatMap((c) => [c.url, c.name?.toLowerCase()].filter(Boolean))
+  );
+  const extraDrawings = (referencedDrawings || []).filter(
+    (d) => !citedKeys.has(d.url) && !citedKeys.has(d.name?.toLowerCase())
+  );
+
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [activeDoc, setActiveDoc] = useState(null);
@@ -436,9 +445,9 @@ export default function ChatMessage({ message, isLast = false }) {
           onCite={handleCite}
           isWaiting={isWaiting}
         />
-        {done && referencedDrawings.length > 0 && (
+        {done && extraDrawings.length > 0 && (
           <ReferencedDrawings
-            drawings={referencedDrawings}
+            drawings={extraDrawings}
             onOpen={(d) => {
               const src = getViewerSrc(d);
               if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
