@@ -105,8 +105,40 @@ function enqueueAnalysis(job) {
   });
 }
 
-// Renders each page of a PDF to a JPEG Blob (up to MAX_PDF_PAGES pages).
-const MAX_PDF_PAGES = 8;
+// Analyse a drawing's pages in small batches so each /api/drawings/analyze call
+// stays fast and well under the serverless timeout — no matter how many pages
+// the document has. We process the WHOLE drawing (no page cap); batching is what
+// makes that safe. Returns merged { pages: [...], drawingType }.
+const ANALYZE_BATCH_SIZE = 5;
+async function analyzeAllPages(inputPages, fileName) {
+  const batches = [];
+  for (let i = 0; i < inputPages.length; i += ANALYZE_BATCH_SIZE) {
+    batches.push(inputPages.slice(i, i + ANALYZE_BATCH_SIZE));
+  }
+  const allPages = [];
+  let drawingType = null;
+  for (let b = 0; b < batches.length; b++) {
+    // Classify only on the first batch — page 1 (the title/legend) lives there,
+    // so running the classifier on later batches would just waste calls.
+    const classify = b === 0;
+    const res = await fetch("/api/drawings/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pages: batches[b], fileName, classify }),
+    })
+      .then((r) => r.json())
+      .catch(() => ({}));
+    if (Array.isArray(res?.pages)) allPages.push(...res.pages);
+    if (res?.drawingType && !drawingType) drawingType = res.drawingType;
+  }
+  return { pages: allPages, drawingType };
+}
+
+// Renders each page of a PDF to a JPEG Blob. We render the WHOLE document — a
+// technical drawing's key schematic can be on any page, so capping pages would
+// mean the assistant only ever sees part of the file. The high backstop only
+// guards against a pathological PDF spawning thousands of renders.
+const MAX_PDF_PAGES = 100;
 async function renderPdfPages(file) {
   const pdfJs = await loadPdfJs();
   const buffer = await file.arrayBuffer();
@@ -503,12 +535,7 @@ export default function DrawingRegisterPanel() {
                 : [{ url: uploaded.url, pageNum: 1 }];
               setAnalyzingIds((prev) => new Set([...prev, rec.id]));
               enqueueAnalysis(() =>
-                fetch("/api/drawings/analyze", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ pages: inputPages, fileName: uploaded.name }),
-                })
-                  .then((r) => r.json())
+                analyzeAllPages(inputPages, uploaded.name)
                   .then(({ pages: pageAnalyses, drawingType }) => {
                     const updates = {};
                     if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;

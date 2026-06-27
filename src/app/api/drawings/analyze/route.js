@@ -37,8 +37,12 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { fileName } = body;
+    // Classify the drawing type only when asked (page 1 batch). The client sends
+    // pages in small batches and sets classify:true only on the first one.
+    const shouldClassify = body.classify !== false;
 
     // Normalise input: accept both {pages: [{url, pageNum}]} and legacy {pageUrls: string[]}.
+    // MAX_PAGES is a per-call safety bound; the client batches well below it.
     let pageList;
     if (Array.isArray(body.pages) && body.pages.length) {
       pageList = body.pages.slice(0, MAX_PAGES).map((p) =>
@@ -61,27 +65,29 @@ export async function POST(req) {
     // Pre-resolve all URLs (TIFF → JPEG if needed) so parallel calls can start immediately.
     const resolvedUrls = await Promise.all(pageList.map((p) => resolveImageUrl(p.url)));
 
-    // Run classification + full page analyses in parallel.
+    // Run classification (first batch only) + page analyses in parallel.
     // Classification uses only page 1 at low detail — cheap and fast.
-    const classifyPromise = openai.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "user",
-          content: [
+    const classifyPromise = shouldClassify
+      ? openai.responses.create({
+          model: "gpt-4o-mini",
+          input: [
             {
-              type: "input_text",
-              text: `Classify this vessel technical drawing into exactly one of the following categories. Reply with ONLY the category name, nothing else.\n\nCategories:\n${DRAWING_TYPES.map((t) => `- ${t}`).join("\n")}\n\nDescription hints:\n- GA Plan: full ship profile/cross-section or deck overview showing all spaces\n- Fire Plan: fire detection, suppression equipment, fire zones\n- Escape Routes: muster stations, lifeboats, emergency escape paths\n- Tank Plan: ballast tanks, fuel tanks, cargo tanks arrangement\n- Engine Room: machinery spaces, main engine, auxiliary equipment\n- Cargo Plan: cargo loading, stability, capacity plan\n- Electrical: electrical diagrams, switchboards, power distribution\n- Piping: pipe routing, valve positions, hydraulic schematics\n- Stability: stability curves, trim/displacement tables\n- Safety Equipment: fire extinguishers, EPIRB, lifesaving appliances positions\n- Other: anything not listed above`,
-            },
-            {
-              type: "input_image",
-              image_url: resolvedUrls[0],
-              detail: "low",
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: `Classify this vessel technical drawing into exactly one of the following categories. Reply with ONLY the category name, nothing else.\n\nCategories:\n${DRAWING_TYPES.map((t) => `- ${t}`).join("\n")}\n\nDescription hints:\n- GA Plan: full ship profile/cross-section or deck overview showing all spaces\n- Fire Plan: fire detection, suppression equipment, fire zones\n- Escape Routes: muster stations, lifeboats, emergency escape paths\n- Tank Plan: ballast tanks, fuel tanks, cargo tanks arrangement\n- Engine Room: machinery spaces, main engine, auxiliary equipment\n- Cargo Plan: cargo loading, stability, capacity plan\n- Electrical: electrical diagrams, switchboards, power distribution\n- Piping: pipe routing, valve positions, hydraulic schematics\n- Stability: stability curves, trim/displacement tables\n- Safety Equipment: fire extinguishers, EPIRB, lifesaving appliances positions\n- Other: anything not listed above`,
+                },
+                {
+                  type: "input_image",
+                  image_url: resolvedUrls[0],
+                  detail: "low",
+                },
+              ],
             },
           ],
-        },
-      ],
-    });
+        })
+      : Promise.resolve(null);
 
     const pageAnalysisPromises = pageList.map(({ pageNum }, i) =>
       openai.responses
@@ -112,8 +118,11 @@ export async function POST(req) {
       ...pageAnalysisPromises,
     ]);
 
-    const rawType = classifyResult.output_text?.trim() || "Other";
-    const drawingType = DRAWING_TYPES.includes(rawType) ? rawType : "Other";
+    let drawingType = null;
+    if (classifyResult) {
+      const rawType = classifyResult.output_text?.trim() || "Other";
+      drawingType = DRAWING_TYPES.includes(rawType) ? rawType : "Other";
+    }
 
     return NextResponse.json({ pages: analyzedPages, drawingType });
   } catch (e) {
