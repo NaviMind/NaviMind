@@ -16,6 +16,7 @@ import { ref as storageRef, deleteObject } from "firebase/storage";
 import {
   uploadFileToStorage,
   indexDocuments,
+  indexTextSnippet,
   hashFile,
   expireIndexedFile,
 } from "@/components/app/InputBar/attachmentProcessing";
@@ -384,11 +385,13 @@ export default function DrawingRegisterPanel() {
 
     // Tear down each file's OpenAI + Storage footprint
     for (const f of inFolder) {
-      if (f.openaiFileId) {
-        expireIndexedFile({
-          vectorStoreId: f.vectorStoreId || storeIdRef.current,
-          openaiFileId: f.openaiFileId,
-        });
+      for (const fid of [f.openaiFileId, f.visionFileId]) {
+        if (fid) {
+          expireIndexedFile({
+            vectorStoreId: f.vectorStoreId || storeIdRef.current,
+            openaiFileId: fid,
+          });
+        }
       }
       if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
       for (const page of f.pages || []) {
@@ -408,11 +411,13 @@ export default function DrawingRegisterPanel() {
     const uid = auth.currentUser?.uid;
     setFiles((prev) => prev.filter((f) => f.id !== file.id));
 
-    if (file.openaiFileId) {
-      expireIndexedFile({
-        vectorStoreId: file.vectorStoreId || storeIdRef.current,
-        openaiFileId: file.openaiFileId,
-      });
+    for (const fid of [file.openaiFileId, file.visionFileId]) {
+      if (fid) {
+        expireIndexedFile({
+          vectorStoreId: file.vectorStoreId || storeIdRef.current,
+          openaiFileId: fid,
+        });
+      }
     }
     if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
     // Delete rendered page images (PDF → JPEG).
@@ -421,6 +426,49 @@ export default function DrawingRegisterPanel() {
     }
     if (uid && file.id) {
       deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
+    }
+  };
+
+  // Index the vision-extracted page descriptions back into the drawings vector
+  // store as searchable text. This is what makes a SCANNED drawing/manual (no
+  // text layer, invisible to File Search) retrievable: vision turns the pages
+  // into text, and that text becomes File-Search-able like any document. Returns
+  // the OpenAI file id of the indexed text (for cleanup), or null.
+  const indexVisionText = async ({ uid, name, pageAnalyses }) => {
+    const withDesc = (pageAnalyses || []).filter((p) => p?.description);
+    if (!withDesc.length) return null;
+    const content =
+      `Vision-extracted content of the vessel document "${name}".\n\n` +
+      withDesc.map((p) => `--- Page ${p.pageNum} ---\n${p.description}`).join("\n\n");
+    try {
+      const res = await indexTextSnippet({
+        vectorStoreId: storeIdRef.current || "",
+        label: "NaviMind Drawings",
+        name: `${name} (vision)`,
+        content,
+      });
+      const newStoreId = res?.vectorStoreId || storeIdRef.current || "";
+      if (newStoreId && newStoreId !== storeIdRef.current) {
+        storeIdRef.current = newStoreId;
+        setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+      }
+      return res?.texts?.[0]?.openaiFileId || null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Persist analysis results: Firestore record + searchable vision text. Shared
+  // by the initial upload analysis and the retry path.
+  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType }) => {
+    const updates = {};
+    if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
+    if (drawingType) updates.drawingType = drawingType;
+    const visionFileId = await indexVisionText({ uid, name, pageAnalyses });
+    if (visionFileId) updates.visionFileId = visionFileId;
+    if (Object.keys(updates).length) {
+      updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
+      setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
     }
   };
 
@@ -439,15 +487,9 @@ export default function DrawingRegisterPanel() {
     setAnalyzingIds((prev) => new Set([...prev, file.id]));
     enqueueAnalysis(() =>
       analyzeAllPages(inputPages, file.name)
-        .then(({ pages: pageAnalyses, drawingType }) => {
-          const updates = {};
-          if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
-          if (drawingType) updates.drawingType = drawingType;
-          if (Object.keys(updates).length) {
-            updateDrawingFileRecord({ uid, id: file.id, updates }).catch(() => {});
-            setFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, ...updates } : f)));
-          }
-        })
+        .then(({ pages: pageAnalyses, drawingType }) =>
+          applyAnalysis({ uid, fileId: file.id, name: file.name, pageAnalyses, drawingType })
+        )
         .catch(() => {})
         .finally(() => {
           setAnalyzingIds((prev) => {
@@ -626,17 +668,9 @@ export default function DrawingRegisterPanel() {
               setAnalyzingIds((prev) => new Set([...prev, rec.id]));
               enqueueAnalysis(() =>
                 analyzeAllPages(inputPages, uploaded.name)
-                  .then(({ pages: pageAnalyses, drawingType }) => {
-                    const updates = {};
-                    if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
-                    if (drawingType) updates.drawingType = drawingType;
-                    if (Object.keys(updates).length) {
-                      updateDrawingFileRecord({ uid, id: rec.id, updates }).catch(() => {});
-                      setFiles((prev) =>
-                        prev.map((f) => (f.id === rec.id ? { ...f, ...updates } : f))
-                      );
-                    }
-                  })
+                  .then(({ pages: pageAnalyses, drawingType }) =>
+                    applyAnalysis({ uid, fileId: rec.id, name: uploaded.name, pageAnalyses, drawingType })
+                  )
                   .catch(() => {})
                   .finally(() => {
                     setAnalyzingIds((prev) => {
