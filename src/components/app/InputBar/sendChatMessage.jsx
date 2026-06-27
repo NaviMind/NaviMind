@@ -454,25 +454,36 @@ sendLocks.add(sendKey);
   }
   // The user's drawings store is account-wide: always searchable, in every chat
   // and topic, so the assistant can consult vessel drawings/manuals anywhere.
-  const [drawingsStoreId, allDrawingFiles] = await Promise.all([
-    getUserDrawingsStoreId(currentUser.uid).catch(() => ""),
-    getCachedDrawings(currentUser.uid),
-  ]);
-  const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
+  // Wrapped defensively: drawings are an enhancement, never a hard dependency —
+  // any failure here must NOT block sending the message or getting an answer.
+  let drawingsStoreId = "";
+  let vesselDrawings = [];
+  try {
+    let allDrawingFiles = [];
+    [drawingsStoreId, allDrawingFiles] = await Promise.all([
+      getUserDrawingsStoreId(currentUser.uid).catch(() => ""),
+      getCachedDrawings(currentUser.uid),
+    ]);
 
-  // Select the most relevant drawings to attach as vision inputs. The model
-  // will see the actual image — layout, labels, pipe runs — not just OCR text.
-  const selectedDrawings = selectDrawings(allDrawingFiles, question);
-  const vesselDrawings = selectedDrawings
-    .filter((f) => f.url)
-    .map((f) => ({
-      url: f.url,
-      name: f.name,
-      type: f.type,
-      drawingType: f.drawingType || null,
-      // Pre-select the most relevant pages so the API only receives what's needed.
-      selectedPages: selectPages(f, question),
-    }));
+    // Select the most relevant drawings to attach as vision inputs. The model
+    // will see the actual image — layout, labels, pipe runs — not just OCR text.
+    const selectedDrawings = selectDrawings(allDrawingFiles, ragQuestion);
+    vesselDrawings = selectedDrawings
+      .filter((f) => f.url)
+      .map((f) => ({
+        url: f.url,
+        name: f.name,
+        type: f.type,
+        drawingType: f.drawingType || null,
+        // Pre-select the most relevant pages so the API only receives what's needed.
+        selectedPages: selectPages(f, ragQuestion),
+      }));
+  } catch (e) {
+    console.error("Drawings prep failed (continuing without drawings):", e);
+    drawingsStoreId = "";
+    vesselDrawings = [];
+  }
+  const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
 
   // Everything attached is shown & openable in the message (regardless of how
   // it's consumed: vision, File Search, or both).
