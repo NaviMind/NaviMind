@@ -7,6 +7,11 @@ export const maxDuration = 60;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Per-page analysis model. gpt-4o-mini does OCR (verbatim text) + diagram
+// description in one cheap call (~16× cheaper than gpt-4o). Bump to gpt-4o via
+// env if fine schematic detail ever needs it.
+const PAGE_ANALYSIS_MODEL = process.env.DRAWINGS_ANALYSIS_MODEL || "gpt-4o-mini";
+
 const MAX_PAGES = 8;
 
 const DRAWING_TYPES = [
@@ -93,14 +98,14 @@ export async function POST(req) {
     const pageAnalysisPromises = pageList.map(({ pageNum }, i) =>
       openai.responses
         .create({
-          model: "gpt-4o",
+          model: PAGE_ANALYSIS_MODEL,
           input: [
             {
               role: "user",
               content: [
                 {
                   type: "input_text",
-                  text: `This is page ${pageNum} of a vessel technical drawing called "${fileName}". Extract ALL spatial and structural information visible: room names and exact locations, deck levels and identifiers, equipment names and positions, pipe routing and valve positions, evacuation and escape routes, muster/lifeboat stations, compartment labels, tank names, machinery space identifiers, dimensions, scale indicators, and any other technical details or annotations. Be comprehensive and precise — this will be used to answer specific maritime navigation, safety, and engineering questions.`,
+                  text: `This is page ${pageNum} of a vessel document called "${fileName}". Do BOTH of the following:\n\n1) OCR: transcribe ALL readable text on the page VERBATIM — headings, labels, table cells, part/valve numbers, specifications, notes, warnings, nameplate values (kW, V, A, rpm, Hz, dimensions). Preserve numbers and units exactly.\n\n2) DESCRIBE any visual/diagram content: equipment layout and positions, room/compartment/deck names and locations, pipe routing and valve positions, escape routes, muster/lifeboat stations, tank arrangement, wiring/terminal diagrams, curves/graphs and what they show.\n\nIf the page is mostly text, focus on an accurate transcription. If it is mostly a diagram, focus on a precise spatial description. Be comprehensive — this text is indexed and used to answer specific maritime navigation, safety, and engineering questions. If the page is blank or unreadable, say exactly "BLANK PAGE".`,
                 },
                 {
                   type: "input_image",
@@ -111,7 +116,12 @@ export async function POST(req) {
             },
           ],
         })
-        .then((resp) => ({ pageNum, url: pageList[i].url, description: resp.output_text }))
+        .then((resp) => {
+          const out = (resp.output_text || "").trim();
+          // Drop blank/unreadable pages so they don't pollute the search index.
+          const description = /^blank page$/i.test(out) ? "" : out;
+          return { pageNum, url: pageList[i].url, description };
+        })
     );
 
     const [classifyResult, ...analyzedPages] = await Promise.all([
