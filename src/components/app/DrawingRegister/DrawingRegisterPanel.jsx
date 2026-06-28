@@ -48,6 +48,13 @@ const DRAWING_TYPE_COLORS = {
   "Manual":           "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300",
 };
 
+// Drawing types whose VALUE is the visual layout — worth the (heavier) tiled
+// spatial read. Manuals/Other are text and handled by LlamaParse instead.
+const VISUAL_DRAWING_TYPES = new Set([
+  "GA Plan", "Fire Plan", "Escape Routes", "Tank Plan", "Engine Room",
+  "Cargo Plan", "Electrical", "Piping", "Stability", "Safety Equipment",
+]);
+
 // ── PDF rendering helpers ─────────────────────────────────────────────────────
 // pdfjs-dist is loaded lazily so it doesn't bloat the initial bundle.
 let _pdfJs = null;
@@ -419,7 +426,7 @@ export default function DrawingRegisterPanel() {
 
     // Tear down each file's OpenAI + Storage footprint
     for (const f of inFolder) {
-      for (const fid of [f.openaiFileId, f.visionFileId]) {
+      for (const fid of [f.openaiFileId, f.visionFileId, f.sheetFileId]) {
         if (fid) {
           expireIndexedFile({
             vectorStoreId: f.vectorStoreId || storeIdRef.current,
@@ -445,7 +452,7 @@ export default function DrawingRegisterPanel() {
     const uid = auth.currentUser?.uid;
     setFiles((prev) => prev.filter((f) => f.id !== file.id));
 
-    for (const fid of [file.openaiFileId, file.visionFileId]) {
+    for (const fid of [file.openaiFileId, file.visionFileId, file.sheetFileId]) {
       if (fid) {
         expireIndexedFile({
           vectorStoreId: file.vectorStoreId || storeIdRef.current,
@@ -502,7 +509,7 @@ export default function DrawingRegisterPanel() {
   // text. Shared by the initial upload analysis and the retry path. When the file
   // was already parsed by LlamaParse, pass indexText:false so we don't double-index
   // — the parsed text is the authoritative searchable copy.
-  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType, indexText = true }) => {
+  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType, indexText = true, pdfUrl = "" }) => {
     const updates = {};
     if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
     if (drawingType) updates.drawingType = drawingType;
@@ -514,6 +521,43 @@ export default function DrawingRegisterPanel() {
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
     }
+
+    // For an actual visual DRAWING (not a manual), also build the high-res tiled
+    // spatial index so "where is X" questions work. PDFs only (mupdf renders them).
+    if (pdfUrl && /\.pdf$/i.test(name) && VISUAL_DRAWING_TYPES.has(drawingType)) {
+      await buildSheetIndex({ uid, fileId, pdfUrl, name });
+    }
+  };
+
+  // For a drawing, render its main sheet at high DPI, tile + read it with vision,
+  // and index the resulting spatial layout text so the assistant can locate spaces.
+  const buildSheetIndex = async ({ uid, fileId, pdfUrl, name }) => {
+    try {
+      const sheet = await fetch("/api/drawings/analyze-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl, name }),
+      }).then((r) => r.json());
+      if (!sheet?.ok || !sheet.spatialText || !sheet.readable) return;
+      const res = await indexTextSnippet({
+        vectorStoreId: storeIdRef.current || "",
+        label: "NaviMind Drawings",
+        name: `${name} (spatial)`,
+        content:
+          `DOCUMENT: ${name}\nSpatial layout reading of the drawing "${name}" — use it to answer where equipment and spaces are located.\n\n` +
+          sheet.spatialText,
+      });
+      const newStoreId = res?.vectorStoreId || storeIdRef.current;
+      if (newStoreId && newStoreId !== storeIdRef.current) {
+        storeIdRef.current = newStoreId;
+        setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+      }
+      const sheetFileId = res?.texts?.[0]?.openaiFileId || null;
+      if (sheetFileId) {
+        updateDrawingFileRecord({ uid, id: fileId, updates: { sheetFileId, sheetIndexed: true } }).catch(() => {});
+        setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, sheetFileId, sheetIndexed: true } : f)));
+      }
+    } catch { /* non-fatal — drawing is still usable via its other indexes */ }
   };
 
   // ── Diagnostic: inspect what LlamaParse returns for a drawing ──
@@ -584,7 +628,7 @@ export default function DrawingRegisterPanel() {
     enqueueAnalysis(() =>
       analyzeAllPages(inputPages, file.name)
         .then(({ pages: pageAnalyses, drawingType }) =>
-          applyAnalysis({ uid, fileId: file.id, name: file.name, pageAnalyses, drawingType })
+          applyAnalysis({ uid, fileId: file.id, name: file.name, pageAnalyses, drawingType, pdfUrl: file.url })
         )
         .catch(() => {})
         .finally(() => {
@@ -814,6 +858,7 @@ export default function DrawingRegisterPanel() {
                       drawingType,
                       // LlamaParse text is already the searchable copy — don't double-index.
                       indexText: !llamaText,
+                      pdfUrl: uploaded.url,
                     })
                   )
                   .catch(() => {})

@@ -576,6 +576,8 @@ export async function addDrawingFileRecords({ uid, files = [] }) {
           pageAnalyses: Array.isArray(f.pageAnalyses) ? f.pageAnalyses : [],
           drawingType: f.drawingType || null,
           visionFileId: f.visionFileId || null,
+          sheetFileId: f.sheetFileId || null,
+          sheetIndexed: f.sheetIndexed || false,
           openaiFileId: f.openaiFileId,
           vectorStoreId: f.vectorStoreId || "",
           hash: f.hash || "",
