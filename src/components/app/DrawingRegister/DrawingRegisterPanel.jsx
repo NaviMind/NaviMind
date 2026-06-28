@@ -470,14 +470,18 @@ export default function DrawingRegisterPanel() {
     }
   };
 
-  // Persist analysis results: Firestore record + searchable vision text. Shared
-  // by the initial upload analysis and the retry path.
-  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType }) => {
+  // Persist analysis results: Firestore record + (optionally) searchable vision
+  // text. Shared by the initial upload analysis and the retry path. When the file
+  // was already parsed by LlamaParse, pass indexText:false so we don't double-index
+  // — the parsed text is the authoritative searchable copy.
+  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType, indexText = true }) => {
     const updates = {};
     if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
     if (drawingType) updates.drawingType = drawingType;
-    const visionFileId = await indexVisionText({ uid, name, pageAnalyses });
-    if (visionFileId) updates.visionFileId = visionFileId;
+    if (indexText) {
+      const visionFileId = await indexVisionText({ uid, name, pageAnalyses });
+      if (visionFileId) updates.visionFileId = visionFileId;
+    }
     if (Object.keys(updates).length) {
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
@@ -632,21 +636,50 @@ export default function DrawingRegisterPanel() {
           );
         }
 
-        // 3) Chunk + embed into the user's persistent drawings store.
-        const result = await indexDocuments({
-          vectorStoreId: storeIdRef.current || "",
-          label: "NaviMind Drawings",
-          docs: [{ url: uploaded.url, name: uploaded.name, type: uploaded.type }],
-        });
+        // 3) Extract authoritative text. PREFER LlamaParse (reliable for scanned
+        //    PDFs, tables, complex layouts); FALL BACK to OpenAI's own extraction
+        //    when LlamaParse isn't configured/available. Either way the searchable
+        //    text lands in the user's persistent drawings store.
+        let llamaText = "";
+        try {
+          const pr = await fetch("/api/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: uploaded.url, name: uploaded.name }),
+          }).then((r) => r.json());
+          if (pr?.ok && pr.markdown) llamaText = pr.markdown;
+        } catch { /* fall back below */ }
 
-        const newStoreId = result?.vectorStoreId || storeIdRef.current || "";
+        let newStoreId = storeIdRef.current || "";
+        let openaiFileId = "";
+        let indexStatus = "";
+
+        if (llamaText) {
+          // Reliable path: index the clean parsed text (covers scans & tables).
+          const res = await indexTextSnippet({
+            vectorStoreId: storeIdRef.current || "",
+            label: "NaviMind Drawings",
+            name: uploaded.name,
+            content: `DOCUMENT: ${uploaded.name}\n\n${llamaText}`,
+          });
+          newStoreId = res?.vectorStoreId || newStoreId;
+          openaiFileId = res?.texts?.[0]?.openaiFileId || "";
+        } else {
+          // Fallback: let OpenAI extract text from the raw file (digital PDFs).
+          const result = await indexDocuments({
+            vectorStoreId: storeIdRef.current || "",
+            label: "NaviMind Drawings",
+            docs: [{ url: uploaded.url, name: uploaded.name, type: uploaded.type }],
+          });
+          newStoreId = result?.vectorStoreId || newStoreId;
+          openaiFileId = result?.files?.[0]?.openaiFileId || "";
+          indexStatus = result?.files?.[0]?.status || "";
+        }
+
         if (newStoreId && newStoreId !== storeIdRef.current) {
           storeIdRef.current = newStoreId;
           setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
         }
-
-        const indexed = result?.files?.[0];
-        const openaiFileId = indexed?.openaiFileId || "";
 
         if (openaiFileId) {
           // 4) Persist the record; reconcile optimistic state.
@@ -670,18 +703,28 @@ export default function DrawingRegisterPanel() {
           setPending((prev) => prev.filter((x) => x.tempId !== tempId));
           if (rec) {
             setFiles((prev) => [rec, ...prev]);
-            // 5) Vision pre-analysis, throttled through a concurrency-limited queue
-            //    (cost guard) so a big upload batch can't fire dozens of gpt-4o
-            //    calls at once. The file shows a spinner while it waits + runs.
+            // 5) Vision step, throttled through the concurrency-limited queue.
+            //    - If LlamaParse already gave us the text, we only CLASSIFY the
+            //      drawing (one cheap page-1 call) — no per-page OCR needed.
+            //    - Otherwise, run the full vision OCR over the rendered pages.
             if (isVisualFile(file)) {
               const inputPages = pages.length
                 ? pages.map((p) => ({ url: p.url, pageNum: p.pageNum }))
                 : [{ url: uploaded.url, pageNum: 1 }];
+              const visionPages = llamaText ? inputPages.slice(0, 1) : inputPages;
               setAnalyzingIds((prev) => new Set([...prev, rec.id]));
               enqueueAnalysis(() =>
-                analyzeAllPages(inputPages, uploaded.name)
+                analyzeAllPages(visionPages, uploaded.name)
                   .then(({ pages: pageAnalyses, drawingType }) =>
-                    applyAnalysis({ uid, fileId: rec.id, name: uploaded.name, pageAnalyses, drawingType })
+                    applyAnalysis({
+                      uid,
+                      fileId: rec.id,
+                      name: uploaded.name,
+                      pageAnalyses,
+                      drawingType,
+                      // LlamaParse text is already the searchable copy — don't double-index.
+                      indexText: !llamaText,
+                    })
                   )
                   .catch(() => {})
                   .finally(() => {
@@ -690,12 +733,11 @@ export default function DrawingRegisterPanel() {
                       s.delete(rec.id);
                       return s;
                     });
-                    // Visual file's full lifecycle (upload → index → analyse) is done.
                     markFileWorkDone(true);
                   })
               );
             } else {
-              // Non-visual file (e.g. manual .docx): indexed and usable, no vision step.
+              // Non-visual file (e.g. .docx): indexed and usable, no vision step.
               markFileWorkDone(true);
             }
           } else {
@@ -710,7 +752,7 @@ export default function DrawingRegisterPanel() {
           setPending((prev) =>
             prev.map((x) =>
               x.tempId === tempId
-                ? { ...x, status: "failed", error: prettyStatus(indexed?.status) }
+                ? { ...x, status: "failed", error: prettyStatus(indexStatus) }
                 : x
             )
           );
