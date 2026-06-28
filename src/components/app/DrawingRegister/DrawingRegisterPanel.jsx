@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Search } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
@@ -512,6 +512,37 @@ export default function DrawingRegisterPanel() {
     if (Object.keys(updates).length) {
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
+    }
+  };
+
+  // ── Diagnostic: inspect what LlamaParse returns for a drawing ──
+  // Temporary tool to verify page-image availability/resolution + OCR text per
+  // page before building the tiling pipeline. Shows a compact summary.
+  const inspectDrawing = async (file) => {
+    if (!file?.url) return;
+    fireToast("Inspecting drawing… (up to ~50s)");
+    try {
+      const res = await fetch("/api/parse/inspect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: file.url, name: file.name }),
+      }).then((r) => r.json());
+      console.log("[LlamaParse inspect]", file.name, res);
+      if (!res?.ok) {
+        window.alert(`Inspect failed: ${res?.error || res?.pending ? "still processing" : "unknown"}`);
+        return;
+      }
+      const lines = (res.pages || []).map((p) => {
+        const im = p.images?.[0];
+        const imStr = im ? `img ${im.w}x${im.h}` : "no img";
+        return `p${p.page}: ${p.textChars} chars, ${p.images?.length || 0} imgs (${imStr})`;
+      });
+      window.alert(
+        `${file.name}\n\nPages: ${res.pageCount} | Total images: ${res.totalImages}\n\n` +
+          lines.join("\n").slice(0, 1500)
+      );
+    } catch (e) {
+      window.alert(`Inspect error: ${e.message}`);
     }
   };
 
@@ -1133,6 +1164,15 @@ export default function DrawingRegisterPanel() {
                                   <RefreshCw size={15} />
                                 </button>
                               )}
+                              <button
+                                onClick={() => inspectDrawing(file)}
+                                aria-label="Inspect (diagnostic)"
+                                title="Inspect LlamaParse output (diagnostic)"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-purple-500 hover:bg-purple-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <Search size={14} />
+                              </button>
                               <button
                                 onClick={() => deleteFile(file)}
                                 aria-label="Delete file"
