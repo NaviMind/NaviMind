@@ -551,30 +551,12 @@ export default function DrawingRegisterPanel() {
   // Proves the tiling pipeline reads fine labels before it's wired into upload.
   const testReadSheet = async (file) => {
     if (!file?.url) return;
-    setDiagText("Reading drawing… (LlamaParse → tiling → vision, ~1 min)");
+    setDiagText("Reading drawing… (mupdf high-res render → tiling → vision, ~1 min)");
     try {
-      const insp = await fetch("/api/parse/inspect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: file.url, name: file.name }),
-      }).then((r) => r.json());
-      if (!insp?.ok) { setDiagText(`Inspect failed: ${insp?.error || (insp?.pending ? "still processing" : "?")}`); return; }
-
-      // Pick the page with the largest image (the actual drawing sheet).
-      let best = null;
-      for (const p of insp.pages || []) {
-        for (const im of p.images || []) {
-          const area = (im.w || 0) * (im.h || 0);
-          if (im.name && (!best || area > best.area)) best = { area, page: p.page, name: im.name, w: im.w, h: im.h };
-        }
-      }
-      if (!best?.name) { setDiagText("No page image returned by LlamaParse — can't tile."); return; }
-
-      setDiagText(`Found sheet ${best.w}x${best.h} (page ${best.page}). Reading tiles…`);
       const sheet = await fetch("/api/drawings/analyze-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: insp.jobId, imageName: best.name, name: file.name, page: best.page }),
+        body: JSON.stringify({ pdfUrl: file.url, name: file.name }),
       }).then((r) => r.json());
       if (!sheet?.ok) { setDiagText(`Sheet read failed: ${sheet?.error || "?"}`); return; }
       setDiagText(
