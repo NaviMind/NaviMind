@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Search } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Search, ScanText } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
@@ -259,6 +259,7 @@ export default function DrawingRegisterPanel() {
   const [quotaError, setQuotaError] = useState("");
   const [analyzingIds, setAnalyzingIds] = useState(new Set());
   const [activeDoc, setActiveDoc] = useState(null); // { name, url, src, isImage }
+  const [diagText, setDiagText] = useState(null);   // diagnostic spatial-read output
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -543,6 +544,45 @@ export default function DrawingRegisterPanel() {
       );
     } catch (e) {
       window.alert(`Inspect error: ${e.message}`);
+    }
+  };
+
+  // ── Diagnostic: full drawing read test (LlamaParse image → tile → vision) ──
+  // Proves the tiling pipeline reads fine labels before it's wired into upload.
+  const testReadSheet = async (file) => {
+    if (!file?.url) return;
+    setDiagText("Reading drawing… (LlamaParse → tiling → vision, ~1 min)");
+    try {
+      const insp = await fetch("/api/parse/inspect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: file.url, name: file.name }),
+      }).then((r) => r.json());
+      if (!insp?.ok) { setDiagText(`Inspect failed: ${insp?.error || (insp?.pending ? "still processing" : "?")}`); return; }
+
+      // Pick the page with the largest image (the actual drawing sheet).
+      let best = null;
+      for (const p of insp.pages || []) {
+        for (const im of p.images || []) {
+          const area = (im.w || 0) * (im.h || 0);
+          if (im.name && (!best || area > best.area)) best = { area, page: p.page, name: im.name, w: im.w, h: im.h };
+        }
+      }
+      if (!best?.name) { setDiagText("No page image returned by LlamaParse — can't tile."); return; }
+
+      setDiagText(`Found sheet ${best.w}x${best.h} (page ${best.page}). Reading tiles…`);
+      const sheet = await fetch("/api/drawings/analyze-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: insp.jobId, imageName: best.name, name: file.name, page: best.page }),
+      }).then((r) => r.json());
+      if (!sheet?.ok) { setDiagText(`Sheet read failed: ${sheet?.error || "?"}`); return; }
+      setDiagText(
+        `Sheet ${sheet.width}x${sheet.height} · grid ${sheet.grid.cols}x${sheet.grid.rows} · ${sheet.readable}/${sheet.tiles} tiles readable\n\n` +
+          (sheet.spatialText || "(empty)")
+      );
+    } catch (e) {
+      setDiagText("Error: " + e.message);
     }
   };
 
@@ -1174,6 +1214,15 @@ export default function DrawingRegisterPanel() {
                                 <Search size={14} />
                               </button>
                               <button
+                                onClick={() => testReadSheet(file)}
+                                aria-label="Read drawing (test)"
+                                title="Test: read this drawing via tiling + vision"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <ScanText size={15} />
+                              </button>
+                              <button
                                 onClick={() => deleteFile(file)}
                                 aria-label="Delete file"
                                 className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
@@ -1281,6 +1330,28 @@ export default function DrawingRegisterPanel() {
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* ── Diagnostic: spatial-read result overlay (temporary) ── */}
+    {diagText && (
+      <div
+        className={`fixed top-0 bottom-0 left-0 z-[450] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${
+          splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"
+        }`}
+        onClick={(e) => { if (e.target === e.currentTarget) setDiagText(null); }}
+      >
+        <div className="flex flex-col w-full max-w-3xl h-[80vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10">
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 shrink-0">
+            <span className="text-sm font-medium text-gray-800 dark:text-white/90 flex-1">Spatial reading (test)</span>
+            <button onClick={() => setDiagText(null)} aria-label="Close" className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition">
+              <X size={18} />
+            </button>
+          </div>
+          <pre className="flex-1 overflow-auto p-4 text-[12px] leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+            {diagText}
+          </pre>
+        </div>
+      </div>
+    )}
     </>,
     portalTarget
   );
