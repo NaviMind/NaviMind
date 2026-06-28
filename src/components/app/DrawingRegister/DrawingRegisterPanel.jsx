@@ -527,6 +527,13 @@ export default function DrawingRegisterPanel() {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
+    // Re-sync the store id from Firestore before indexing. Prevents creating a
+    // DUPLICATE vector store when the in-memory ref is stale (e.g. panel reopened
+    // before an earlier create finished persisting). One store per user, always.
+    if (!storeIdRef.current) {
+      storeIdRef.current = (await getUserDrawingsStoreId(uid).catch(() => "")) || "";
+    }
+
     // Reject native CAD formats up front — neither File Search nor Vision can
     // read .dwg/.dxf. Show a failed row explaining how to make them usable.
     const cadFiles = items.filter(isCadFile);
@@ -678,7 +685,9 @@ export default function DrawingRegisterPanel() {
 
         if (newStoreId && newStoreId !== storeIdRef.current) {
           storeIdRef.current = newStoreId;
-          setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+          // Await the persist so a concurrent/next operation reads the same id
+          // and reuses this store instead of creating a duplicate.
+          await setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
         }
 
         if (openaiFileId) {
