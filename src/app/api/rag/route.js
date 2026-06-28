@@ -172,6 +172,10 @@ export async function POST(req) {
       // Passed as vision inputs so the model can read layouts, schematics, and
       // annotations directly — not just indexed text extracted from the file.
       vesselDrawings = [],
+      // Names/types of the WHOLE vessel library (drawings + manuals) the user has
+      // uploaded. Their content is searchable via File Search; this list makes the
+      // model AWARE of what exists so it searches instead of answering generically.
+      vesselLibrary = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -426,8 +430,31 @@ const drawingsGuidance = hasDrawings
     ].join("\n")
   : null;
 
+// Make the model aware of the user's uploaded vessel library so it consults
+// File Search for vessel/equipment-specific questions instead of answering from
+// generic knowledge. This is the difference between "a standard VHF usually has
+// 25W/1W" and actually reading THIS vessel's VHF manual.
+const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length)
+  ? [
+      "═══════════════════════════════════════════",
+      "VESSEL LIBRARY — UPLOADED DRAWINGS & MANUALS (SEARCHABLE)",
+      "═══════════════════════════════════════════",
+      "The user has uploaded the following vessel-specific documents. Their full content is available to you through the File Search tool:",
+      ...vesselLibrary.map((d) => `- ${d.name}${d.kind ? ` [${d.kind}]` : ""}`),
+      "",
+      "RULES:",
+      "- Search the library by MEANING, not by filename. File Search retrieves the relevant passages even from large, multi-topic documents — rely on the content that actually answers the question, wherever it sits.",
+      "- When a question concerns this vessel's equipment, systems, or drawings, search the library FIRST. Do NOT answer vessel-specific questions from generic knowledge when a relevant document exists.",
+      "- SOURCE HONESTY (critical): always state which document each fact came from, and cite it inline ([[cite:EXACT_FILENAME]]). NEVER present data from one document as if it came from another.",
+      "- If the user asks about a specific item (e.g. \"E-302\", \"the motor\") and the content you found actually comes from a DIFFERENT document, say so explicitly — e.g. \"I don't see readable E-302 content; the closest match is the booster-pump document, which says…\". Let the captain decide; do not silently imply it answers the original item.",
+      "- If nothing in the library answers the question (or a document is a scan with no readable content yet), say so plainly — the file may still be processing or may need re-uploading. Do not fall back to generic figures and present them as this vessel's.",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 const contextualBlocks = [
   vesselBlock,
+  vesselLibraryBlock,
   drawingAnalysisBlock,
   hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,

@@ -4,7 +4,7 @@ import { useContext, useState, useEffect } from "react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import { Check, Copy, Share2 } from "lucide-react";
-import MessageAttachments, { getViewerSrc, getFileUrl, DocViewerModal } from "./MessageAttachments";
+import MessageAttachments, { getViewerSrc, getFileUrl, DocViewerModal, FileTypeIcon } from "./MessageAttachments";
 import MarkdownRenderer from "@/components/app/chat/MarkdownRenderer";
 
 const USER_MESSAGE_WIDTH = "max-w-[70%]";
@@ -295,8 +295,39 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
   );
 }
 
+// Openable pills for the vessel drawings the assistant consulted to answer.
+// Shown under the message so the user can always open the referenced drawing,
+// independent of whether the model emitted an inline [[cite:]] marker.
+function ReferencedDrawings({ drawings = [], onOpen }) {
+  if (!drawings.length) return null;
+  return (
+    <div className="mt-2 ml-1 flex flex-col gap-1.5 items-start">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+        {drawings.length === 1 ? "Drawing" : "Drawings"}
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {drawings.map((d, idx) => (
+          <button
+            key={(d.url || d.name) + idx}
+            onClick={() => onOpen?.(d)}
+            title={`Open ${d.name}`}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[260px] text-left cursor-pointer"
+          >
+            <span className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
+              <FileTypeIcon name={d.name} type={d.type} size={16} className="text-blue-500 dark:text-blue-400" />
+            </span>
+            <span className="min-w-0 text-[12px] font-medium text-gray-800 dark:text-white/90 truncate">
+              {d.name}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [], fileSources = [] } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [] } = message;
   const { setPendingPrompt } = useContext(UIContext);
   const { streamingMessages } = useContext(ChatContext);
 
@@ -327,6 +358,15 @@ export default function ChatMessage({ message, isLast = false }) {
   const cleanBody = isAssistant
     ? body.replace(/\[\[\s*cite:[^\]]*\]\]/gi, "").trim()
     : body;
+
+  // The bottom "Drawings" row should only list drawings NOT already shown as
+  // inline citation pills in the answer — otherwise the same file appears twice.
+  const citedKeys = new Set(
+    (citations || []).flatMap((c) => [c.url, c.name?.toLowerCase()].filter(Boolean))
+  );
+  const extraDrawings = (referencedDrawings || []).filter(
+    (d) => !citedKeys.has(d.url) && !citedKeys.has(d.name?.toLowerCase())
+  );
 
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -413,6 +453,15 @@ export default function ChatMessage({ message, isLast = false }) {
           onCite={handleCite}
           isWaiting={isWaiting}
         />
+        {done && extraDrawings.length > 0 && (
+          <ReferencedDrawings
+            drawings={extraDrawings}
+            onOpen={(d) => {
+              const src = getViewerSrc(d);
+              if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
+            }}
+          />
+        )}
         <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
       </>
     );
