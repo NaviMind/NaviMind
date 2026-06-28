@@ -14,6 +14,16 @@ export const maxDuration = 60;
 
 const BASE = process.env.LLAMA_CLOUD_BASE_URL || "https://api.cloud.llamaindex.ai/api/v1/parsing";
 
+// Diagnostic: open /api/parse in the browser to confirm the key reached THIS
+// deployment/environment. Returns only a boolean — never the key itself.
+export async function GET() {
+  return Response.json({
+    ok: true,
+    hasKey: !!process.env.LLAMA_CLOUD_API_KEY,
+    base: BASE,
+  });
+}
+
 export async function POST(req) {
   try {
     const apiKey = process.env.LLAMA_CLOUD_API_KEY;
