@@ -141,6 +141,33 @@ async function analyzeAllPages(inputPages, fileName) {
   return { pages: allPages, drawingType };
 }
 
+// Parse a file with LlamaParse: start the job, then poll client-side until it
+// finishes (no serverless time limit this way — large docs can take minutes).
+// Returns the parsed markdown text, or "" if unavailable (caller falls back).
+async function parseWithLlama(url, name) {
+  const post = (payload) =>
+    fetch("/api/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then((r) => r.json());
+
+  const start = await post({ url, name }).catch(() => null);
+  if (!start?.ok) return ""; // no key / failed → fallback
+  if (start.markdown) return start.markdown; // (defensive: immediate result)
+  if (!start.jobId) return "";
+
+  const deadline = Date.now() + 4 * 60 * 1000; // up to 4 minutes
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const poll = await post({ jobId: start.jobId }).catch(() => null);
+    if (!poll) continue;
+    if (poll.status === "SUCCESS") return poll.markdown || "";
+    if (poll.status === "ERROR" || poll.ok === false) return "";
+  }
+  return ""; // timed out → fallback
+}
+
 // Renders the pages of a PDF that actually need VISION to JPEG blobs.
 //
 // Drawings vs manuals: a drawing/schematic is sparse text + heavy graphics and
@@ -647,15 +674,16 @@ export default function DrawingRegisterPanel() {
         //    PDFs, tables, complex layouts); FALL BACK to OpenAI's own extraction
         //    when LlamaParse isn't configured/available. Either way the searchable
         //    text lands in the user's persistent drawings store.
+        setPending((prev) =>
+          prev.map((x) => (x.tempId === tempId ? { ...x, status: "reading" } : x))
+        );
         let llamaText = "";
         try {
-          const pr = await fetch("/api/parse", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: uploaded.url, name: uploaded.name }),
-          }).then((r) => r.json());
-          if (pr?.ok && pr.markdown) llamaText = pr.markdown;
+          llamaText = await parseWithLlama(uploaded.url, uploaded.name);
         } catch { /* fall back below */ }
+        setPending((prev) =>
+          prev.map((x) => (x.tempId === tempId ? { ...x, status: "indexing" } : x))
+        );
 
         let newStoreId = storeIdRef.current || "";
         let openaiFileId = "";
@@ -1019,6 +1047,7 @@ export default function DrawingRegisterPanel() {
                               <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
                                 {p.status === "uploading" && `Uploading… ${p.progress}%`}
                                 {p.status === "rendering" && "Converting pages…"}
+                                {p.status === "reading" && "Reading document…"}
                                 {p.status === "indexing" && "Processing for AI…"}
                                 {p.status === "failed" && (
                                   <span className="text-red-500 dark:text-red-400">{p.error}</span>

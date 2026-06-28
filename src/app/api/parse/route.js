@@ -27,31 +27,51 @@ export async function GET() {
 export async function POST(req) {
   try {
     const apiKey = process.env.LLAMA_CLOUD_API_KEY;
-    const { url, name } = await req.json();
+    const body = await req.json();
 
-    if (!url) {
-      return Response.json({ ok: false, error: "url required" }, { status: 400 });
-    }
     // No key configured yet → tell the caller to use its fallback path.
     if (!apiKey) {
       return Response.json({ ok: false, skipped: true, reason: "no LlamaParse key" });
     }
 
-    // 1) Download the file bytes from Storage (public download URL with token).
-    const fileRes = await fetch(url);
+    const authHeaders = { Authorization: `Bearer ${apiKey}`, Accept: "application/json" };
+
+    // ── Mode A: poll an existing job (the client drives this; no serverless
+    //    time limit because each poll is its own short request). ──
+    if (body.jobId) {
+      const jobRes = await fetch(`${BASE}/job/${body.jobId}`, { headers: authHeaders });
+      if (!jobRes.ok) return Response.json({ ok: true, status: "PENDING" });
+      const job = await jobRes.json();
+      const status = job?.status || "PENDING";
+      if (status === "SUCCESS" || status === "COMPLETED") {
+        const r = await fetch(`${BASE}/job/${body.jobId}/result/markdown`, { headers: authHeaders });
+        if (!r.ok) return Response.json({ ok: false, error: "could not fetch result" }, { status: 502 });
+        const result = await r.json();
+        return Response.json({ ok: true, status: "SUCCESS", markdown: (result?.markdown || "").trim() });
+      }
+      if (status === "ERROR" || status === "FAILED") {
+        return Response.json({ ok: false, status: "ERROR" });
+      }
+      return Response.json({ ok: true, status: "PENDING" });
+    }
+
+    // ── Mode B: start a new parse job and return its id immediately. ──
+    if (!body.url) {
+      return Response.json({ ok: false, error: "url required" }, { status: 400 });
+    }
+    const fileRes = await fetch(body.url);
     if (!fileRes.ok) {
       return Response.json({ ok: false, error: "could not fetch source file" }, { status: 502 });
     }
     const buf = Buffer.from(await fileRes.arrayBuffer());
     const contentType = fileRes.headers.get("content-type") || "application/octet-stream";
 
-    // 2) Upload to LlamaParse.
     const form = new FormData();
-    form.append("file", new Blob([buf], { type: contentType }), name || "document.pdf");
+    form.append("file", new Blob([buf], { type: contentType }), body.name || "document.pdf");
 
     const uploadRes = await fetch(`${BASE}/upload`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+      headers: authHeaders,
       body: form,
     });
     if (!uploadRes.ok) {
@@ -65,40 +85,7 @@ export async function POST(req) {
     if (!jobId) {
       return Response.json({ ok: false, error: "no job id from LlamaParse" }, { status: 502 });
     }
-
-    // 3) Poll until the job finishes (bounded so we stay under the function limit).
-    const deadline = Date.now() + 50_000;
-    let status = "PENDING";
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 2500));
-      const jobRes = await fetch(`${BASE}/job/${jobId}`, {
-        headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
-      });
-      if (!jobRes.ok) continue;
-      const job = await jobRes.json();
-      status = job?.status || status;
-      if (status === "SUCCESS" || status === "COMPLETED") break;
-      if (status === "ERROR" || status === "FAILED") {
-        return Response.json({ ok: false, error: "LlamaParse job failed" }, { status: 502 });
-      }
-    }
-
-    if (status !== "SUCCESS" && status !== "COMPLETED") {
-      // Still processing (large file). Caller can retry later via the retry path.
-      return Response.json({ ok: false, pending: true, jobId });
-    }
-
-    // 4) Fetch the markdown result.
-    const resultRes = await fetch(`${BASE}/job/${jobId}/result/markdown`, {
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
-    });
-    if (!resultRes.ok) {
-      return Response.json({ ok: false, error: "could not fetch LlamaParse result" }, { status: 502 });
-    }
-    const result = await resultRes.json();
-    const markdown = (result?.markdown || "").trim();
-
-    return Response.json({ ok: true, markdown });
+    return Response.json({ ok: true, jobId, status: "PENDING" });
   } catch (e) {
     console.error("parse route error:", e);
     return Response.json({ ok: false, error: e.message }, { status: 500 });
