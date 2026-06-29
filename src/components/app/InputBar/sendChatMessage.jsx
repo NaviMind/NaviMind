@@ -18,7 +18,7 @@ import {
   countChatMessages,
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
-import { indexTextSnippet, uploadFileToStorage } from "./attachmentProcessing";
+import { indexTextSnippet } from "./attachmentProcessing";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
@@ -149,47 +149,6 @@ function selectTiles(tiles, question) {
   const matched = scored.filter((x) => x.s > 0).slice(0, MAX_TILES_PER_DRAWING);
   const chosen = matched.length ? matched : scored.slice(0, Math.min(2, withUrl.length));
   return chosen.map(({ t }) => ({ url: t.url, pageNum: 1, description: t.description }));
-}
-
-// Variant B — find the located object whose label best matches the question, so we
-// can crop a tight high-res view of exactly it.
-function bestItemMatch(items, question) {
-  if (!Array.isArray(items) || !items.length) return null;
-  const q = question.toLowerCase();
-  const words = (q.match(/\b[a-zа-я]{3,}\b/g) || []).filter((w) => !STOP_WORDS.has(w));
-  let best = null, bestScore = 0;
-  for (const it of items) {
-    const label = (it.label || "").toLowerCase();
-    if (!label || !Array.isArray(it.box)) continue;
-    let s = 0;
-    for (const w of words) if (label.includes(w)) s += 2;
-    // also reward when a label word appears in the question
-    for (const lw of label.split(/\W+/)) if (lw.length > 3 && q.includes(lw)) s += 1;
-    if (s > bestScore) { bestScore = s; best = it; }
-  }
-  return bestScore > 0 ? best : null;
-}
-
-// Crop the matched item out of the drawing at high resolution, upload it, and
-// return its URL — a sharp close-up of exactly the asked-about thing.
-async function cropMatchedItem(f, question, uid) {
-  if (!f.sheetPdfUrl || !f.items?.length) return null;
-  const item = bestItemMatch(f.items, question);
-  if (!item) return null;
-  try {
-    const res = await fetch("/api/drawings/crop", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pdfUrl: f.sheetPdfUrl, page: f.sheetPage || item.page || 1, box: item.box }),
-    }).then((r) => r.json());
-    if (!res?.ok || !res.image) return null;
-    const blob = await fetch(`data:image/png;base64,${res.image}`).then((r) => r.blob());
-    const file = new File([blob], `crop_${(f.name || "drawing").replace(/\.[a-z0-9]+$/i, "")}_${Date.now()}.png`, { type: "image/png" });
-    const up = await uploadFileToStorage({ uid, file });
-    return { url: up.url, label: item.label };
-  } catch {
-    return null;
-  }
 }
 
 const MAX_PAGES_PER_DRAWING = 3;
@@ -548,25 +507,15 @@ sendLocks.add(sendKey);
     // will see the actual image — layout, labels, pipe runs — not just OCR text.
     const selectedDrawings = selectDrawings(allDrawingFiles, ragQuestion);
     vesselDrawings = [];
-    let croppedOnce = false; // only one precise crop per query (cost/latency guard)
     for (const f of selectedDrawings.filter((d) => d.url)) {
-      let selectedPages = null;
-      let cropLabel = null;
-
-      // Variant B: if an object on this drawing matches the question, send a tight
-      // high-res CROP of exactly it (sharp close-up) instead of the whole tile.
-      if (!croppedOnce && f.items?.length && f.sheetPdfUrl) {
-        const crop = await cropMatchedItem(f, ragQuestion, currentUser.uid);
-        if (crop) {
-          selectedPages = [{ url: crop.url, pageNum: 1, description: crop.label, isCrop: true }];
-          cropLabel = crop.label;
-          croppedOnce = true;
-        }
-      }
-
-      if (!selectedPages) {
-        selectedPages = f.tiles?.length ? selectTiles(f.tiles, ragQuestion) : selectPages(f, ragQuestion);
-      }
+      // Show the fixed grid tile whose OCR text matches the question — a real,
+      // correctly-located region of the sheet. We deliberately do NOT crop a
+      // pixel-tight box from model-estimated coordinates: those are unreliable
+      // and produce wrong-region close-ups. A coarser-but-correct tile beats a
+      // sharp-but-wrong crop.
+      const selectedPages = f.tiles?.length
+        ? selectTiles(f.tiles, ragQuestion)
+        : selectPages(f, ragQuestion);
 
       vesselDrawings.push({
         url: f.url,
@@ -574,7 +523,6 @@ sendLocks.add(sendKey);
         type: f.type,
         drawingType: f.drawingType || null,
         tiled: !!f.tiles?.length,
-        cropLabel,
         selectedPages,
       });
     }
