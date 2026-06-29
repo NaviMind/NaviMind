@@ -5,7 +5,7 @@ import { auth } from "@/firebase/config";
 import { ChatContext } from "@/context/ChatContext";
 import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
-import { clearAllConversations, downloadUserDataExport } from "@/firebase/privacyData";
+import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
 
@@ -32,6 +32,11 @@ const IcMemory = () => (
 const IcDelete = () => (
   <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
     <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
+  </svg>
+);
+const IcSweep = () => (
+  <svg viewBox="0 -960 960 960" fill="currentColor" className="w-[20px] h-[20px]">
+    <path d="M120-120v-80h240v-94q-51-20-85.5-66T240-560h-80q-17 0-28.5-11.5T120-600q0-17 11.5-28.5T160-640h80q0-58 30.5-104.5T360-810v-30q0-17 11.5-28.5T400-880q17 0 28.5 11.5T440-840v30q59 19 89.5 65.5T560-640h80q17 0 28.5 11.5T680-600q0 17-11.5 28.5T640-560h-80q0 54-34.5 100T440-294v94h240v80H120Zm280-280q33 0 56.5-23.5T480-480q0-33-23.5-56.5T400-560q-33 0-56.5 23.5T320-480q0 33 23.5 56.5T400-400Z" />
   </svg>
 );
 const Spinner = ({ className = "" }) => (
@@ -234,6 +239,26 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  const [purging, setPurging] = useState(false);
+  const [purgeMsg, setPurgeMsg] = useState("");
+
+  const onPurgeOrphans = async () => {
+    if (!uid || purging) return;
+    setPurging(true);
+    setPurgeMsg("");
+    setError("");
+    try {
+      const res = await purgeOrphanMemoryFiles(uid);
+      const n = res?.deleted ?? 0;
+      setPurgeMsg(n > 0 ? `Removed ${n} leftover memory file${n === 1 ? "" : "s"}.` : "Nothing to clean — storage is tidy.");
+    } catch (err) {
+      console.error("Purge orphans failed:", err);
+      setError("Couldn't clean up storage. Try again.");
+    } finally {
+      setPurging(false);
+    }
+  };
+
   const onClearChats = async () => {
     if (!uid || clearing) return;
     setClearing(true);
@@ -301,6 +326,13 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
 
         <div className="mt-4 space-y-2">
           <ActionRow
+            icon={<IcSweep />}
+            label="Clean up storage"
+            sub="Remove leftover memory files no longer used by any chat"
+            busy={purging}
+            onPress={onPurgeOrphans}
+          />
+          <ActionRow
             icon={<IcDelete />}
             label="Clear all chats"
             sub="Delete every chat and topic. Your account stays."
@@ -309,6 +341,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
           />
         </div>
 
+        {purgeMsg && <p className="mt-4 text-[12px] text-green-600 dark:text-green-400">{purgeMsg}</p>}
         {error && <p className="mt-4 text-[12px] text-red-500">{error}</p>}
       </div>
 

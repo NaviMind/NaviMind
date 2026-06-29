@@ -17,6 +17,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { ref as storageRef, listAll, deleteObject } from "firebase/storage";
+import { getLibraryFiles, getDrawingFiles } from "@/firebase/chatStore";
 
 // ─── low-level helpers ──────────────────────────────────────────────────────
 
@@ -130,6 +131,51 @@ export async function clearAllConversations(uid) {
       updatedAt: serverTimestamp(),
     });
   }
+}
+
+// Collect every OpenAI fileId the app still references across the user's data:
+// the shared library, every topic's library (incl. memory snippets), and the
+// drawings library (each drawing can hold several file ids).
+async function collectKnownFileIds(uid) {
+  const ids = new Set();
+  const add = (v) => { if (v) ids.add(v); };
+
+  // Shared user library.
+  const userLib = await getLibraryFiles({ uid, topicId: null });
+  userLib.forEach((f) => add(f.openaiFileId));
+
+  // Every topic's library files (memory snippets + attachments).
+  const topicsSnap = await getDocs(collection(db, "users", uid, "topics"));
+  await Promise.all(
+    topicsSnap.docs.map(async (t) => {
+      const files = await getLibraryFiles({ uid, topicId: t.id });
+      files.forEach((f) => add(f.openaiFileId));
+    })
+  );
+
+  // Drawings library — multiple ids per record.
+  const drawings = await getDrawingFiles(uid);
+  drawings.forEach((d) => {
+    add(d.openaiFileId);
+    add(d.visionFileId);
+    add(d.sheetFileId);
+  });
+
+  return [...ids];
+}
+
+// Sweep orphaned cold-memory files: memory-*.txt that exist in OpenAI but are no
+// longer referenced by any Firestore record (left behind by best-effort writes
+// or pre-fix single-chat deletions). Drawings/library files are never touched.
+export async function purgeOrphanMemoryFiles(uid) {
+  if (!uid) return { deleted: 0 };
+  const knownFileIds = await collectKnownFileIds(uid);
+  const res = await fetch("/api/library/purge-orphans", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ knownFileIds }),
+  }).then((r) => r.json()).catch(() => ({ deleted: 0 }));
+  return res || { deleted: 0 };
 }
 
 // Full account purge (data side): conversations, Storage files, then the user

@@ -140,6 +140,37 @@ export async function deleteChatFromFirestore(uid, chatId, topicId = null) {
       } catch (cleanupErr) {
         console.warn("Chat library cleanup failed:", cleanupErr);
       }
+    } else {
+      // Topic chats: the topic owns user-attached library files until the topic
+      // itself is deleted, BUT this chat's url-less MEMORY snippets (memory-*.txt)
+      // are tied to this chat — remove them now so they don't pile up in OpenAI.
+      try {
+        const libFiles = await getLibraryFiles({ uid, topicId });
+        const mine = libFiles.filter((f) => f.chatId === chatId && !f.url && f.openaiFileId);
+        // Group by each record's own vector store (normally the topic store).
+        const byStore = {};
+        for (const f of mine) {
+          const sid = f.vectorStoreId || "";
+          (byStore[sid] ||= []).push(f.openaiFileId);
+        }
+        for (const [sid, fileIds] of Object.entries(byStore)) {
+          if (fileIds.length === 0) continue;
+          await fetch("/api/library/expire", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vectorStoreId: sid, fileIds }),
+          }).catch(() => {});
+        }
+        if (mine.length > 0) {
+          await deleteLibraryFileRecordsByIds({
+            uid,
+            topicId,
+            ids: mine.map((f) => f.id),
+          });
+        }
+      } catch (cleanupErr) {
+        console.warn("Topic chat memory cleanup failed:", cleanupErr);
+      }
     }
 
     const chatRef = topicId
