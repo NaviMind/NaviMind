@@ -575,7 +575,15 @@ export default function DrawingRegisterPanel() {
         sheetFileId = res?.texts?.[0]?.openaiFileId || null;
       }
 
-      const updates = { tiles, sheetIndexed: true };
+      // Located objects with full-sheet bounding boxes → enables tight on-demand
+      // crops of exactly the asked-about item at query time. Cap to keep the record small.
+      const items = Array.isArray(sheet.items)
+        ? sheet.items
+            .filter((it) => it?.label && Array.isArray(it.box) && it.box.length === 4)
+            .slice(0, 120)
+        : [];
+
+      const updates = { tiles, sheetIndexed: true, items, sheetPdfUrl: pdfUrl, sheetPage: sheet.pageIndex || 1 };
       if (sheetFileId) updates.sheetFileId = sheetFileId;
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));

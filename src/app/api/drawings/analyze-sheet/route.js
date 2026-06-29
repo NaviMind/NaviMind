@@ -121,17 +121,61 @@ export async function POST(req) {
                 content: [
                   {
                     type: "input_text",
-                    text: `This is one tile (${pos}) of a large vessel technical drawing "${name}", cut into a ${cols}x${rows} grid. List the key labels, equipment, spaces, rooms, decks, tanks, frame numbers and systems visible in THIS tile (a short index, not a full transcription) so this tile can later be picked to answer "where is X" questions. If nothing is readable, reply "EMPTY".`,
+                    text: `This is one tile (${pos}) of a large vessel technical drawing "${name}". Return JSON: a short "summary" of the key labels/equipment/spaces/decks/tanks/systems in this tile, and "items" — each notable labelled object/space with its bounding box in THIS tile as [x0,y0,x1,y1] normalized 0..1 (x right, y down). Include rooms, decks, tanks, equipment, boats, frame numbers. If nothing is readable, return empty items and "EMPTY" summary.`,
                   },
                   { type: "input_image", image_url: dataUri, detail: "high" },
                 ],
               },
             ],
+            text: {
+              format: {
+                type: "json_schema",
+                name: "tile_reading",
+                strict: true,
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    summary: { type: "string" },
+                    items: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        properties: {
+                          label: { type: "string" },
+                          box: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 },
+                        },
+                        required: ["label", "box"],
+                      },
+                    },
+                  },
+                  required: ["summary", "items"],
+                },
+              },
+            },
           });
-          const text = (resp.output_text || "").trim();
-          results[my] = { pos, col: c, row: r, text: /^empty$/i.test(text) ? "" : text, b64: returnImages ? b64 : null };
+          let parsed = { summary: "", items: [] };
+          try { parsed = JSON.parse(resp.output_text || "{}"); } catch { /* keep default */ }
+          const summary = /^empty$/i.test((parsed.summary || "").trim()) ? "" : (parsed.summary || "");
+          // Convert each item's tile-local box → full-sheet normalized coords.
+          const items = (Array.isArray(parsed.items) ? parsed.items : [])
+            .filter((it) => it && it.label && Array.isArray(it.box) && it.box.length === 4)
+            .map((it) => {
+              const [bx0, by0, bx1, by1] = it.box.map((n) => Math.max(0, Math.min(1, Number(n) || 0)));
+              return {
+                label: it.label,
+                box: [
+                  (left + bx0 * w) / W,
+                  (top + by0 * h) / H,
+                  (left + bx1 * w) / W,
+                  (top + by1 * h) / H,
+                ],
+              };
+            });
+          results[my] = { pos, col: c, row: r, text: summary, items, b64: returnImages ? b64 : null };
         } catch (e) {
-          results[my] = { pos, col: c, row: r, text: "", b64: null, error: e.message };
+          results[my] = { pos, col: c, row: r, text: "", items: [], b64: null, error: e.message };
         }
       }
     }
@@ -153,6 +197,10 @@ export async function POST(req) {
       image: returnImages ? t.b64 : undefined,
     }));
 
+    // Located objects with full-sheet bounding boxes — used at query time to crop
+    // a tight, high-res view of exactly the thing the user asked about.
+    const items = results.flatMap((t) => (t?.items || []).map((it) => ({ label: it.label, box: it.box, page: pageIndex + 1 })));
+
     return Response.json({
       ok: true,
       pageIndex: pageIndex + 1,
@@ -164,6 +212,7 @@ export async function POST(req) {
       readable: sections.length,
       spatialText,
       tileList,
+      items,
     });
   } catch (e) {
     console.error("analyze-sheet error:", e);
