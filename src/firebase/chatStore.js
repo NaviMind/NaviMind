@@ -547,6 +547,7 @@ export async function addLibraryFileRecords({ uid, topicId = null, chatId, files
           hash: f.hash || "",
           chatId: chatId || null,
           folderId: f.folderId || null,
+          size: f.size || 0,
           addedAt: serverTimestamp(),
         })
       )

@@ -1010,7 +1010,7 @@ export default function DrawingRegisterPanel() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Upload drawings"
-                  className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition"
+                  className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
                 >
                   <MaskIcon src="/library_add.svg" size={20} />
                 </button>

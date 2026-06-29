@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,6 +42,17 @@ function fileLabel(name = "", type = "") {
 }
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per topic
+
+const formatBytes = (bytes) => {
+  if (!bytes || bytes < 0) return "0 MB";
+  const gb = bytes / 1024 ** 3;
+  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+  const mb = bytes / 1024 ** 2;
+  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
+
 // Topic Library panel — view / open / delete / add files for a single topic,
 // organised into optional folders. Mirrors the Drawings / Manuals panel.
 // Files added here are indexed straight into the topic's vector store (no chat).
@@ -61,6 +72,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [quotaError, setQuotaError] = useState("");
 
   const storeIdRef = useRef("");
   const inputRef = useRef(null);
@@ -113,6 +125,16 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const visibleFiles = files.filter((f) => (f.folderId ?? null) === (currentFolderId ?? null));
   const visiblePending = pending.filter((p) => (p.folderId ?? null) === (currentFolderId ?? null));
 
+  // Storage usage — committed files plus in-flight uploads, against the topic pool.
+  const usedBytes = useMemo(() => {
+    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
+    return committed + inflight;
+  }, [files, pending]);
+  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  const barColor =
+    usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
   const setPendingStatus = (id, status) =>
     setPending((p) => p.map((e) => (e.id === id ? { ...e, status } : e)));
 
@@ -122,7 +144,18 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     if (!uid || items.length === 0) return;
     const folderId = currentFolderId ?? null;
 
-    const entries = items.map((f) => ({ id: rid(), name: f.name, folderId, status: "uploading" }));
+    // Enforce the per-topic storage cap.
+    const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
+    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
+      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+      setQuotaError(
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some files to free space.`
+      );
+      return;
+    }
+    setQuotaError("");
+
+    const entries = items.map((f) => ({ id: rid(), name: f.name, size: f.size || 0, folderId, status: "uploading" }));
     setPending((p) => [...entries, ...p]);
 
     try {
@@ -144,7 +177,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
             }
             const meta = await withRetry(() => uploadFileToStorage({ uid, file: f }));
             setPendingStatus(e.id, "indexing");
-            prepared.push({ e, hash, name: meta.name, type: meta.type, url: meta.url, path: meta.path });
+            prepared.push({ e, hash, name: meta.name, type: meta.type, url: meta.url, path: meta.path, size: f.size || 0 });
           } catch {
             setPendingStatus(e.id, "error");
           }
@@ -171,7 +204,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           const r = out[i];
           if (r?.status === "indexed") {
             toRecord.push({
-              name: p.name, type: p.type, url: p.url, folderId,
+              name: p.name, type: p.type, url: p.url, folderId, size: p.size || 0,
               openaiFileId: r.openaiFileId, vectorStoreId: newStoreId, hash: p.hash,
             });
           } else {
@@ -362,7 +395,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
             <button
               onClick={() => inputRef.current?.click()}
               aria-label="Add files"
-              className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition"
+              className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
             >
               <MaskIcon src="/library_add.svg" size={20} />
             </button>
@@ -568,6 +601,30 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* ── Footer: storage quota ── */}
+        <div className="px-6 py-3.5 border-t border-gray-100 dark:border-white/10">
+          {quotaError && (
+            <p className="mb-2.5 text-xs font-medium text-red-500 dark:text-red-400">
+              {quotaError}
+            </p>
+          )}
+          <div className="flex items-center justify-between mb-1.5 text-xs">
+            <span className="text-gray-500 dark:text-gray-400">
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {formatBytes(usedBytes)}
+              </span>{" "}
+              of {formatBytes(STORAGE_LIMIT_BYTES)} used
+            </span>
+            <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${barColor} transition-all duration-300`}
+              style={{ width: `${usedPct}%` }}
+            />
+          </div>
         </div>
       </motion.div>
       </motion.div>
