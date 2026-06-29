@@ -23,9 +23,9 @@ export const maxDuration = 60;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const TILE_MODEL = process.env.DRAWINGS_TILE_MODEL || "gpt-4o-mini";
-const TARGET_LONG_PX = 6000;   // render the sheet this big so dense labels survive
-const TARGET_TILE_PX = 1600;   // each tile ~1600px — readable by vision at full detail
-const MAX_TILES = 12;          // safety cap per call
+const TARGET_LONG_PX = 7000;   // render the sheet this big so dense labels survive
+const TARGET_TILE_PX = 1200;   // smaller tiles = each is more zoomed-in → more detail
+const MAX_TILES = 16;          // safety cap per call
 const OVERLAP = 0.08;          // 8% overlap so labels on a seam aren't cut
 
 function posLabel(col, row, cols, rows) {

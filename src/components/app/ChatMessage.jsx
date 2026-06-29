@@ -500,7 +500,19 @@ export default function ChatMessage({ message, isLast = false }) {
             className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
             onClick={() => setZoomTile(null)}
           >
-            <img src={zoomTile.url} alt={zoomTile.name} className="max-w-[95vw] max-h-[90vh] object-contain" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setZoomTile(null); }}
+              aria-label="Close"
+              className="absolute top-5 right-5 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl leading-none transition"
+            >
+              ✕
+            </button>
+            <img
+              src={zoomTile.url}
+              alt={zoomTile.name}
+              className="max-w-[95vw] max-h-[90vh] object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         )}
         <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
