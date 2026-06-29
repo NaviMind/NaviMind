@@ -4,7 +4,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, FileText } from "lucide-react";
+import { X, Trash2, FileText, Download } from "lucide-react";
 import Tooltip from "@/components/common/Tooltip";
 import MaskIcon from "@/components/common/MaskIcon";
 import { auth } from "@/firebase/config";
@@ -180,6 +180,31 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     }
   };
 
+  // Same-origin proxy → bypasses Firebase Storage's missing CORS and the
+  // browser's cross-origin download/drag block (see /api/drawings/download).
+  const proxyUrl = (file) =>
+    `/api/drawings/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name || "file")}`;
+
+  const downloadFile = (file) => {
+    if (!file?.url) return;
+    const a = document.createElement("a");
+    a.href = proxyUrl(file);
+    a.download = file.name || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const onFileDragStart = (e, file) => {
+    if (!file?.url) return;
+    const mime = file.type || "application/octet-stream";
+    const abs = `${window.location.origin}${proxyUrl(file)}`;
+    try {
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${abs}`);
+      e.dataTransfer.effectAllowed = "copy";
+    } catch { /* not supported in this browser */ }
+  };
+
   const openFile = (file) => {
     if (file.type?.startsWith("image/")) {
       setActiveImage(file.url);
@@ -214,7 +239,12 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-lg h-[600px] max-h-[85vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => {
+          // Only react to external file drags — not a row being dragged OUT.
+          if (!Array.from(e.dataTransfer?.types || []).includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
       >
@@ -301,6 +331,9 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           {files.map((file) => (
             <div
               key={file.id}
+              draggable
+              onDragStart={(e) => onFileDragStart(e, file)}
+              onDragEnd={() => setDragging(false)}
               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
             >
               <button
@@ -316,6 +349,14 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
                     {fileLabel(file.name, file.type)}
                   </p>
                 </div>
+              </button>
+              <button
+                onClick={() => downloadFile(file)}
+                aria-label="Download file"
+                title="Download"
+                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+              >
+                <Download size={16} />
               </button>
               <button
                 onClick={() => removeFile(file)}

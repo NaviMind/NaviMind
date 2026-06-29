@@ -960,7 +960,12 @@ export default function DrawingRegisterPanel() {
               bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl
               ring-1 ring-black/5 dark:ring-white/10"
             onClick={(e) => e.stopPropagation()}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragOver={(e) => {
+              // Only react to external file drags — not a row being dragged OUT.
+              if (!Array.from(e.dataTransfer?.types || []).includes("Files")) return;
+              e.preventDefault();
+              setDragging(true);
+            }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
             onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
           >
@@ -1181,6 +1186,7 @@ export default function DrawingRegisterPanel() {
                               key={file.id}
                               draggable
                               onDragStart={(e) => onFileDragStart(e, file)}
+                              onDragEnd={() => setDragging(false)}
                               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
                               <button
