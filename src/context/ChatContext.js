@@ -97,7 +97,10 @@ export function ChatProvider({ children }) {
   }));
 
   setCustomProjects(topics);
-  setProjectChatSessions(prev => ({ ...prev, ...topicChats }));
+  // Replace topic keys (keep only global + currently-existing topics) so chat
+  // sessions for deleted topics don't linger — merging would keep stale keys
+  // that were hydrated from localStorage and surface in Search.
+  setProjectChatSessions(prev => ({ global: prev.global || [], ...topicChats }));
 };
 
 const loadUserChats = async (userId) => {

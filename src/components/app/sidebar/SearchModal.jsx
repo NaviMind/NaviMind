@@ -76,6 +76,9 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
   const allChats = useMemo(() => {
     const out = [];
     Object.entries(projectChatSessions || {}).forEach(([projId, chats]) => {
+      // Skip chats whose topic no longer exists (stale entries left in the
+      // cached sessions after a topic was deleted) — they shouldn't surface.
+      if (projId !== "global" && !customProjects?.[projId]) return;
       const topicName =
         projId === "global" ? null : customProjects?.[projId]?.name || "Topic";
       (chats || []).forEach((c) => {
