@@ -47,6 +47,11 @@ export function UIProvider({ children }) {
   // close the current one first; the useEffect below opens the pending one
   // once the exit animation has had time to complete.
   const openModal = (name) => {
+    // The per-topic Library modal lives outside this system (local state in the
+    // topic page / sidebar). Tell it to close so the two never stack.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+    }
     if (activeModal && activeModal !== name) {
       setPendingModal(name);
       setActiveModal(null);
@@ -55,6 +60,12 @@ export function UIProvider({ children }) {
       setPendingModal(null);
     }
     // activeModal === name → already open, nothing to do
+  };
+
+  // Close every UIContext-managed modal (used when the Library modal opens).
+  const closeModals = () => {
+    setPendingModal(null);
+    setActiveModal(null);
   };
 
   useEffect(() => {
@@ -231,6 +242,7 @@ export function UIProvider({ children }) {
         setIsTopicModalOpen,
         isDrawingRegisterOpen,
         setDrawingRegisterOpen,
+        closeModals,
       }}
     >
       {children}

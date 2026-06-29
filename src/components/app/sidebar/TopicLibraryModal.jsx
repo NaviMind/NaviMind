@@ -3,6 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChatContext } from "@/context/ChatContext";
+import { UIContext } from "@/context/UIContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, FileText, Download, ChevronLeft, Loader2, AlertCircle } from "lucide-react";
 import Tooltip from "@/components/common/Tooltip";
@@ -58,6 +59,7 @@ const formatBytes = (bytes) => {
 // Files added here are indexed straight into the topic's vector store (no chat).
 export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const { splitMode } = useContext(ChatContext);
+  const { closeModals } = useContext(UIContext);
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +90,14 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     setPortalTarget(
       desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
     );
+    // Opening the Library closes any UIContext modal (Drawings, etc.) so they
+    // never stack on top of each other.
+    closeModals?.();
+    // And if a UIContext modal opens later, slide this one out (animated).
+    const onCloseSelf = () => setOpen(false);
+    window.addEventListener("nm-close-topic-library", onCloseSelf);
+    return () => window.removeEventListener("nm-close-topic-library", onCloseSelf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refresh = async () => {
