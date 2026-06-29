@@ -446,30 +446,31 @@ export default function DrawingRegisterPanel() {
     }
   };
 
+  // Same-origin proxy that streams the file with attachment headers — bypasses
+  // Firebase Storage's missing CORS and the browser's cross-origin download block.
+  const proxyUrl = (file) =>
+    `/api/drawings/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name || "file")}`;
+
   // ── Download a file to the user's device ──
-  const downloadFile = async (file) => {
+  const downloadFile = (file) => {
     if (!file?.url) return;
-    try {
-      const blob = await fetch(file.url).then((r) => r.blob());
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = file.name || "file";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
-    } catch {
-      window.open(file.url, "_blank"); // fallback: open in a new tab
-    }
+    const a = document.createElement("a");
+    a.href = proxyUrl(file);          // same-origin → `download` is honored
+    a.download = file.name || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   // Native drag-out — drag a file row onto the desktop / another app to save it.
   const onFileDragStart = (e, file) => {
     if (!file?.url) return;
     const mime = file.type || "application/octet-stream";
+    // Point the drag at our same-origin proxy (absolute URL required by the
+    // DownloadURL spec) so the saved-from-drag download isn't cross-origin.
+    const abs = `${window.location.origin}${proxyUrl(file)}`;
     try {
-      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${file.url}`);
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${abs}`);
       e.dataTransfer.effectAllowed = "copy";
     } catch { /* not supported in this browser */ }
   };
