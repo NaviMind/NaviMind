@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Search, ScanText } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Download } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
@@ -266,7 +266,6 @@ export default function DrawingRegisterPanel() {
   const [quotaError, setQuotaError] = useState("");
   const [analyzingIds, setAnalyzingIds] = useState(new Set());
   const [activeDoc, setActiveDoc] = useState(null); // { name, url, src, isImage }
-  const [diagText, setDiagText] = useState(null);   // diagnostic spatial-read output
 
   const folderInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -447,6 +446,34 @@ export default function DrawingRegisterPanel() {
     }
   };
 
+  // ── Download a file to the user's device ──
+  const downloadFile = async (file) => {
+    if (!file?.url) return;
+    try {
+      const blob = await fetch(file.url).then((r) => r.blob());
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = file.name || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+    } catch {
+      window.open(file.url, "_blank"); // fallback: open in a new tab
+    }
+  };
+
+  // Native drag-out — drag a file row onto the desktop / another app to save it.
+  const onFileDragStart = (e, file) => {
+    if (!file?.url) return;
+    const mime = file.type || "application/octet-stream";
+    try {
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${file.url}`);
+      e.dataTransfer.effectAllowed = "copy";
+    } catch { /* not supported in this browser */ }
+  };
+
   // ── File delete ──
   const deleteFile = async (file) => {
     const uid = auth.currentUser?.uid;
@@ -588,58 +615,6 @@ export default function DrawingRegisterPanel() {
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
     } catch { /* non-fatal — drawing is still usable via its other indexes */ }
-  };
-
-  // ── Diagnostic: inspect what LlamaParse returns for a drawing ──
-  // Temporary tool to verify page-image availability/resolution + OCR text per
-  // page before building the tiling pipeline. Shows a compact summary.
-  const inspectDrawing = async (file) => {
-    if (!file?.url) return;
-    fireToast("Inspecting drawing… (up to ~50s)");
-    try {
-      const res = await fetch("/api/parse/inspect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: file.url, name: file.name }),
-      }).then((r) => r.json());
-      console.log("[LlamaParse inspect]", file.name, res);
-      if (!res?.ok) {
-        window.alert(`Inspect failed: ${res?.error || res?.pending ? "still processing" : "unknown"}`);
-        return;
-      }
-      const lines = (res.pages || []).map((p) => {
-        const im = p.images?.[0];
-        const imStr = im ? `img ${im.w}x${im.h}` : "no img";
-        return `p${p.page}: ${p.textChars} chars, ${p.images?.length || 0} imgs (${imStr})`;
-      });
-      window.alert(
-        `${file.name}\n\nPages: ${res.pageCount} | Total images: ${res.totalImages}\n\n` +
-          lines.join("\n").slice(0, 1500)
-      );
-    } catch (e) {
-      window.alert(`Inspect error: ${e.message}`);
-    }
-  };
-
-  // ── Diagnostic: full drawing read test (LlamaParse image → tile → vision) ──
-  // Proves the tiling pipeline reads fine labels before it's wired into upload.
-  const testReadSheet = async (file) => {
-    if (!file?.url) return;
-    setDiagText("Reading drawing… (mupdf high-res render → tiling → vision, ~1 min)");
-    try {
-      const sheet = await fetch("/api/drawings/analyze-sheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfUrl: file.url, name: file.name }),
-      }).then((r) => r.json());
-      if (!sheet?.ok) { setDiagText(`Sheet read failed: ${sheet?.error || "?"}`); return; }
-      setDiagText(
-        `Sheet ${sheet.width}x${sheet.height} · grid ${sheet.grid.cols}x${sheet.grid.rows} · ${sheet.readable}/${sheet.tiles} tiles readable\n\n` +
-          (sheet.spatialText || "(empty)")
-      );
-    } catch (e) {
-      setDiagText("Error: " + e.message);
-    }
   };
 
   // ── Re-run vision analysis for a file whose analysis failed or was lost ──
@@ -1203,6 +1178,8 @@ export default function DrawingRegisterPanel() {
                           return (
                             <div
                               key={file.id}
+                              draggable
+                              onDragStart={(e) => onFileDragStart(e, file)}
                               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
                               <button
@@ -1262,22 +1239,13 @@ export default function DrawingRegisterPanel() {
                                 </button>
                               )}
                               <button
-                                onClick={() => inspectDrawing(file)}
-                                aria-label="Inspect (diagnostic)"
-                                title="Inspect LlamaParse output (diagnostic)"
-                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-purple-500 hover:bg-purple-500/10
+                                onClick={() => downloadFile(file)}
+                                aria-label="Download file"
+                                title="Download"
+                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10
                                   [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
                               >
-                                <Search size={14} />
-                              </button>
-                              <button
-                                onClick={() => testReadSheet(file)}
-                                aria-label="Read drawing (test)"
-                                title="Test: read this drawing via tiling + vision"
-                                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-500/10
-                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
-                              >
-                                <ScanText size={15} />
+                                <Download size={16} />
                               </button>
                               <button
                                 onClick={() => deleteFile(file)}
@@ -1387,28 +1355,6 @@ export default function DrawingRegisterPanel() {
         </motion.div>
       )}
     </AnimatePresence>
-
-    {/* ── Diagnostic: spatial-read result overlay (temporary) ── */}
-    {diagText && (
-      <div
-        className={`fixed top-0 bottom-0 left-0 z-[450] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm ${
-          splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"
-        }`}
-        onClick={(e) => { if (e.target === e.currentTarget) setDiagText(null); }}
-      >
-        <div className="flex flex-col w-full max-w-3xl h-[80vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10">
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-white/10 shrink-0">
-            <span className="text-sm font-medium text-gray-800 dark:text-white/90 flex-1">Spatial reading (test)</span>
-            <button onClick={() => setDiagText(null)} aria-label="Close" className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition">
-              <X size={18} />
-            </button>
-          </div>
-          <pre className="flex-1 overflow-auto p-4 text-[12px] leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-            {diagText}
-          </pre>
-        </div>
-      </div>
-    )}
     </>,
     portalTarget
   );
