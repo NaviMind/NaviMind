@@ -37,11 +37,11 @@ function MiniBtn({ children, morph, tooltip, onClick }) {
         onClick={onClick}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
       >
         {morph ? (
           // Cross-fade between idle (logo) and hover (hamburger)
-          <span className="relative w-9 h-9 flex items-center justify-center">
+          <span className="relative w-7 h-7 flex items-center justify-center">
             <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered ? "opacity-0" : "opacity-100"}`}>
               {morph.idle}
             </span>
@@ -70,13 +70,13 @@ function MiniBtn({ children, morph, tooltip, onClick }) {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const IcMenu = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 const IcNewChat = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -160,7 +160,7 @@ export default function MiniSidebar() {
             tooltip="Open Sidebar"
             onClick={toggleSidebar}
             morph={{
-              idle: <img src="/compass.png" alt="" className="w-9 h-9 object-contain" draggable={false} />,
+              idle: <img src="/compass.png" alt="" className="w-7 h-7 object-contain" draggable={false} />,
               hover: <IcMenu />,
             }}
           />
@@ -170,21 +170,21 @@ export default function MiniSidebar() {
           </MiniBtn>
 
           <MiniBtn tooltip="Search topics and chats" onClick={() => setIsSearchOpen(true)}>
-            <Icon name="search" size={26} />
+            <Icon name="search" size={20} />
           </MiniBtn>
 
           {/* Same order as the open sidebar: New Chat → Vessel Profile →
               Drawings / Manuals → Create Topic */}
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
-            <Icon name="vessel-profile" size={24} />
+            <Icon name="vessel-profile" size={20} />
           </MiniBtn>
 
           <MiniBtn tooltip="Drawings / Manuals" onClick={() => setDrawingRegisterOpen(true)}>
-            <InventoryIcon size={24} />
+            <InventoryIcon size={20} />
           </MiniBtn>
 
           <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
-            <Icon name="create-new" size={24} />
+            <Icon name="create-new" size={20} />
           </MiniBtn>
 
           {/* Pinned quick-access — appears only when something is pinned */}

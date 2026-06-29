@@ -98,14 +98,14 @@ export default function MiniPinned() {
         onClick={toggle}
         onMouseEnter={showTip}
         onMouseLeave={() => setTip(null)}
-        className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
+        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
           open
             ? "bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white"
             : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"
         }`}
         aria-label="Pinned"
       >
-        <Icon name="chat" size={24} />
+        <Icon name="chat" size={20} />
       </button>
 
       {/* Hover tooltip */}
