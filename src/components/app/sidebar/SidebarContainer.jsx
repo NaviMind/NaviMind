@@ -146,10 +146,18 @@ useEffect(() => {
       {/* Desktop logo — full-width accent block */}
       {!mobileMode && (
         <div className="flex items-center justify-between pl-1.5 pr-3 pt-4 pb-2">
+          {/* Both rendered; the .dark class (set before paint) toggles which is
+              visible — no theme-state hydration flash on refresh. */}
           <img
-            src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
+            src="/logo-navi black.png"
             alt="NaviMind"
-            className="h-[44px] w-auto object-contain select-none pointer-events-none"
+            className="h-[44px] w-auto object-contain select-none pointer-events-none block dark:hidden"
+            draggable={false}
+          />
+          <img
+            src="/logo-navi.png"
+            alt="NaviMind"
+            className="h-[44px] w-auto object-contain select-none pointer-events-none hidden dark:block"
             draggable={false}
           />
           <div className="flex items-center gap-0.5">

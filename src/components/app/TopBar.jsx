@@ -117,10 +117,17 @@ export default function TopBar() {
       <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 [@media(hover:hover)]:hidden ${
         showMobileTopicPill || inTopic ? "opacity-0" : "opacity-100"
       }`}>
+        {/* Both rendered; the .dark class (set before paint) toggles visibility
+            — avoids the theme-state hydration flash on refresh. */}
         <img
-          src={theme === "dark" ? "/logo-navi.png" : "/logo-navi black.png"}
+          src="/logo-navi black.png"
           alt="NaviMind AI"
-          className="w-[170px] h-auto object-contain"
+          className="w-[170px] h-auto object-contain block dark:hidden"
+        />
+        <img
+          src="/logo-navi.png"
+          alt="NaviMind AI"
+          className="w-[170px] h-auto object-contain hidden dark:block"
         />
       </div>
 
