@@ -41,20 +41,44 @@ function Highlighted({ text, query }) {
 }
 
 export default function SearchModal({ open, onClose, onSidebarItemClick }) {
-  const { theme } = useContext(UIContext);
-  const { projectChatSessions, customProjects, openChatSession } =
+  const { theme, closeModals } = useContext(UIContext);
+  const { projectChatSessions, customProjects, openChatSession, splitMode } =
     useContext(ChatContext);
   const router = useRouter();
 
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
 
   const inputRef = useRef(null);
   const backdropRef = useRef(null);
   const rowRefs = useRef([]);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Open inside the work area (not over the sidebar), like the other modals.
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
+
+  // One modal at a time: opening Search closes the others; opening another
+  // closes Search.
+  useEffect(() => {
+    if (!open) return;
+    closeModals?.();
+    window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    const onCloseSelf = () => onClose?.();
+    window.addEventListener("nm-close-search", onCloseSelf);
+    return () => window.removeEventListener("nm-close-search", onCloseSelf);
+  }, [onClose]);
 
   useEffect(() => {
     if (open) {
@@ -145,16 +169,16 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
     if (e.target === backdropRef.current) onClose();
   };
 
-  if (!mounted) return null;
+  if (!mounted || !portalTarget) return null;
 
   return createPortal(
     <AnimatePresence>
       {open && (
         <div
           ref={backdropRef}
-          className={`fixed inset-0 z-[2000] flex items-center justify-center backdrop-blur-sm p-4 ${
+          className={`fixed top-0 bottom-0 left-0 z-[2000] flex items-center justify-center backdrop-blur-sm p-4 overflow-hidden ${
             theme === "dark" ? "bg-black/60" : "bg-black/25"
-          }`}
+          } ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
           onClick={handleBackdrop}
         >
           <motion.div
@@ -263,6 +287,6 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
         </div>
       )}
     </AnimatePresence>,
-    document.body
+    portalTarget
   );
 }

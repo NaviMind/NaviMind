@@ -90,9 +90,10 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     setPortalTarget(
       desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
     );
-    // Opening the Library closes any UIContext modal (Drawings, etc.) so they
-    // never stack on top of each other.
+    // Opening the Library closes any other modal (UIContext modals + Search) so
+    // they never stack on top of each other.
     closeModals?.();
+    window.dispatchEvent(new CustomEvent("nm-close-search"));
     // And if a UIContext modal opens later, slide this one out (animated).
     const onCloseSelf = () => setOpen(false);
     window.addEventListener("nm-close-topic-library", onCloseSelf);

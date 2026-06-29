@@ -47,10 +47,11 @@ export function UIProvider({ children }) {
   // close the current one first; the useEffect below opens the pending one
   // once the exit animation has had time to complete.
   const openModal = (name) => {
-    // The per-topic Library modal lives outside this system (local state in the
-    // topic page / sidebar). Tell it to close so the two never stack.
+    // The Library and Search modals live outside this system (local state).
+    // Tell them to close so modals never stack.
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+      window.dispatchEvent(new CustomEvent("nm-close-search"));
     }
     if (activeModal && activeModal !== name) {
       setPendingModal(name);
