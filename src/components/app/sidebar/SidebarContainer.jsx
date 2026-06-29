@@ -138,13 +138,27 @@ useEffect(() => {
   const SidebarContent = ({
      showNewChatButton = true,
      showCloseButton = true,
-     onSidebarItemClick, 
-     onCloseButtonClick, 
+     onSidebarItemClick,
+     onCloseButtonClick,
      showUserProfileButton = true,
+     collapsed = false,
   }) => (
     <div className="flex flex-col h-full">
+      {/* Desktop header — collapsed: a compass that expands the sidebar, sitting
+          at the same x as the nav icons. Expanded: the full logo + search. */}
+      {!mobileMode && collapsed && (
+        <div className="pl-1 pr-[10px] pt-4 pb-2">
+          <button
+            onClick={onCloseButtonClick}
+            aria-label="Open sidebar"
+            className="h-[44px] flex items-center gap-2 px-2.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+          >
+            <img src="/compass.png" alt="" className="w-5 h-5 object-contain" draggable={false} />
+          </button>
+        </div>
+      )}
       {/* Desktop logo — full-width accent block */}
-      {!mobileMode && (
+      {!mobileMode && !collapsed && (
         <div className="flex items-center justify-between pl-1.5 pr-3 pt-4 pb-2">
           {/* Both rendered; the .dark class (set before paint) toggles which is
               visible — no theme-state hydration flash on refresh. */}
@@ -161,15 +175,6 @@ useEffect(() => {
             draggable={false}
           />
           <div className="flex items-center gap-0.5">
-            <HoverTipRight label="Search topics and chats">
-              <button
-                onClick={() => setIsSearchOpen(true)}
-                className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                aria-label="Search topics and chats"
-              >
-                <Icon name="search" size={22} />
-              </button>
-            </HoverTipRight>
             {showCloseButton && (
               <HoverTipRight label="Close Sidebar">
                 <button
@@ -265,11 +270,28 @@ useEffect(() => {
   </div>
 )}
 
+{/* Search — a labeled row in both states (kept in the same slot so rows below
+    don't shift when the sidebar collapses). */}
+{!mobileMode && (
+  <div className="pl-1 pr-[10px] py-0">
+    <button
+      onClick={() => setIsSearchOpen(true)}
+      className="w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 transition-colors duration-200 min-h-[38px]"
+    >
+      <Icon name="search" size={20} />
+      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100 whitespace-nowrap">
+        Search
+      </span>
+    </button>
+  </div>
+)}
+
 {/* Vessel Profile + Create Topic moved into the scrollable content area below.
     Only New Chat stays fixed at the top. */}
 
 {/* Плейсхолдер при отсутствии данных */}
-{!Object.keys(customProjects || {}).length &&
+{!collapsed &&
+ !Object.keys(customProjects || {}).length &&
  (!projectChatSessions?.global || !projectChatSessions.global.length) && (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div className="flex items-center text-[#9CA3AF] pointer-events-auto">
@@ -309,6 +331,25 @@ useEffect(() => {
   <div className="-mx-2 px-1 py-0">
     <DrawingRegisterButton onSidebarItemClick={onSidebarItemClick} />
   </div>
+
+  {/* Collapsed rail: a standalone Create Topic icon (the expanded "+" lives in
+      the My Topics header, which is hidden when collapsed). */}
+  {collapsed && (
+    <div className="-mx-2 px-1 py-0 mt-1">
+      <button
+        onClick={() => setIsTopicModalOpen(true)}
+        className="w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 transition-colors duration-200 min-h-[38px]"
+      >
+        <Icon name="create-new" size={20} />
+        <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100 whitespace-nowrap">
+          Create Topic
+        </span>
+      </button>
+    </div>
+  )}
+
+  {/* The topics + chats list collapses away in the narrow rail. */}
+  {!collapsed && (<>
 
   {/* Mobile: full-width "Create Topic" button (when topics already exist) —
       replaces the tiny "+", which is hard to tap on a phone. */}
@@ -409,12 +450,14 @@ useEffect(() => {
   )}
 
   <ChatListSection onSidebarItemClick={onSidebarItemClick} />
+
+  </>)}
 </div>
 
       {/* Кнопка профиля — всегда внизу, всегда одна */}
      {showUserProfileButton && (
- <div className="px-3 pb-0">
-    <UserProfileButton />
+ <div className={collapsed ? "px-1 pb-0" : "px-3 pb-0"}>
+    <UserProfileButton collapsed={collapsed} />
   </div>
 )}
 
@@ -450,28 +493,25 @@ useEffect(() => {
   const DesktopAside = (
   <aside
     className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
-    style={{ width: ui.isSidebarOpen ? "18rem" : "0" }}
+    style={{ width: ui.isSidebarOpen ? "18rem" : "4rem" }}
   >
-    <div
-      className="w-[18rem] h-full p-2 flex flex-col"
-      style={{
-        opacity: ui.isSidebarOpen ? 1 : 0,
-        transition: ui.isSidebarOpen
-          ? "opacity 180ms ease 160ms"   // открытие: сначала ширина, потом текст
-          : "opacity 120ms ease",         // закрытие: текст исчезает сразу
-      }}
-    >
-      {/* Floating card */}
+    <div className="w-full h-full p-2 flex flex-col">
+      {/* Floating card — width follows the aside. The content inside keeps a
+          fixed 17rem width, so as the card shrinks it simply clips: icons stay
+          put on the left while labels wipe away. One element, true morph. */}
       <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
         bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
         shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
         dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
         ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
-        {SidebarContent({
-          showNewChatButton: true,
-          showCloseButton: true,
-          onCloseButtonClick: handleCloseSidebar,
-        })}
+        <div className="w-[17rem] h-full shrink-0 flex flex-col">
+          {SidebarContent({
+            showNewChatButton: true,
+            showCloseButton: true,
+            onCloseButtonClick: handleCloseSidebar,
+            collapsed: !ui.isSidebarOpen,
+          })}
+        </div>
       </div>
     </div>
     </aside>
