@@ -491,8 +491,11 @@ sendLocks.add(sendKey);
         name: f.name,
         type: f.type,
         drawingType: f.drawingType || null,
-        // Pre-select the most relevant pages so the API only receives what's needed.
-        selectedPages: selectPages(f, ragQuestion),
+        // Drawings with a high-res tiled spatial index are fully covered by File
+        // Search — don't attach their page images. The browser-rendered pages are
+        // often blank for scanned sheets and only mislead the model ("blank sheet").
+        // Non-indexed files keep sending pages (their only visual signal).
+        selectedPages: f.sheetIndexed ? [] : selectPages(f, ragQuestion),
       }));
   } catch (e) {
     console.error("Drawings prep failed (continuing without drawings):", e);
