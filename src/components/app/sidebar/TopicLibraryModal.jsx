@@ -4,8 +4,9 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, FileText, Download } from "lucide-react";
+import { X, Trash2, FileText, Download, ChevronLeft, Loader2, AlertCircle } from "lucide-react";
 import Tooltip from "@/components/common/Tooltip";
+import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
 import { auth } from "@/firebase/config";
 import {
@@ -14,6 +15,9 @@ import {
   setTopicVectorStoreId,
   addLibraryFileRecords,
   deleteLibraryFileRecordsByIds,
+  getLibraryFolders,
+  addLibraryFolder,
+  deleteLibraryFolder,
 } from "@/firebase/chatStore";
 import {
   uploadFileToStorage,
@@ -38,21 +42,29 @@ function fileLabel(name = "", type = "") {
 }
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-// Topic Library panel — view / open / delete / add files for a single topic.
+// Topic Library panel — view / open / delete / add files for a single topic,
+// organised into optional folders. Mirrors the Drawings / Manuals panel.
 // Files added here are indexed straight into the topic's vector store (no chat).
 export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const { splitMode } = useContext(ChatContext);
   const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState([]); // [{ id, name, status }]
+  const [pending, setPending] = useState([]); // [{ id, name, folderId, status }]
   const [deleting, setDeleting] = useState(new Set());
   const [dragging, setDragging] = useState(false);
   const [activeDoc, setActiveDoc] = useState(null);
   const [activeImage, setActiveImage] = useState(null);
   const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(true); // drives the slide-up / slide-down
+
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
   const storeIdRef = useRef("");
   const inputRef = useRef(null);
+  const folderInputRef = useRef(null);
 
   const close = () => setOpen(false);
 
@@ -69,13 +81,17 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const refresh = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
-    const all = await getLibraryFiles({ uid, topicId });
+    const [all, fl] = await Promise.all([
+      getLibraryFiles({ uid, topicId }),
+      getLibraryFolders({ uid, topicId }).catch(() => []),
+    ]);
     // Only real, openable files — hide internal memory snippets (url-less).
     setFiles(
       all
         .filter((f) => f.url)
         .sort((a, b) => (b.addedAt?.toMillis?.() || 0) - (a.addedAt?.toMillis?.() || 0))
     );
+    setFolders(fl);
     setLoading(false);
   };
 
@@ -85,6 +101,18 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId]);
 
+  useEffect(() => {
+    if (creatingFolder) {
+      const t = setTimeout(() => folderInputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [creatingFolder]);
+
+  const currentFolder = folders.find((f) => f.id === currentFolderId) ?? null;
+  const visibleFolders = currentFolderId ? [] : folders;
+  const visibleFiles = files.filter((f) => (f.folderId ?? null) === (currentFolderId ?? null));
+  const visiblePending = pending.filter((p) => (p.folderId ?? null) === (currentFolderId ?? null));
+
   const setPendingStatus = (id, status) =>
     setPending((p) => p.map((e) => (e.id === id ? { ...e, status } : e)));
 
@@ -92,8 +120,9 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     const uid = auth.currentUser?.uid;
     const items = Array.from(fileList || []);
     if (!uid || items.length === 0) return;
+    const folderId = currentFolderId ?? null;
 
-    const entries = items.map((f) => ({ id: rid(), name: f.name, status: "uploading" }));
+    const entries = items.map((f) => ({ id: rid(), name: f.name, folderId, status: "uploading" }));
     setPending((p) => [...entries, ...p]);
 
     try {
@@ -142,7 +171,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           const r = out[i];
           if (r?.status === "indexed") {
             toRecord.push({
-              name: p.name, type: p.type, url: p.url,
+              name: p.name, type: p.type, url: p.url, folderId,
               openaiFileId: r.openaiFileId, vectorStoreId: newStoreId, hash: p.hash,
             });
           } else {
@@ -158,6 +187,40 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     } finally {
       await refresh();
       setPending([]);
+    }
+  };
+
+  const commitFolder = async () => {
+    const name = newFolderName.trim();
+    setNewFolderName("");
+    setCreatingFolder(false);
+    if (!name) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const folder = await addLibraryFolder({ uid, topicId, name }).catch(() => null);
+    if (folder) setFolders((prev) => [folder, ...prev]);
+  };
+
+  const deleteFolder = async (folder) => {
+    const uid = auth.currentUser?.uid;
+    const inFolder = files.filter((f) => f.folderId === folder.id);
+
+    // Optimistic UI
+    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    setFiles((prev) => prev.filter((f) => f.folderId !== folder.id));
+    if (currentFolderId === folder.id) setCurrentFolderId(null);
+
+    // Tear down each file's OpenAI footprint
+    for (const f of inFolder) {
+      if (f.openaiFileId) {
+        expireIndexedFile({ vectorStoreId: f.vectorStoreId || storeIdRef.current, openaiFileId: f.openaiFileId });
+      }
+    }
+    if (uid) {
+      if (inFolder.length) {
+        deleteLibraryFileRecordsByIds({ uid, topicId, ids: inFolder.map((f) => f.id) }).catch(() => {});
+      }
+      deleteLibraryFolder({ uid, topicId, folderId: folder.id }).catch(() => {});
     }
   };
 
@@ -178,6 +241,15 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         return n;
       });
     }
+  };
+
+  const openFile = (file) => {
+    if (file.type?.startsWith("image/")) {
+      setActiveImage(file.url);
+      return;
+    }
+    const src = getViewerSrc(file);
+    if (src) setActiveDoc({ src, url: getFileUrl(file), name: file.name });
   };
 
   // Same-origin proxy → bypasses Firebase Storage's missing CORS and the
@@ -205,16 +277,12 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     } catch { /* not supported in this browser */ }
   };
 
-  const openFile = (file) => {
-    if (file.type?.startsWith("image/")) {
-      setActiveImage(file.url);
-      return;
-    }
-    const src = getViewerSrc(file);
-    if (src) setActiveDoc({ src, url: getFileUrl(file), name: file.name });
-  };
-
-  const empty = !loading && files.length === 0 && pending.length === 0;
+  const isEmpty =
+    !loading &&
+    visibleFolders.length === 0 &&
+    visibleFiles.length === 0 &&
+    visiblePending.length === 0 &&
+    !creatingFolder;
 
   if (!portalTarget) return null;
 
@@ -237,7 +305,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         animate="animate"
         exit="exit"
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-lg h-[600px] max-h-[85vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
+        className="w-full max-w-2xl h-[640px] max-h-[88vh] flex flex-col bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10"
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => {
           // Only react to external file drags — not a row being dragged OUT.
@@ -245,35 +313,69 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           e.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
         onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
       >
-        {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-white/10">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white truncate">
-              Library — {topicName || "Topic"}
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Files in this topic, searchable by the assistant.
-            </p>
+        {/* ── Header ── */}
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100 dark:border-white/10">
+          <div className="min-w-0 flex-1 flex items-center gap-2.5">
+            {currentFolder ? (
+              <>
+                <button
+                  onClick={() => setCurrentFolderId(null)}
+                  className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-400 transition shrink-0"
+                >
+                  <ChevronLeft size={16} /> Library
+                </button>
+                <span className="text-gray-300 dark:text-white/20">/</span>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                  {currentFolder.name}
+                </h2>
+              </>
+            ) : (
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight truncate">
+                  Library — {topicName || "Topic"}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Files in this topic, searchable by the assistant.
+                </p>
+              </div>
+            )}
           </div>
+
+          {/* New folder — only at the top level */}
+          {!currentFolder && (
+            <Tooltip content="New folder" position="top" align="right">
+              <button
+                onClick={() => setCreatingFolder(true)}
+                aria-label="New folder"
+                className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
+              >
+                <Icon name="folder-close" size={22} />
+              </button>
+            </Tooltip>
+          )}
+
+          {/* Upload */}
           <Tooltip content="Add files" position="top" align="right">
             <button
               onClick={() => inputRef.current?.click()}
               aria-label="Add files"
-              className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+              className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition"
             >
               <MaskIcon src="/library_add.svg" size={20} />
             </button>
           </Tooltip>
+
           <button
             onClick={close}
             aria-label="Close"
-            className="shrink-0 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
+            className="shrink-0 p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
           >
             <X size={18} />
           </button>
+
           <input
             ref={inputRef}
             type="file"
@@ -283,97 +385,189 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
           />
         </div>
 
-        {/* Body */}
-        <div className="relative flex-1 overflow-y-auto custom-scroll p-3">
+        {/* ── Body ── */}
+        <div className="relative flex-1 overflow-y-auto custom-scroll p-4">
           {dragging && (
-            <div className="absolute inset-2 z-10 rounded-xl border-2 border-dashed border-blue-400 bg-blue-50/70 dark:bg-blue-500/10 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-300 pointer-events-none">
-              Drop files to add to this topic
+            <div className="absolute inset-3 z-10 rounded-2xl border-2 border-dashed border-blue-400 bg-blue-50/70 dark:bg-blue-500/10 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-300 pointer-events-none">
+              Drop files to add them
             </div>
           )}
 
-          {loading && (
-            <div className="flex items-center justify-center py-10 text-gray-400">
-              <span className="w-5 h-5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin" />
+          {loading ? (
+            <div className="w-full h-full min-h-[320px] flex items-center justify-center text-gray-400 dark:text-gray-500">
+              <Loader2 size={22} className="animate-spin" />
             </div>
-          )}
-
-          {empty && (
-            <div className="flex flex-col items-center justify-center text-center py-12 px-6 text-gray-500 dark:text-gray-400">
-              <FileText size={28} className="opacity-40 mb-3" />
-              <p className="text-sm">No files yet.</p>
-              <p className="text-xs mt-1">Add files here or attach them in a chat — they're shared across this topic.</p>
-            </div>
-          )}
-
-          {/* In-flight uploads */}
-          {pending.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
-              <span className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
-                {p.status === "uploading" || p.status === "indexing" ? (
-                  <span className="w-4 h-4 rounded-full border-2 border-blue-300 border-t-blue-600 animate-spin" />
-                ) : (
-                  <FileText size={18} className="text-gray-400" />
-                )}
+          ) : isEmpty ? (
+            /* Empty state — drag & drop zone */
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="group w-full h-full min-h-[320px] rounded-2xl border-2 border-dashed
+                border-gray-200 dark:border-white/10
+                hover:border-blue-400/70 dark:hover:border-blue-400/50
+                hover:bg-blue-50/40 dark:hover:bg-blue-500/[0.04]
+                transition flex flex-col items-center justify-center text-center px-8 gap-4"
+            >
+              <span className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.06]
+                text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400
+                flex items-center justify-center transition-colors">
+                <FileText size={30} />
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
-                <p className="text-[11px] text-gray-400">
-                  {p.status === "uploading" ? "Uploading…"
-                    : p.status === "indexing" ? "Indexing…"
-                    : p.status === "dup" ? "Already in library"
-                    : "Couldn't add"}
+              <div className="max-w-md">
+                <p className="text-base font-medium text-gray-700 dark:text-gray-200">
+                  {currentFolder ? "Drop files into this folder" : "Drag & drop files here"}
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
+                  Add documents for this topic — they're shared across its chats and searchable by the assistant.
                 </p>
               </div>
-            </div>
-          ))}
-
-          {/* Files */}
-          {files.map((file) => (
-            <div
-              key={file.id}
-              draggable
-              onDragStart={(e) => onFileDragStart(e, file)}
-              onDragEnd={() => setDragging(false)}
-              className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-            >
-              <button
-                onClick={() => openFile(file)}
-                className="flex items-center gap-3 min-w-0 flex-1 text-left"
-              >
-                <span className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <FileTypeIcon name={file.name} type={file.type} size={18} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-                    {fileLabel(file.name, file.type)}
+            </button>
+          ) : (
+            <div className="space-y-6">
+              {/* Folders */}
+              {(visibleFolders.length > 0 || creatingFolder) && (
+                <div>
+                  <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                    Folders
                   </p>
+                  <div className="flex flex-col gap-0.5">
+                    {creatingFolder && (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-400/60 bg-blue-50/50 dark:bg-blue-500/10">
+                        <Icon name="folder-close" size={22} className="text-blue-500 shrink-0" />
+                        <input
+                          ref={folderInputRef}
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitFolder();
+                            if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                          }}
+                          onBlur={commitFolder}
+                          placeholder="Folder name"
+                          className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                      </div>
+                    )}
+                    {visibleFolders.map((folder) => {
+                      const count = files.filter((f) => f.folderId === folder.id).length;
+                      return (
+                        <button
+                          key={folder.id}
+                          onClick={() => setCurrentFolderId(folder.id)}
+                          className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left w-full
+                            hover:bg-gray-100 dark:hover:bg-white/5 transition"
+                        >
+                          <Icon name="folder-close" size={22} className="text-gray-500 dark:text-gray-400 shrink-0" />
+                          <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-white/90 truncate">
+                            {folder.name}
+                          </span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                            {count} {count === 1 ? "file" : "files"}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); deleteFolder(folder); }}
+                            className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
+                              [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                            aria-label="Delete folder"
+                          >
+                            <Trash2 size={15} />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </button>
-              <button
-                onClick={() => downloadFile(file)}
-                aria-label="Download file"
-                className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-              >
-                <Download size={16} />
-                <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100">
-                  Download
-                </span>
-              </button>
-              <button
-                onClick={() => removeFile(file)}
-                disabled={deleting.has(file.id)}
-                aria-label="Delete file"
-                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 disabled:opacity-50 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-              >
-                {deleting.has(file.id) ? (
-                  <span className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-red-500 animate-spin block" />
-                ) : (
-                  <Trash2 size={16} />
-                )}
-              </button>
+              )}
+
+              {/* Files */}
+              {(visibleFiles.length > 0 || visiblePending.length > 0) && (
+                <div>
+                  <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                    Files
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {/* In-flight uploads */}
+                    {visiblePending.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-white/[0.03]"
+                      >
+                        <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                          p.status === "error"
+                            ? "bg-red-50 dark:bg-red-500/10 text-red-500"
+                            : "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400"
+                        }`}>
+                          {p.status === "error"
+                            ? <AlertCircle size={18} />
+                            : p.status === "dup"
+                            ? <FileText size={18} className="text-gray-400" />
+                            : <Loader2 size={18} className="animate-spin" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
+                          <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                            {p.status === "uploading" ? "Uploading…"
+                              : p.status === "indexing" ? "Processing for AI…"
+                              : p.status === "dup" ? "Already in library"
+                              : "Couldn't add"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Committed files */}
+                    {visibleFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        draggable
+                        onDragStart={(e) => onFileDragStart(e, file)}
+                        onDragEnd={() => setDragging(false)}
+                        className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                      >
+                        <button
+                          onClick={() => openFile(file)}
+                          className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                        >
+                          <span className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <FileTypeIcon name={file.name} type={file.type} size={18} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-gray-800 dark:text-white/90 truncate">{file.name}</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
+                              {fileLabel(file.name, file.type)}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => downloadFile(file)}
+                          aria-label="Download file"
+                          className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                        >
+                          <Download size={16} />
+                          <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100">
+                            Download
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => removeFile(file)}
+                          disabled={deleting.has(file.id)}
+                          aria-label="Delete file"
+                          className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 disabled:opacity-50 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                        >
+                          {deleting.has(file.id) ? (
+                            <span className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-red-500 animate-spin block" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       </motion.div>
       </motion.div>

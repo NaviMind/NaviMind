@@ -74,6 +74,9 @@ async function deleteTopicDeep(uid, topicDoc) {
   await teardownVectorStore({ vectorStoreId: data.vectorStoreId, fileIds: tFileIds });
   await Promise.all(tLibSnap.docs.map((d) => deleteDoc(d.ref)));
 
+  // Organisational folders (no vector-store footprint) — just drop the docs.
+  await deleteAllDocs(collection(db, "users", uid, "topics", topicId, "libraryFolders"));
+
   await deleteDoc(doc(db, "users", uid, "topics", topicId));
 }
 

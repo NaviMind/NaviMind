@@ -546,10 +546,61 @@ export async function addLibraryFileRecords({ uid, topicId = null, chatId, files
           vectorStoreId: f.vectorStoreId || "",
           hash: f.hash || "",
           chatId: chatId || null,
+          folderId: f.folderId || null,
           addedAt: serverTimestamp(),
         })
       )
   );
+}
+
+// Move a library file into (or out of) a folder.
+export async function updateLibraryFileRecord({ uid, topicId = null, id, updates }) {
+  if (!uid || !id) return;
+  const base = topicId
+    ? ["users", uid, "topics", topicId, "libraryFiles"]
+    : ["users", uid, "libraryFiles"];
+  try {
+    await updateDoc(doc(db, ...base, id), updates);
+  } catch (e) {
+    console.error("❌ Failed to update library file record:", e);
+  }
+}
+
+// Topic-library folders — organisational only (the topic's vector store stays
+// flat, so the assistant always searches every file in the topic).
+//   users/{uid}/topics/{topicId}/libraryFolders/{id}
+export async function getLibraryFolders({ uid, topicId }) {
+  if (!uid || !topicId) return [];
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "users", uid, "topics", topicId, "libraryFolders"),
+        orderBy("createdAt", "desc")
+      )
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+}
+
+export async function addLibraryFolder({ uid, topicId, name }) {
+  const trimmed = (name || "").trim();
+  if (!uid || !topicId || !trimmed) return null;
+  const ref = await addDoc(
+    collection(db, "users", uid, "topics", topicId, "libraryFolders"),
+    { name: trimmed, createdAt: serverTimestamp() }
+  );
+  return { id: ref.id, name: trimmed };
+}
+
+export async function deleteLibraryFolder({ uid, topicId, folderId }) {
+  if (!uid || !topicId || !folderId) return;
+  try {
+    await deleteDoc(doc(db, "users", uid, "topics", topicId, "libraryFolders", folderId));
+  } catch (e) {
+    console.error("❌ Failed to delete library folder:", e);
+  }
 }
 
 // ─────────── DRAWINGS (vessel drawings — account-wide File Search store) ───────────
