@@ -39,7 +39,7 @@
 /* ─── Цветовые переменные темы — DARK ─── */
 .dark {
   --bg-app: #0b1220;
-  --bg-sidebar: #070e1a;
+  --bg-sidebar: #1a2438; /* elevated surface — lighter than the work area */
   --bg-topbar: #0b1220;
   --text-primary: #ffffff;
   --text-secondary: #e5e7eb;

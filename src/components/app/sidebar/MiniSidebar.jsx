@@ -150,7 +150,7 @@ export default function MiniSidebar() {
       >
         {/* Floating card */}
         <div className="flex-1 flex flex-col items-center pt-2 pb-2.5 gap-0.5 rounded-2xl
-          bg-white/95 dark:bg-[#151e30]/95
+          bg-white/95 dark:bg-[#1a2438]/95
           backdrop-blur-md
           shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
           dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]

@@ -124,7 +124,7 @@ export default function MiniPinned() {
         <div
           ref={panelRef}
           className="fixed z-[9999] w-60 max-h-[70vh] overflow-y-auto custom-scroll p-2
-            rounded-2xl bg-white/95 dark:bg-[#151e30]/95 backdrop-blur-md
+            rounded-2xl bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
             shadow-[0_8px_32px_rgba(0,0,0,0.14)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)]
             ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
           style={{ top: pos.top, left: pos.left }}

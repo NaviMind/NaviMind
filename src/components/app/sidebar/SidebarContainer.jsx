@@ -455,7 +455,7 @@ useEffect(() => {
     >
       {/* Floating card */}
       <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
-        bg-white/95 dark:bg-[#151e30]/95 backdrop-blur-md
+        bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
         shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
         dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
         ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
