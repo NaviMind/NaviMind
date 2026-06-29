@@ -12,8 +12,10 @@ export default function UserAvatar({ collapsed = false }) {
   // flashing the default placeholder avatar ("User" + generic icon).
   if (loading) {
     return (
-      <div className="px-0 pb-2 mt-auto w-full">
-        <div className={`w-full flex items-center gap-2 py-1 min-h-[38px] ${collapsed ? "justify-center px-0" : "px-3.5"}`}>
+      <div className={collapsed ? "pb-2 mt-auto" : "px-0 pb-2 mt-auto w-full"}>
+        <div className={collapsed
+          ? "w-10 h-10 flex items-center justify-center"
+          : "w-full flex items-center gap-2 py-1 min-h-[38px] px-3.5"}>
           <span className="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/10 animate-pulse flex-shrink-0" />
           {!collapsed && <span className="h-3 w-24 rounded bg-gray-200 dark:bg-white/10 animate-pulse" />}
         </div>
@@ -42,10 +44,12 @@ export default function UserAvatar({ collapsed = false }) {
   };
 
   return (
-    <div className="px-0 pb-2 mt-auto w-full">
+    <div className={collapsed ? "pb-2 mt-auto" : "px-0 pb-2 mt-auto w-full"}>
       <button
         onClick={handleClick}
-        className={`w-full flex items-center gap-2 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 min-h-[38px] ${collapsed ? "justify-center px-0" : "px-3.5"}`}
+        className={collapsed
+          ? "w-10 h-10 flex items-center justify-center rounded-xl border border-transparent hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+          : "w-full flex items-center gap-2 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 min-h-[38px] px-3.5"}
       >
         {photoURL ? (
           <img

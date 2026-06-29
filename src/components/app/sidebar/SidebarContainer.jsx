@@ -21,7 +21,7 @@ import DrawingRegisterButton from "@/components/app/DrawingRegister/DrawingRegis
 
 // Tooltip rendered to the RIGHT of its trigger via a portal, so it escapes
 // the sidebar card's overflow-hidden (same language as MiniSidebar tooltips).
-function HoverTipRight({ label, children, className = "" }) {
+function HoverTipRight({ label, children, className = "", enabled = true }) {
   const [pos, setPos] = useState(null);
   const ref = useRef(null);
 
@@ -30,6 +30,8 @@ function HoverTipRight({ label, children, className = "" }) {
     if (r) setPos({ top: r.top + r.height / 2, left: r.right + 10 });
   };
   const hide = () => setPos(null);
+
+  if (!enabled) return children;
 
   return (
     <div
@@ -148,13 +150,15 @@ useEffect(() => {
           at the same x as the nav icons. Expanded: the full logo + search. */}
       {!mobileMode && collapsed && (
         <div className="pl-1 pr-[10px] pt-4 pb-2">
-          <button
-            onClick={onCloseButtonClick}
-            aria-label="Open sidebar"
-            className="h-[44px] flex items-center gap-2 px-2.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          >
-            <img src="/compass.png" alt="" className="w-5 h-5 object-contain" draggable={false} />
-          </button>
+          <HoverTipRight label="Open sidebar">
+            <button
+              onClick={onCloseButtonClick}
+              aria-label="Open sidebar"
+              className="w-10 h-[44px] flex items-center justify-center rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+            >
+              <img src="/compass.png" alt="" className="w-5 h-5 object-contain" draggable={false} />
+            </button>
+          </HoverTipRight>
         </div>
       )}
       {/* Desktop logo — full-width accent block */}
@@ -263,26 +267,35 @@ useEffect(() => {
         )}
       </div>
 
-{/* New Chat — full-width labeled row (desktop) */}
+{/* New Chat — labeled row when open, icon square + tooltip when collapsed */}
 {!mobileMode && showNewChatButton && (
   <div className="pl-1 pr-[10px] py-0">
-    <NewChatButton variant="full" onSidebarItemClick={onSidebarItemClick} />
+    <HoverTipRight label="New Chat" enabled={collapsed}>
+      <NewChatButton variant="full" collapsed={collapsed} onSidebarItemClick={onSidebarItemClick} />
+    </HoverTipRight>
   </div>
 )}
 
-{/* Search — a labeled row in both states (kept in the same slot so rows below
-    don't shift when the sidebar collapses). */}
+{/* Search — labeled row when open, icon square + tooltip when collapsed (kept in
+    the same slot in both states so rows below don't shift). */}
 {!mobileMode && (
   <div className="pl-1 pr-[10px] py-0">
-    <button
-      onClick={() => setIsSearchOpen(true)}
-      className="w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 transition-colors duration-200 min-h-[38px]"
-    >
-      <Icon name="search" size={20} />
-      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100 whitespace-nowrap">
-        Search
-      </span>
-    </button>
+    <HoverTipRight label="Search topics and chats" enabled={collapsed}>
+      <button
+        onClick={() => setIsSearchOpen(true)}
+        className={collapsed
+          ? "w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+          : "w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 transition-colors duration-200 min-h-[38px]"}
+        aria-label="Search topics and chats"
+      >
+        <Icon name="search" size={20} />
+        {!collapsed && (
+          <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100 whitespace-nowrap">
+            Search
+          </span>
+        )}
+      </button>
+    </HoverTipRight>
   </div>
 )}
 
@@ -310,41 +323,44 @@ useEffect(() => {
 
   {/* Vessel Profile (scrolls now) — -mx-2 cancels the px-2 outer so it aligns with New Chat above */}
   <div className="-mx-2 px-1 py-0">
-    <button
-      onClick={() => setVesselProfileOpen(true)}
-      className="
-        w-full flex items-center gap-2 px-2.5 py-1 rounded-md
-        border border-transparent bg-transparent
-        hover:border-blue-500
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-        transition-colors duration-200 min-h-[38px]
-      "
-    >
-      <Icon name="vessel-profile" size={20} />
-      <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
-        Vessel Profile
-      </span>
-    </button>
+    <HoverTipRight label="Vessel Profile" enabled={collapsed}>
+      <button
+        onClick={() => setVesselProfileOpen(true)}
+        className={collapsed
+          ? "w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+          : "w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200 min-h-[38px]"}
+        aria-label="Vessel Profile"
+      >
+        <Icon name="vessel-profile" size={20} />
+        {!collapsed && (
+          <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100">
+            Vessel Profile
+          </span>
+        )}
+      </button>
+    </HoverTipRight>
   </div>
 
   {/* Drawing Register — global vessel drawings, opens a full overlay over the work area */}
   <div className="-mx-2 px-1 py-0">
-    <DrawingRegisterButton onSidebarItemClick={onSidebarItemClick} />
+    <HoverTipRight label="Drawings / Manuals" enabled={collapsed}>
+      <DrawingRegisterButton collapsed={collapsed} onSidebarItemClick={onSidebarItemClick} />
+    </HoverTipRight>
   </div>
 
   {/* Collapsed rail: a standalone Create Topic icon (the expanded "+" lives in
       the My Topics header, which is hidden when collapsed). */}
   {collapsed && (
     <div className="-mx-2 px-1 py-0 mt-1">
-      <button
-        onClick={() => setIsTopicModalOpen(true)}
-        className="w-full flex items-center gap-2 px-2.5 py-1 rounded-md border border-transparent bg-transparent hover:border-blue-500 transition-colors duration-200 min-h-[38px]"
-      >
-        <Icon name="create-new" size={20} />
-        <span className="ml-[5px] text-[15px] font-normal text-gray-900 dark:text-gray-100 whitespace-nowrap">
-          Create Topic
-        </span>
-      </button>
+      <HoverTipRight label="Create Topic">
+        <button
+          onClick={() => setIsTopicModalOpen(true)}
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+          aria-label="Create Topic"
+        >
+          <Icon name="create-new" size={20} />
+        </button>
+      </HoverTipRight>
     </div>
   )}
 
@@ -457,7 +473,9 @@ useEffect(() => {
       {/* Кнопка профиля — всегда внизу, всегда одна */}
      {showUserProfileButton && (
  <div className={collapsed ? "px-1 pb-0" : "px-3 pb-0"}>
-    <UserProfileButton collapsed={collapsed} />
+    <HoverTipRight label="Account & Settings" enabled={collapsed}>
+      <UserProfileButton collapsed={collapsed} />
+    </HoverTipRight>
   </div>
 )}
 
