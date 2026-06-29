@@ -198,7 +198,7 @@ useEffect(() => {
                   className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
                   aria-label="Close sidebar"
                 >
-                  <MaskIcon src="/sidebar-toggle.svg" size={22} />
+                  <MaskIcon src="/sidebar-toggle.svg" size={20} />
                 </button>
               </HoverTipRight>
             )}
