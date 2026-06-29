@@ -121,6 +121,19 @@ export function getViewerSrc(file) {
 
 // ─── Document pill (unified blue theme) ──────────────────────────────────────
 
+// Small styled hover tooltip (matches the app's blue Tooltip) for icon buttons.
+// Pair it with `group/dl relative` on the button so it doesn't clash with any
+// parent row's `group` hover-reveal.
+function Tip({ children, down }) {
+  return (
+    <span
+      className={`pointer-events-none absolute right-0 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100 ${down ? "top-full mt-1.5" : "bottom-full mb-1.5"}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function DocPill({ file, onClick }) {
   const ext = getFileExt(file.name);
   const label = getDocLabel(ext);
@@ -153,10 +166,10 @@ function DocPill({ file, onClick }) {
       <button
         onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
         aria-label="Download file"
-        title="Download"
-        className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       >
         <Download size={15} />
+        <Tip>Download</Tip>
       </button>
     </div>
   );
@@ -191,7 +204,6 @@ export function DocViewerModal({ doc, onClose }) {
           </span>
           <button
             onClick={() => downloadFile({ url: doc.url, name: doc.name })}
-            title="Download"
             className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
           >
             Download
@@ -239,10 +251,10 @@ function ImageTile({ file, sizeClass, onClick }) {
       <button
         onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
         aria-label="Download image"
-        title="Download"
-        className="absolute top-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        className="group/dl absolute top-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       >
         <Download size={14} />
+        <Tip down>Download</Tip>
       </button>
       <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-[3px] truncate">
         {file.name}
@@ -312,10 +324,10 @@ export default function MessageAttachments({ attachments = [] }) {
           <button
             onClick={(e) => { e.stopPropagation(); downloadFile(activeImage); }}
             aria-label="Download image"
-            title="Download"
-            className="absolute top-6 right-20 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white shadow-lg hover:bg-gray-800 transition"
+            className="group/dl absolute top-6 right-20 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white shadow-lg hover:bg-gray-800 transition"
           >
             <Download size={18} />
+            <Tip down>Download</Tip>
           </button>
           <button
             onClick={() => setActiveImage(null)}

@@ -353,10 +353,12 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
               <button
                 onClick={() => downloadFile(file)}
                 aria-label="Download file"
-                title="Download"
-                className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
               >
                 <Download size={16} />
+                <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100">
+                  Download
+                </span>
               </button>
               <button
                 onClick={() => removeFile(file)}
