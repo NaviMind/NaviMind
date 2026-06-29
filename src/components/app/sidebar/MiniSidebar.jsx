@@ -173,20 +173,18 @@ export default function MiniSidebar() {
             <Icon name="search" size={26} />
           </MiniBtn>
 
+          {/* Same order as the open sidebar: New Chat → Vessel Profile →
+              Drawings / Manuals → Create Topic */}
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
             <Icon name="vessel-profile" size={24} />
           </MiniBtn>
 
-          <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
-            <Icon name="create-new" size={24} />
-          </MiniBtn>
-
-          {/* Divider — separates fixed actions (above) from the workflow zone (below) */}
-          <div className="w-7 h-px bg-gray-200 dark:bg-white/10 my-1 flex-shrink-0" />
-
-          {/* Drawings / Manuals — workflow zone */}
           <MiniBtn tooltip="Drawings / Manuals" onClick={() => setDrawingRegisterOpen(true)}>
             <InventoryIcon size={24} />
+          </MiniBtn>
+
+          <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
+            <Icon name="create-new" size={24} />
           </MiniBtn>
 
           {/* Pinned quick-access — appears only when something is pinned */}
