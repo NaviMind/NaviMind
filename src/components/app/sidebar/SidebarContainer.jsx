@@ -166,7 +166,7 @@ useEffect(() => {
                   draggable={false}
                 />
                 <span className="absolute inset-0 flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <MaskIcon src="/sidebar-toggle.svg" size={24} />
+                  <MaskIcon src="/sidebar-toggle.svg" size={20} />
                 </span>
               </span>
             </button>
