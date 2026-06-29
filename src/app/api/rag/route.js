@@ -119,7 +119,7 @@ export const runtime = "nodejs";
 // request. The pre-analyzed text index already grounds the model; the images
 // are for visual verification, so a handful is plenty — and it keeps latency and
 // cost bounded (too many high-detail images can stall the request).
-const MAX_DRAWING_IMAGES = 4;
+const MAX_DRAWING_IMAGES = 6;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

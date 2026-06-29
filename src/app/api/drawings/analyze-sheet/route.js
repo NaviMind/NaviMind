@@ -52,7 +52,7 @@ export async function POST(req) {
     if (!process.env.OPENAI_API_KEY) {
       return Response.json({ ok: false, error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
-    const { pdfUrl, name = "drawing", page } = await req.json();
+    const { pdfUrl, name = "drawing", page, returnImages = false } = await req.json();
     if (!pdfUrl) return Response.json({ ok: false, error: "pdfUrl required" }, { status: 400 });
 
     const pdfBuf = Buffer.from(await fetch(pdfUrl).then((r) => r.arrayBuffer()));
@@ -111,7 +111,8 @@ export async function POST(req) {
         const pos = posLabel(c, r, cols, rows);
         try {
           const tileBuf = await sharp(png).extract({ left, top, width: w, height: h }).jpeg({ quality: 88 }).toBuffer();
-          const dataUri = `data:image/jpeg;base64,${tileBuf.toString("base64")}`;
+          const b64 = tileBuf.toString("base64");
+          const dataUri = `data:image/jpeg;base64,${b64}`;
           const resp = await openai.responses.create({
             model: TILE_MODEL,
             input: [
@@ -120,7 +121,7 @@ export async function POST(req) {
                 content: [
                   {
                     type: "input_text",
-                    text: `This is one tile (${pos}) of a large vessel technical drawing "${name}", cut into a ${cols}x${rows} grid. Transcribe EVERY readable label, equipment name, space/room name, deck name, tank name, frame number, dimension and annotation visible in THIS tile, VERBATIM, and note each item's rough position within the tile. If nothing is readable, reply "EMPTY". Be exhaustive — this builds a spatial index used to answer "where is X" questions.`,
+                    text: `This is one tile (${pos}) of a large vessel technical drawing "${name}", cut into a ${cols}x${rows} grid. List the key labels, equipment, spaces, rooms, decks, tanks, frame numbers and systems visible in THIS tile (a short index, not a full transcription) so this tile can later be picked to answer "where is X" questions. If nothing is readable, reply "EMPTY".`,
                   },
                   { type: "input_image", image_url: dataUri, detail: "high" },
                 ],
@@ -128,9 +129,9 @@ export async function POST(req) {
             ],
           });
           const text = (resp.output_text || "").trim();
-          results[my] = { pos, text: /^empty$/i.test(text) ? "" : text };
+          results[my] = { pos, col: c, row: r, text: /^empty$/i.test(text) ? "" : text, b64: returnImages ? b64 : null };
         } catch (e) {
-          results[my] = { pos, text: "", error: e.message };
+          results[my] = { pos, col: c, row: r, text: "", b64: null, error: e.message };
         }
       }
     }
@@ -140,6 +141,17 @@ export async function POST(req) {
     const spatialText =
       `SPATIAL READING of "${name}" (page ${pageIndex + 1} of ${pageCount}, rendered ${W}x${H}px, ${cols}x${rows} tiles):\n\n` +
       (sections.length ? sections.join("\n\n") : "(no readable labels found)");
+
+    // The tile IMAGES (when requested) are the real payload: the client saves them
+    // so the assistant can SEE the relevant region of the drawing at query time —
+    // tracing pipes/lines visually, not just reading extracted text.
+    const tileList = results.map((t) => ({
+      pos: t.pos,
+      col: t.col,
+      row: t.row,
+      description: t.text || "",
+      image: returnImages ? t.b64 : undefined,
+    }));
 
     return Response.json({
       ok: true,
@@ -151,6 +163,7 @@ export async function POST(req) {
       tiles: results.length,
       readable: sections.length,
       spatialText,
+      tileList,
     });
   } catch (e) {
     console.error("analyze-sheet error:", e);

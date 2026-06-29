@@ -573,6 +573,7 @@ export async function addDrawingFileRecords({ uid, files = [] }) {
           url: f.url || "",
           path: f.path || "",
           pages: Array.isArray(f.pages) ? f.pages : [],
+          tiles: Array.isArray(f.tiles) ? f.tiles : [],
           pageAnalyses: Array.isArray(f.pageAnalyses) ? f.pageAnalyses : [],
           drawingType: f.drawingType || null,
           visionFileId: f.visionFileId || null,

@@ -435,8 +435,8 @@ export default function DrawingRegisterPanel() {
         }
       }
       if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
-      for (const page of f.pages || []) {
-        if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+      for (const obj of [...(f.pages || []), ...(f.tiles || [])]) {
+        if (obj.path) deleteObject(storageRef(storage, obj.path)).catch(() => {});
       }
     }
     if (uid) {
@@ -461,9 +461,9 @@ export default function DrawingRegisterPanel() {
       }
     }
     if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
-    // Delete rendered page images (PDF → JPEG).
-    for (const page of file.pages || []) {
-      if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+    // Delete rendered page images and drawing tiles.
+    for (const obj of [...(file.pages || []), ...(file.tiles || [])]) {
+      if (obj.path) deleteObject(storageRef(storage, obj.path)).catch(() => {});
     }
     if (uid && file.id) {
       deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
@@ -529,34 +529,56 @@ export default function DrawingRegisterPanel() {
     }
   };
 
-  // For a drawing, render its main sheet at high DPI, tile + read it with vision,
-  // and index the resulting spatial layout text so the assistant can locate spaces.
+  // For a drawing: render its main sheet at high DPI and cut it into image TILES.
+  // The tiles are uploaded to Storage and stored on the record so the assistant can
+  // SEE the relevant region of the plan at query time (tracing pipes/lines, not just
+  // reading text). Each tile keeps a short text index of what's in it, so the right
+  // tiles can be picked per question. The combined text is also indexed into File
+  // Search as a fallback.
   const buildSheetIndex = async ({ uid, fileId, pdfUrl, name }) => {
     try {
       const sheet = await fetch("/api/drawings/analyze-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pdfUrl, name }),
+        body: JSON.stringify({ pdfUrl, name, returnImages: true }),
       }).then((r) => r.json());
-      if (!sheet?.ok || !sheet.spatialText || !sheet.readable) return;
-      const res = await indexTextSnippet({
-        vectorStoreId: storeIdRef.current || "",
-        label: "NaviMind Drawings",
-        name: `${name} (spatial)`,
-        content:
-          `DOCUMENT: ${name}\nSpatial layout reading of the drawing "${name}" — use it to answer where equipment and spaces are located.\n\n` +
-          sheet.spatialText,
-      });
-      const newStoreId = res?.vectorStoreId || storeIdRef.current;
-      if (newStoreId && newStoreId !== storeIdRef.current) {
-        storeIdRef.current = newStoreId;
-        setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+      if (!sheet?.ok || !Array.isArray(sheet.tileList) || !sheet.tileList.length) return;
+
+      const baseName = name.replace(/\.[a-z0-9]+$/i, "");
+      // Upload each readable tile image to Storage.
+      const tiles = [];
+      for (const t of sheet.tileList) {
+        if (!t.image) continue;
+        try {
+          const blob = await fetch(`data:image/jpeg;base64,${t.image}`).then((r) => r.blob());
+          const tileFile = new File([blob], `${baseName}_tile_${t.col}-${t.row}.jpg`, { type: "image/jpeg" });
+          const up = await uploadFileToStorage({ uid, file: tileFile });
+          tiles.push({ url: up.url, path: up.path, pos: t.pos, col: t.col, row: t.row, description: t.description || "" });
+        } catch { /* skip a tile that fails to upload */ }
       }
-      const sheetFileId = res?.texts?.[0]?.openaiFileId || null;
-      if (sheetFileId) {
-        updateDrawingFileRecord({ uid, id: fileId, updates: { sheetFileId, sheetIndexed: true } }).catch(() => {});
-        setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, sheetFileId, sheetIndexed: true } : f)));
+      if (!tiles.length) return;
+
+      // Index the combined text as a File-Search fallback (helps locate the drawing).
+      let sheetFileId = null;
+      if (sheet.spatialText && sheet.readable) {
+        const res = await indexTextSnippet({
+          vectorStoreId: storeIdRef.current || "",
+          label: "NaviMind Drawings",
+          name: `${name} (spatial)`,
+          content: `DOCUMENT: ${name}\nSpatial layout of the drawing "${name}".\n\n${sheet.spatialText}`,
+        }).catch(() => null);
+        const newStoreId = res?.vectorStoreId || storeIdRef.current;
+        if (newStoreId && newStoreId !== storeIdRef.current) {
+          storeIdRef.current = newStoreId;
+          setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+        }
+        sheetFileId = res?.texts?.[0]?.openaiFileId || null;
       }
+
+      const updates = { tiles, sheetIndexed: true };
+      if (sheetFileId) updates.sheetFileId = sheetFileId;
+      updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
+      setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
     } catch { /* non-fatal — drawing is still usable via its other indexes */ }
   };
 

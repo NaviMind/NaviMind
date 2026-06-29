@@ -129,6 +129,29 @@ function scorePageForQuestion(description, questionLower) {
   return score;
 }
 
+// Pick the most relevant TILE images of a drawing for the question. Each tile has
+// a short text index of what it contains; we score by that, then send those tile
+// images so the assistant can visually read that region. Falls back to a spread of
+// tiles when nothing matches (so it still "sees" the plan).
+const MAX_TILES_PER_DRAWING = 4;
+function selectTiles(tiles, question) {
+  const q = question.toLowerCase();
+  const withUrl = tiles.filter((t) => t.url);
+  if (!withUrl.length) return [];
+  if (withUrl.length <= MAX_TILES_PER_DRAWING) {
+    return withUrl.map((t) => ({ url: t.url, pageNum: 1, description: t.description }));
+  }
+  const scored = withUrl
+    .map((t) => ({ t, s: scorePageForQuestion(t.description || "", q) }))
+    .sort((a, b) => b.s - a.s);
+  const top = scored.slice(0, MAX_TILES_PER_DRAWING);
+  // If nothing scored, spread across the sheet rather than clustering at the start.
+  const chosen = top.some((x) => x.s > 0)
+    ? top
+    : scored.filter((_, i) => i % Math.ceil(withUrl.length / MAX_TILES_PER_DRAWING) === 0).slice(0, MAX_TILES_PER_DRAWING);
+  return chosen.map(({ t }) => ({ url: t.url, pageNum: 1, description: t.description }));
+}
+
 const MAX_PAGES_PER_DRAWING = 3;
 
 // Pick the most relevant pages of a drawing for the current question.
@@ -491,11 +514,11 @@ sendLocks.add(sendKey);
         name: f.name,
         type: f.type,
         drawingType: f.drawingType || null,
-        // Drawings with a high-res tiled spatial index are fully covered by File
-        // Search — don't attach their page images. The browser-rendered pages are
-        // often blank for scanned sheets and only mislead the model ("blank sheet").
-        // Non-indexed files keep sending pages (their only visual signal).
-        selectedPages: f.sheetIndexed ? [] : selectPages(f, ragQuestion),
+        // Drawings that were tiled: send the most relevant TILE images so the model
+        // can SEE that region of the plan (trace pipes/lines visually). The browser
+        // page renders (often blank for scans) are skipped. Non-tiled files keep
+        // sending their page images (their only visual signal).
+        selectedPages: f.tiles?.length ? selectTiles(f.tiles, ragQuestion) : selectPages(f, ragQuestion),
       }));
   } catch (e) {
     console.error("Drawings prep failed (continuing without drawings):", e);
