@@ -10,6 +10,7 @@ import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 import SearchModal from "./SearchModal";
 import MiniPinned from "./MiniPinned";
+import InventoryIcon from "@/components/app/DrawingRegister/InventoryIcon";
 
 // ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
@@ -90,6 +91,7 @@ export default function MiniSidebar() {
     toggleSettings,
     setVesselProfileOpen,
     setIsTopicModalOpen,
+    setDrawingRegisterOpen,
   } = useContext(UIContext);
 
   const { setActiveProject, setActiveChatId, setMessages } = useContext(ChatContext);
@@ -182,7 +184,12 @@ export default function MiniSidebar() {
           {/* Divider — separates fixed actions (above) from the workflow zone (below) */}
           <div className="w-7 h-px bg-gray-200 dark:bg-white/10 my-1 flex-shrink-0" />
 
-          {/* Pinned quick-access — workflow zone, below the divider */}
+          {/* Drawings / Manuals — workflow zone */}
+          <MiniBtn tooltip="Drawings / Manuals" onClick={() => setDrawingRegisterOpen(true)}>
+            <InventoryIcon size={24} />
+          </MiniBtn>
+
+          {/* Pinned quick-access — appears only when something is pinned */}
           <MiniPinned />
 
           {/* User avatar — pinned to bottom inside card */}

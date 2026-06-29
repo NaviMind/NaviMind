@@ -88,6 +88,9 @@ export default function MiniPinned() {
     setOpen(false);
   };
 
+  // Nothing pinned → no button at all (it appears only once something is pinned).
+  if (isEmpty) return null;
+
   return (
     <div className="flex justify-center w-full">
       <button
@@ -126,12 +129,7 @@ export default function MiniPinned() {
             ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
           style={{ top: pos.top, left: pos.left }}
         >
-          {isEmpty ? (
-            <div className="px-3 py-6 text-center text-[13px] text-gray-400 dark:text-gray-500">
-              No pinned items yet
-            </div>
-          ) : (
-            <>
+          <>
               {pinnedTopics.length > 0 && (
                 <>
                   <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-gray-400 dark:text-gray-500 select-none">
@@ -169,8 +167,7 @@ export default function MiniPinned() {
                   ))}
                 </>
               )}
-            </>
-          )}
+          </>
         </div>,
         document.body
       )}
