@@ -318,8 +318,33 @@ function ReferencedDrawings({ drawings = [], onOpen }) {
   );
 }
 
+// The actual drawing tiles the assistant looked at, shown as thumbnails under the
+// answer — visual proof of which part of the plan it read. Click to enlarge.
+function PlanRegions({ tiles = [], onZoom }) {
+  if (!tiles.length) return null;
+  return (
+    <div className="mt-2 ml-1 flex flex-col gap-1.5 items-start">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+        Plan region{tiles.length > 1 ? "s" : ""} read
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {tiles.map((t, idx) => (
+          <button
+            key={(t.url || "") + idx}
+            onClick={() => onZoom?.(t)}
+            title={`${t.name} — click to enlarge`}
+            className="w-[84px] h-[60px] rounded-lg overflow-hidden border border-blue-200 dark:border-blue-500/30 hover:border-blue-400 dark:hover:border-blue-500/60 shadow-sm transition cursor-zoom-in bg-gray-50 dark:bg-gray-800"
+          >
+            <img src={t.url} alt={t.name} className="w-full h-full object-cover" loading="lazy" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [] } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [] } = message;
   const { setPendingPrompt } = useContext(UIContext);
   const { streamingMessages } = useContext(ChatContext);
 
@@ -363,6 +388,7 @@ export default function ChatMessage({ message, isLast = false }) {
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [activeDoc, setActiveDoc] = useState(null);
+  const [zoomTile, setZoomTile] = useState(null);
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -445,6 +471,9 @@ export default function ChatMessage({ message, isLast = false }) {
           onCite={handleCite}
           isWaiting={isWaiting}
         />
+        {done && referencedTiles.length > 0 && (
+          <PlanRegions tiles={referencedTiles} onZoom={(t) => setZoomTile(t)} />
+        )}
         {done && extraDrawings.length > 0 && (
           <ReferencedDrawings
             drawings={extraDrawings}
@@ -453,6 +482,14 @@ export default function ChatMessage({ message, isLast = false }) {
               if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
             }}
           />
+        )}
+        {zoomTile && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setZoomTile(null)}
+          >
+            <img src={zoomTile.url} alt={zoomTile.name} className="max-w-[95vw] max-h-[90vh] object-contain" />
+          </div>
         )}
         <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
       </>

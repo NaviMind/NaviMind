@@ -514,6 +514,7 @@ sendLocks.add(sendKey);
         name: f.name,
         type: f.type,
         drawingType: f.drawingType || null,
+        tiled: !!f.tiles?.length,
         // Drawings that were tiled: send the most relevant TILE images so the model
         // can SEE that region of the plan (trace pipes/lines visually). The browser
         // page renders (often blank for scans) are skipped. Non-tiled files keep
@@ -749,6 +750,17 @@ if (res.body && contentType.includes("text/event-stream")) {
     .map((d) => ({ name: d.name, url: d.url, type: d.type }))
     .filter((d) => d.name && d.url);
 
+  // The actual plan TILES the assistant looked at — shown under the answer as
+  // thumbnails so the user can see exactly which part of the drawing was read.
+  const referencedTiles = (vesselDrawings || [])
+    .filter((d) => d.tiled)
+    .flatMap((d) =>
+      (d.selectedPages || [])
+        .filter((p) => p.url)
+        .map((p) => ({ url: p.url, name: d.name }))
+    )
+    .slice(0, 6);
+
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
@@ -756,6 +768,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   sources: streamedSources,
   fileSources,
   referencedDrawings,
+  referencedTiles,
 };
     if (inTopic) {
       await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);
