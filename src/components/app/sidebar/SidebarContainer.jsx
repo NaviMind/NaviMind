@@ -156,7 +156,7 @@ useEffect(() => {
               aria-label="Open sidebar"
               className="w-10 h-[44px] flex items-center justify-center rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
             >
-              <img src="/compass.png" alt="" className="w-5 h-5 object-contain" draggable={false} />
+              <img src="/compass.png" alt="" className="w-9 h-9 object-contain" draggable={false} />
             </button>
           </HoverTipRight>
         </div>
