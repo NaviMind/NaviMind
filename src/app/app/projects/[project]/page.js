@@ -231,9 +231,12 @@ export default function DynamicProjectPage() {
     return words.length > 160 ? words.slice(0, 160) + "…" : words || "Untitled Chat";
   };
 
+  // Until the topic doc loads from Firestore, its entry isn't in customProjects
+  // yet. Render a skeleton instead of falling back to the raw topic id (which
+  // flashed on refresh).
+  const projectLoaded = !!customProjects?.[project];
   const currentProjectName =
-    customProjects?.[project]?.name ||
-    project.charAt(0).toUpperCase() + project.slice(1);
+    customProjects?.[project]?.name || (projectLoaded ? "Untitled Topic" : "");
 
   const startEditName = () => {
     setNameDraft(currentProjectName);
@@ -365,7 +368,7 @@ export default function DynamicProjectPage() {
                 className="bg-transparent border-b-2 border-blue-500 outline-none text-gray-900 dark:text-white font-semibold tracking-tight"
                 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
               />
-            ) : (
+            ) : projectLoaded ? (
               <h1
                 className="font-semibold text-gray-900 dark:text-white tracking-tight cursor-text select-none"
                 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)", lineHeight: 1.15 }}
@@ -374,6 +377,11 @@ export default function DynamicProjectPage() {
               >
                 {currentProjectName}
               </h1>
+            ) : (
+              <div
+                className="rounded-xl bg-gray-200 dark:bg-white/10 animate-pulse"
+                style={{ height: "clamp(1.75rem, 4.5vw, 3.25rem)", width: "min(46vw, 22rem)" }}
+              />
             )}
           </div>
 
@@ -445,6 +453,11 @@ export default function DynamicProjectPage() {
               }}
               className="block font-semibold text-gray-900 dark:text-white bg-transparent border-b-2 border-blue-500 outline-none whitespace-normal break-words"
               style={{ fontSize: "clamp(1rem, 4vw, 1.5rem)", maxWidth: "70vw", lineHeight: 1.2 }}
+            />
+          ) : !projectLoaded ? (
+            <div
+              className="rounded-lg bg-gray-200 dark:bg-white/10 animate-pulse"
+              style={{ height: "clamp(1rem, 4vw, 1.5rem)", width: "min(60vw, 16rem)" }}
             />
           ) : (
             <>
