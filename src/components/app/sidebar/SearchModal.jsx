@@ -194,11 +194,19 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
             {/* Outer card — matches SettingsModal shell */}
             <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl overflow-hidden">
 
-              {/* Header row — gives the ✕ its own space, doesn't overlap pills */}
-              <div className="flex items-center justify-end px-3 pt-3 pb-0">
+              {/* Header row — title on the left, ✕ on the right */}
+              <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-0">
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white tracking-tight">
+                    Search
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Find your topics and chats
+                  </p>
+                </div>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  className="shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
                   aria-label="Close"
                   type="button"
                 >
