@@ -16,6 +16,7 @@ import UserProfileButton from "./UserProfileButton";
 import VesselProfileModal from "./Vessel-Profile";
 import SearchModal from "./SearchModal";
 import Icon from "@/components/common/Icon";
+import MaskIcon from "@/components/common/MaskIcon";
 import DrawingRegisterButton from "@/components/app/DrawingRegister/DrawingRegisterButton";
 
 
@@ -154,9 +155,20 @@ useEffect(() => {
             <button
               onClick={onCloseButtonClick}
               aria-label="Open sidebar"
-              className="w-10 h-[44px] flex items-center justify-center rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+              className="group w-10 h-[44px] flex items-center justify-center rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
             >
-              <img src="/compass.png" alt="" className="w-9 h-9 object-contain" draggable={false} />
+              {/* Idle: compass logo. Hover: morphs into the open-sidebar icon. */}
+              <span className="relative w-9 h-9 flex items-center justify-center">
+                <img
+                  src="/compass.png"
+                  alt=""
+                  className="absolute inset-0 w-9 h-9 object-contain transition-opacity duration-200 group-hover:opacity-0"
+                  draggable={false}
+                />
+                <span className="absolute inset-0 flex items-center justify-center text-gray-600 dark:text-gray-300 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <MaskIcon src="/sidebar-toggle.svg" size={24} />
+                </span>
+              </span>
             </button>
           </HoverTipRight>
         </div>
@@ -186,9 +198,7 @@ useEffect(() => {
                   className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
                   aria-label="Close sidebar"
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <MaskIcon src="/sidebar-toggle.svg" size={22} />
                 </button>
               </HoverTipRight>
             )}
