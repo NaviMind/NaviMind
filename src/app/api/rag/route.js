@@ -424,7 +424,7 @@ const drawingsGuidance = hasDrawings
         .join("\n"),
       "",
       "Examine each drawing carefully. You can read labels, dimensions, room names, equipment positions, escape routes, pipe runs, or any other markings visible on the drawing.",
-      "When answering, cite the specific drawing name you are referencing (e.g. \"According to the General Arrangement plan…\").",
+      "CITATION: when a sentence states something you read from a drawing, place an INLINE marker [[cite:EXACT_FILENAME]] right after that sentence, using the drawing's exact filename from the list above. This renders as a small clickable pill INSIDE your text — do not describe it. Do NOT dump the drawing name as a separate line or footer; cite it inline at the point it is used.",
       "If the drawing is a scanned or low-resolution image and certain details are unclear, say so rather than guessing.",
       "═══════════════════════════════════════════",
     ].join("\n")

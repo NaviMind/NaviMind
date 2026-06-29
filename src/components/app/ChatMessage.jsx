@@ -184,15 +184,16 @@ function buildCitations(text, fileSources) {
 
   const CITE_RE = /\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi;
 
-  // Count how many DISTINCT files are actually cited. With 0–1, drop all markers
-  // (a single obvious source needs no pills).
+  // Show a source pill whenever a claim is grounded in a real file — including a
+  // single source (users want to see exactly which document/drawing an answer came
+  // from). Only drop markers when NONE of them resolve to a real file.
   const distinct = new Set();
   let m;
   while ((m = CITE_RE.exec(text)) !== null) {
     const meta = resolve(m[1].trim());
     if (meta?.url) distinct.add(meta.url);
   }
-  if (distinct.size < 2) {
+  if (distinct.size < 1) {
     return { text: text.replace(CITE_RE, ""), citations: [] };
   }
 
@@ -232,7 +233,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after the answer is complete
-function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false }) {
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null }) {
   const text = String(content ?? "");
 
   const isSyncing =
@@ -270,6 +271,10 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
           </div>
         )}
 
+        {/* Visual sources (plan regions / drawing) — right under the answer, BEFORE
+            the actions and follow-up suggestions, so they read as part of the answer. */}
+        {showActions && sourcesSlot}
+
         {/* Copy + Share — only after typing finishes */}
         {showActions && (
           <div className="flex items-center gap-4 pt-1">
@@ -278,7 +283,7 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
           </div>
         )}
 
-        {/* Follow-up suggestions — only under the last message, after typing */}
+        {/* Follow-up suggestions — LAST, under everything else */}
         {showFollowups && (
           <FollowupChips options={followups} onPick={onFollowup} />
         )}
@@ -456,6 +461,24 @@ export default function ChatMessage({ message, isLast = false }) {
   }
 
   if (isAssistant) {
+    const sourcesSlot =
+      referencedTiles.length > 0 || extraDrawings.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {referencedTiles.length > 0 && (
+            <PlanRegions tiles={referencedTiles} onZoom={(t) => setZoomTile(t)} />
+          )}
+          {extraDrawings.length > 0 && (
+            <ReferencedDrawings
+              drawings={extraDrawings}
+              onOpen={(d) => {
+                const src = getViewerSrc(d);
+                if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
+              }}
+            />
+          )}
+        </div>
+      ) : null;
+
     return (
       <>
         <AssistantMessage
@@ -470,19 +493,8 @@ export default function ChatMessage({ message, isLast = false }) {
           citations={citations}
           onCite={handleCite}
           isWaiting={isWaiting}
+          sourcesSlot={sourcesSlot}
         />
-        {done && referencedTiles.length > 0 && (
-          <PlanRegions tiles={referencedTiles} onZoom={(t) => setZoomTile(t)} />
-        )}
-        {done && extraDrawings.length > 0 && (
-          <ReferencedDrawings
-            drawings={extraDrawings}
-            onOpen={(d) => {
-              const src = getViewerSrc(d);
-              if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
-            }}
-          />
-        )}
         {zoomTile && (
           <div
             className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
