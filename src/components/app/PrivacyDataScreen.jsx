@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { auth } from "@/firebase/config";
+import { ChatContext } from "@/context/ChatContext";
 import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport } from "@/firebase/privacyData";
@@ -224,6 +225,7 @@ function MemoryView({ uid, userDoc, onBack }) {
 
 export default function PrivacyDataScreen({ userDoc, onBack }) {
   const uid = auth.currentUser?.uid || userDoc?.uid || null;
+  const { clearAllChats } = useContext(ChatContext);
 
   const [view, setView] = useState("main"); // "main" | "memory"
   const [exporting, setExporting] = useState(false);
@@ -238,7 +240,11 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     setError("");
     try {
       await clearAllConversations(uid);
+      // Reset the UI to a fresh "new chat" — drop active chat/topic + cached
+      // sessions so nothing lingers on a now-deleted topic.
+      clearAllChats?.();
       setConfirmClear(false);
+      onBack?.();
     } catch (err) {
       console.error("Clear chats failed:", err);
       setError("Couldn't clear chats. Try again.");

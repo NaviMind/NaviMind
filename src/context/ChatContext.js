@@ -60,10 +60,17 @@ export function ChatProvider({ children }) {
 
   const clearAllChats = () => {
     setProjectChatSessions({});
+    setCustomProjects({});            // drop topics too, so no deleted topic lingers
+    // Land on a fresh "New Chat" (same state the New Chat button produces),
+    // not a blank pane stuck on a now-deleted topic.
+    ws.setActiveProject("global");
     ws.setActiveChatId(null);
-    ws.setActiveProject(null);
+    ws.setMessages?.([]);
+    setSplitMode(false);
+    setPinned(null);
     localStorage.removeItem("chatSessions");
     localStorage.removeItem("customProjects");
+    localStorage.removeItem("splitState");
   };
 
  const loadUserTopics = async (userId) => {
