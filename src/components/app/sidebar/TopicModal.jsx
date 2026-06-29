@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, useContext } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
 
 export default function TopicModal({
   open,
@@ -12,9 +14,21 @@ export default function TopicModal({
   onClose,
 }) {
   const { theme } = useContext(UIContext);
+  const { splitMode } = useContext(ChatContext);
   const inputRef = useRef(null);
   const [kbHeight, setKbHeight] = useState(0);
   const [isPresent, setIsPresent] = useState(false);
+
+  // Open inside the work area (not over the sidebar). Desktop: portal into
+  // nm-workarea, whose transform makes `fixed` relative to it. Mobile: the work
+  // area slides off-screen when the sidebar is open, so portal to <body>.
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
 
   useEffect(() => {
     if (open) setIsPresent(true);
@@ -46,7 +60,7 @@ export default function TopicModal({
     if (topicName.trim()) onCreate();
   };
 
-  if (!isPresent) return null;
+  if (!isPresent || !portalTarget) return null;
 
   const slideVariants = {
     initial: { y: "100%", opacity: 0 },
@@ -54,9 +68,9 @@ export default function TopicModal({
     exit: { y: "100%", opacity: 0 },
   };
 
-  return (
+  return createPortal(
     <div
-      className={`fixed left-0 top-0 right-0 z-[100] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+      className={`fixed left-0 top-0 z-[300] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
       style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: open ? 1 : 0 }}
       onClick={handleBackdropClick}
     >
@@ -117,6 +131,7 @@ export default function TopicModal({
           </motion.form>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    portalTarget
   );
 }

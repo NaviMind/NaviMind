@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useContext } from "react";
+import { createPortal } from "react-dom";
 import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
@@ -40,6 +42,18 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     openAdvancedDirectly, setOpenAdvancedDirectly,
     theme,
   } = useContext(UIContext);
+  const { splitMode } = useContext(ChatContext);
+
+  // Open inside the work area (not over the sidebar). Desktop: portal into
+  // nm-workarea, whose transform makes `fixed` relative to it. Mobile: the work
+  // area slides off-screen when the sidebar is open, so portal to <body>.
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
 
   const [form, setForm] = useState(emptyForm);
   const [savedForm, setSavedForm] = useState(null);
@@ -168,7 +182,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     }, 2000);
   };
 
-  if (!isPresent) return null;
+  if (!isPresent || !portalTarget) return null;
 
   const slideVariants = {
     initial: { y: "100%", opacity: 0 },
@@ -178,9 +192,9 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
 
   const slideTransition = { duration: 0.5, ease: [0.16, 1, 0.3, 1] };
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 overflow-hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+      className={`fixed top-0 bottom-0 left-0 overflow-hidden z-[300] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
       style={{ opacity: open ? 1 : 0 }}
       onClick={handleBackdropClick}
     >
@@ -233,6 +247,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    portalTarget
   );
 }
