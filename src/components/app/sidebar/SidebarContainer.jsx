@@ -195,7 +195,7 @@ useEffect(() => {
               <HoverTipRight label="Close Sidebar">
                 <button
                   onClick={onCloseButtonClick}
-                  className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  className="p-1.5 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                   aria-label="Close sidebar"
                 >
                   <MaskIcon src="/sidebar-toggle.svg" size={20} />
