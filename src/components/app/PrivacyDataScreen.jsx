@@ -261,7 +261,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
     try {
       const res = await purgeOrphanMemoryFiles(uid);
       const n = res?.deleted ?? 0;
-      setPurgeMsg(n > 0 ? `Removed ${n} leftover memory file${n === 1 ? "" : "s"}.` : "Nothing to clean — storage is tidy.");
+      setPurgeMsg(n > 0 ? `Cleaned up ${n} unused file${n === 1 ? "" : "s"}.` : "Nothing to clean up — everything's tidy.");
     } catch (err) {
       console.error("Purge orphans failed:", err);
       setError("Couldn't clean up storage. Try again.");
@@ -362,8 +362,8 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         <div className="mt-4 space-y-2">
           <ActionRow
             icon={<IcSweep />}
-            label="Clean up storage"
-            sub="Remove leftover memory files no longer used by any chat"
+            label="Clean up unused files"
+            sub="Removes old assistant files no longer used. Your chats, drawings and memory stay."
             busy={purging}
             onPress={onPurgeOrphans}
           />
