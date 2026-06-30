@@ -320,7 +320,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         {/* Storage usage — one account-wide pool (drawings + topics + chats + memory) */}
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
-            <span className="font-medium text-gray-700 dark:text-gray-200">Storage</span>
+            <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
+              <MaskIcon src="/Storage.svg" size={15} className="text-gray-400 dark:text-gray-500" />
+              Storage
+            </span>
             <span className="text-gray-500 dark:text-gray-400">
               {usage ? `${formatBytes(usedBytes)} of ${formatBytes(storageLimit)}` : "Calculating…"}
             </span>
