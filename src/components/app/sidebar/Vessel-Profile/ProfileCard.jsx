@@ -45,22 +45,23 @@ export default function ProfileCard({
           sm:p-6
         "
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="w-6" />
-
-          <div className="text-center mb-4">
-            <h2 className="text-xl font-bold">Vessel Profile</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-6">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Vessel Profile
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               This helps NaviMind give vessel-specific answers and compliance guidance.
             </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              ✕
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 -mr-1 -mt-1 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Department toggle */}
