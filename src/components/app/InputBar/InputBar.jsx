@@ -67,44 +67,50 @@ function StopBtn({ onClick, className = "" }) {
 // Clean round mic button to start voice input.
 function MicButton({ onClick, className = "" }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Voice input"
-      className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors
-        text-gray-500 dark:text-gray-300
-        hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white ${className}`}
-    >
-      <Mic size={19} strokeWidth={2} />
-    </button>
+    <Tooltip content="Dictate" position="top" align="right">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Dictate"
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors
+          text-gray-500 dark:text-gray-300
+          hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white ${className}`}
+      >
+        <Mic size={19} strokeWidth={2} />
+      </button>
+    </Tooltip>
   );
 }
 
 // Cancel-recording button (✕) — discards the recording, back to initial state.
 function CancelRecordButton({ onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Cancel recording"
-      className="flex items-center justify-center w-10 h-10 rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white transition-colors"
-    >
-      <X size={20} strokeWidth={2.2} />
-    </button>
+    <Tooltip content="Cancel dictation" position="top" align="left">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Cancel dictation"
+        className="flex items-center justify-center w-10 h-10 rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-700 dark:hover:text-white transition-colors"
+      >
+        <X size={20} strokeWidth={2.2} />
+      </button>
+    </Tooltip>
   );
 }
 
 // Confirm-recording button (✓) — stops recording and transcribes.
 function ConfirmRecordButton({ onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Confirm voice input"
-      className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-    >
-      <Check size={19} strokeWidth={2.6} />
-    </button>
+    <Tooltip content="Finish dictation" position="top" align="right">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Finish dictation"
+        className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+      >
+        <Check size={19} strokeWidth={2.6} />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -198,29 +204,33 @@ function TranscribingBtn() {
 function SendStopButton({ generating, onSend, onStop, disabled }) {
   if (generating) {
     return (
-      <button
-        type="button"
-        onClick={onStop}
-        aria-label="Stop generating"
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-      >
-        <span className="block w-3 h-3 rounded-[3px] bg-white" />
-      </button>
+      <Tooltip content="Stop answering" position="top" align="right">
+        <button
+          type="button"
+          onClick={onStop}
+          aria-label="Stop answering"
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+        >
+          <span className="block w-3 h-3 rounded-[3px] bg-white" />
+        </button>
+      </Tooltip>
     );
   }
   return (
-    <button
-      type="button"
-      onClick={onSend}
-      disabled={disabled}
-      aria-label="Send"
-      className={`flex items-center justify-center w-9 h-9 rounded-full text-white transition-colors
-        ${disabled
-          ? "bg-blue-600/40 dark:bg-blue-500/40 cursor-default"
-          : "bg-blue-600 hover:bg-blue-500"}`}
-    >
-      <Icon name="arrow-send" size={18} />
-    </button>
+    <Tooltip content="Send" position="top" align="right">
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={disabled}
+        aria-label="Send"
+        className={`flex items-center justify-center w-9 h-9 rounded-full text-white transition-colors
+          ${disabled
+            ? "bg-blue-600/40 dark:bg-blue-500/40 cursor-default"
+            : "bg-blue-600 hover:bg-blue-500"}`}
+      >
+        <Icon name="arrow-send" size={18} />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -281,6 +291,7 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const focusAfterTranscribeRef = useRef(false);
   const cancelledRef = useRef(false);
   const speechBaseRef = useRef("");
 
@@ -502,7 +513,9 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
         setInputValue(next);
         speechBaseRef.current = next;
         setIsActive(true);
-        inputRef.current?.focus();
+        // Focus AFTER the transcribing indicator is gone (handled by the effect
+        // below) so the textarea is mounted — otherwise Enter wouldn't send.
+        focusAfterTranscribeRef.current = true;
       }
     } catch (err) {
       /* silent */
@@ -515,6 +528,26 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
     if (isListening) confirmRecording();
     else startRecording();
   };
+
+  // After transcription finishes, focus the textarea so Enter sends right away.
+  useEffect(() => {
+    if (!isTranscribing && focusAfterTranscribeRef.current) {
+      focusAfterTranscribeRef.current = false;
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [isTranscribing]);
+
+  // While recording: Enter finishes & transcribes, Escape cancels.
+  useEffect(() => {
+    if (!isListening) return;
+    const onKey = (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); confirmRecording(); }
+      else if (e.key === "Escape") { e.preventDefault(); cancelRecording(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening]);
 
   /* ───────── ATTACHMENT PROCESSING (upload + index on attach) ───────── */
   // The topic comes from this pane's workspace (context), not the URL — so a
