@@ -68,6 +68,20 @@ export default function SidebarContainer({
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
   const [topicsCollapsed, setTopicsCollapsed] = useState(false);
+
+  // Visual collapse lags the width transition so closing is as smooth as opening:
+  // on OPEN, reveal full content immediately (labels appear as the card widens);
+  // on CLOSE, keep the full content while the card narrows (labels wipe away with
+  // the clip), then switch to the compact icon rail once it's narrow.
+  const [collapsedVisual, setCollapsedVisual] = useState(!ui.isSidebarOpen);
+  useEffect(() => {
+    if (ui.isSidebarOpen) {
+      setCollapsedVisual(false);
+      return;
+    }
+    const t = setTimeout(() => setCollapsedVisual(true), 300); // match transition-[width] duration-300
+    return () => clearTimeout(t);
+  }, [ui.isSidebarOpen]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Global Cmd/Ctrl+K to open search. Registered once (desktop instance only)
@@ -147,6 +161,8 @@ useEffect(() => {
      collapsed = false,
   }) => (
     <div className="flex flex-col h-full">
+      {/* Preload the collapsed-rail compass so it doesn't flash in on first collapse. */}
+      {!mobileMode && <img src="/compass.png" alt="" aria-hidden className="hidden" />}
       {/* Desktop header — collapsed: a compass that expands the sidebar, sitting
           at the same x as the nav icons. Expanded: the full logo + search. */}
       {!mobileMode && collapsed && (
@@ -537,7 +553,7 @@ useEffect(() => {
             showNewChatButton: true,
             showCloseButton: true,
             onCloseButtonClick: handleCloseSidebar,
-            collapsed: !ui.isSidebarOpen,
+            collapsed: collapsedVisual,
           })}
         </div>
       </div>
