@@ -100,18 +100,30 @@ export default function ProfileCard({
               not missed below the fold */}
           <ShipParticulars form={form} setForm={setForm} />
 
-          {department === "deck" && (
-            <DeckDepartment
-              form={form}
-              setForm={setForm}
-              supportsAdvanced={supportsAdvanced}
-              advancedCompleted={advancedCompleted}
-              setStep={setStep}
-            />
-          )}
-          {department === "engine" && (
-            <EngineDepartment form={form} setForm={setForm} />
-          )}
+          {/* Fade + slide the fields when switching Deck/Engine — direction
+              follows the tab position, so the swap reads as a real transition. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={department}
+              initial={{ opacity: 0, x: department === "deck" ? -14 : 14 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: department === "deck" ? 14 : -14 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-4"
+            >
+              {department === "deck" ? (
+                <DeckDepartment
+                  form={form}
+                  setForm={setForm}
+                  supportsAdvanced={supportsAdvanced}
+                  advancedCompleted={advancedCompleted}
+                  setStep={setStep}
+                />
+              ) : (
+                <EngineDepartment form={form} setForm={setForm} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         <button
