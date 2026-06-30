@@ -233,10 +233,13 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             <ThemeToggle themePreference={themePreference} setThemePreference={setThemePreference} />
           </div>
 
+          {/* Divider — sets the exit action apart from the rest */}
+          <div className="my-3 h-px bg-gray-100 dark:bg-white/[0.07]" />
+
           {/* Logout */}
           <button
             onClick={onLogout}
-            className="mt-2.5 w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15 text-red-400"
+            className="w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 active:bg-red-50 dark:active:bg-red-500/15 text-red-400"
           >
             <IcLogout />
             <span className="flex-1 text-[14px]">Log Out</span>
