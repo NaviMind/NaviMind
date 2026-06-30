@@ -78,7 +78,10 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
       const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
       if (raw) applyProfile(JSON.parse(raw));
       const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
-      if (savedDept === "engine" || savedDept === "deck") setDepartment(savedDept);
+      if (savedDept === "engine" || savedDept === "deck") {
+        setDepartment(savedDept);
+        setSavedDepartment(savedDept);
+      }
     } catch {}
   }, []);
 
@@ -109,8 +112,28 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const advancedSupportedTypes = ["LNG"];
   const supportsAdvanced = advancedSupportedTypes.includes(form.vesselType);
   const [department, setDepartment] = useState("deck");
+  // The department the saved profile belongs to, plus per-department in-session
+  // drafts so toggling Deck<->Engine doesn't lose unsaved entries.
+  const [savedDepartment, setSavedDepartment] = useState("deck");
+  const deptDraftsRef = useRef({});
   const [step, setStep] = useState("profile");
   const [isPresent, setIsPresent] = useState(false);
+
+  // Deck and Engine are independent: switching stashes the current department's
+  // working values and loads the target's (its in-session draft, the saved
+  // profile if it's the saved department, else a blank form).
+  const changeDepartment = (next) => {
+    if (next === department) return;
+    deptDraftsRef.current[department] = { ...form };
+    if (deptDraftsRef.current[next] !== undefined) {
+      setForm(deptDraftsRef.current[next]);
+    } else if (next === savedDepartment && savedForm) {
+      setForm({ ...savedForm });
+    } else {
+      setForm({ ...emptyForm });
+    }
+    setDepartment(next);
+  };
 
   useEffect(() => {
     if (open) setIsPresent(true);
@@ -142,6 +165,8 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     localStorage.setItem(VESSEL_DEPT_KEY, department);
     setSavedForm({ ...form });
+    setSavedDepartment(department);
+    deptDraftsRef.current[department] = { ...form };
     setVesselProfileSaved(true);
     setVesselProfileData({ ...form });
 
@@ -213,7 +238,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
               form={form}
               setForm={setForm}
               department={department}
-              setDepartment={setDepartment}
+              setDepartment={changeDepartment}
               supportsAdvanced={supportsAdvanced}
               advancedCompleted={advancedCompleted}
               onSubmit={handleSubmit}
