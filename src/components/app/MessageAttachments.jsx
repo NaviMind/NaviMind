@@ -55,7 +55,8 @@ const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "heic", "
 export function getFileIconSrc(name = "", type = "") {
   if (type?.startsWith("image/")) return "/Image.svg";
   const ext = getFileExt(name);
-  if (ext === "pdf") return "/Picture_pdf.svg";
+  // PDF uses the same clean generic document glyph as other docs (Word/txt) —
+  // the dedicated "PDF" icon looked busy and inconsistent in the chat pills.
   if (["xls", "xlsx", "csv"].includes(ext)) return "/Table%20excel.svg";
   if (IMAGE_EXTS.includes(ext)) return "/Image.svg";
   return null;
