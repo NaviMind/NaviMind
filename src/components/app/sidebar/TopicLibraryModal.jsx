@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
@@ -19,6 +19,7 @@ import {
   getLibraryFolders,
   addLibraryFolder,
   deleteLibraryFolder,
+  getAccountStorageUsage,
 } from "@/firebase/chatStore";
 import {
   uploadFileToStorage,
@@ -28,6 +29,8 @@ import {
   expireIndexedFile,
 } from "@/components/app/InputBar/attachmentProcessing";
 import { getViewerSrc, getFileUrl, DocViewerModal, FileTypeIcon } from "@/components/app/MessageAttachments";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import { storageLimitFor, formatBytes } from "@/lib/planLimits";
 
 function fileExt(name = "") {
   return name.split(".").pop()?.toLowerCase() || "";
@@ -42,17 +45,6 @@ function fileLabel(name = "", type = "") {
   return ext.toUpperCase() || "File";
 }
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per topic
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes < 0) return "0 MB";
-  const gb = bytes / 1024 ** 3;
-  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
-  const mb = bytes / 1024 ** 2;
-  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
 
 // Topic Library panel — view / open / delete / add files for a single topic,
 // organised into optional folders. Mirrors the Drawings / Manuals panel.
@@ -75,6 +67,16 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [quotaError, setQuotaError] = useState("");
+
+  const { data: userDoc } = useCurrentUserDoc();
+  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+  const [accountUsed, setAccountUsed] = useState(0); // account-wide bytes in use
+  const refreshUsage = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const u = await getAccountStorageUsage(uid).catch(() => null);
+    if (u) setAccountUsed(u.total);
+  };
 
   const storeIdRef = useRef("");
   const inputRef = useRef(null);
@@ -121,6 +123,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   useEffect(() => {
     setLoading(true);
     refresh();
+    refreshUsage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicId]);
 
@@ -136,13 +139,9 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
   const visibleFiles = files.filter((f) => (f.folderId ?? null) === (currentFolderId ?? null));
   const visiblePending = pending.filter((p) => (p.folderId ?? null) === (currentFolderId ?? null));
 
-  // Storage usage — committed files plus in-flight uploads, against the topic pool.
-  const usedBytes = useMemo(() => {
-    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
-    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
-    return committed + inflight;
-  }, [files, pending]);
-  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  // Account-wide usage = committed total (all areas) + this panel's in-flight uploads.
+  const usedBytes = accountUsed + pending.reduce((sum, p) => sum + (p.size || 0), 0);
+  const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const barColor =
     usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
@@ -155,12 +154,12 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     if (!uid || items.length === 0) return;
     const folderId = currentFolderId ?? null;
 
-    // Enforce the per-topic storage cap.
+    // Account-wide quota gate (current usage + incoming).
     const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
-    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
-      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+    if (usedBytes + incoming > storageLimit) {
+      const left = Math.max(0, storageLimit - usedBytes);
       setQuotaError(
-        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some files to free space.`
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(storageLimit)}. Remove some files or upgrade your plan.`
       );
       return;
     }
@@ -230,6 +229,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
       console.error("Add to library failed:", err);
     } finally {
       await refresh();
+      refreshUsage();
       setPending([]);
     }
   };
@@ -260,6 +260,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
         expireIndexedFile({ vectorStoreId: f.vectorStoreId || storeIdRef.current, openaiFileId: f.openaiFileId });
       }
     }
+    setAccountUsed((b) => Math.max(0, b - inFolder.reduce((s, f) => s + (f.size || 0), 0)));
     if (uid) {
       if (inFolder.length) {
         deleteLibraryFileRecordsByIds({ uid, topicId, ids: inFolder.map((f) => f.id) }).catch(() => {});
@@ -278,6 +279,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
       }
       await deleteLibraryFileRecordsByIds({ uid, topicId, ids: [file.id] });
       setFiles((fs) => fs.filter((f) => f.id !== file.id));
+      setAccountUsed((b) => Math.max(0, b - (file.size || 0)));
     } finally {
       setDeleting((s) => {
         const n = new Set(s);
@@ -626,7 +628,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
               <span className="font-medium text-gray-700 dark:text-gray-200">
                 {formatBytes(usedBytes)}
               </span>{" "}
-              of {formatBytes(STORAGE_LIMIT_BYTES)} used
+              of {formatBytes(storageLimit)} used
             </span>
             <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
           </div>

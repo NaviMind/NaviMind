@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Download } from "lucide-react";
@@ -30,7 +30,10 @@ import {
   getDrawingFolders,
   addDrawingFolder,
   deleteDrawingFolder,
+  getAccountStorageUsage,
 } from "@/firebase/chatStore";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import { storageLimitFor, formatBytes } from "@/lib/planLimits";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -233,22 +236,23 @@ async function renderPdfPages(file) {
   return rendered;
 }
 
-// Storage quota for drawings. Flat value for now — in the subscription phase this
-// will be derived from the user's plan (higher tier → larger quota).
-const STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes < 0) return "0 MB";
-  const gb = bytes / 1024 ** 3;
-  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
-  const mb = bytes / 1024 ** 2;
-  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
+// Storage is one account-wide pool (see getAccountStorageUsage + planLimits);
+// the panel reads the account total/limit rather than enforcing a per-area cap.
 
 export default function DrawingRegisterPanel() {
   const { isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
   const { splitMode } = useContext(ChatContext);
+  const { data: userDoc } = useCurrentUserDoc();
+  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+
+  // Account-wide bytes already in use (fetched on open, refreshed after uploads).
+  const [accountUsed, setAccountUsed] = useState(0);
+  const refreshUsage = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const u = await getAccountStorageUsage(uid).catch(() => null);
+    if (u) setAccountUsed(u.total);
+  };
 
   const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(false);
@@ -338,15 +342,17 @@ export default function DrawingRegisterPanel() {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [sid, fl, fo] = await Promise.all([
+      const [sid, fl, fo, usage] = await Promise.all([
         getUserDrawingsStoreId(uid).catch(() => ""),
         getDrawingFolders(uid).catch(() => []),
         getDrawingFiles(uid).catch(() => []),
+        getAccountStorageUsage(uid).catch(() => null),
       ]);
       if (cancelled) return;
       storeIdRef.current = sid || "";
       setFolders(fl);
       setFiles(fo);
+      if (usage) setAccountUsed(usage.total);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -385,13 +391,9 @@ export default function DrawingRegisterPanel() {
   const visibleFiles = files.filter((f) => f.folderId === (currentFolderId ?? null));
   const visiblePending = pending.filter((p) => p.folderId === (currentFolderId ?? null));
 
-  // Storage usage — committed files plus in-flight uploads, against one global pool.
-  const usedBytes = useMemo(() => {
-    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
-    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
-    return committed + inflight;
-  }, [files, pending]);
-  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  // Account-wide usage = committed total (all areas) + this panel's in-flight uploads.
+  const usedBytes = accountUsed + pending.reduce((sum, p) => sum + (p.size || 0), 0);
+  const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const barColor =
     usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
@@ -421,6 +423,7 @@ export default function DrawingRegisterPanel() {
     // Optimistic UI
     setFolders((prev) => prev.filter((f) => f.id !== folder.id));
     setFiles((prev) => prev.filter((f) => f.folderId !== folder.id));
+    setAccountUsed((b) => Math.max(0, b - inFolder.reduce((s, f) => s + (f.size || 0), 0)));
     if (currentFolderId === folder.id) setCurrentFolderId(null);
 
     // Tear down each file's OpenAI + Storage footprint
@@ -479,6 +482,7 @@ export default function DrawingRegisterPanel() {
   const deleteFile = async (file) => {
     const uid = auth.currentUser?.uid;
     setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    setAccountUsed((b) => Math.max(0, b - (file.size || 0)));
 
     for (const fid of [file.openaiFileId, file.visionFileId, file.sheetFileId]) {
       if (fid) {
@@ -684,12 +688,12 @@ export default function DrawingRegisterPanel() {
       if (!items.length) return;
     }
 
-    // Quota gate (committed + in-flight + incoming).
+    // Account-wide quota gate (current usage + incoming).
     const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
-    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
-      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+    if (usedBytes + incoming > storageLimit) {
+      const left = Math.max(0, storageLimit - usedBytes);
       setQuotaError(
-        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some drawings or upgrade your plan.`
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(storageLimit)}. Remove some files or upgrade your plan.`
       );
       return;
     }
@@ -912,6 +916,7 @@ export default function DrawingRegisterPanel() {
         markFileWorkDone(false);
       }
     }
+    refreshUsage(); // committed sizes are in Firestore now
   };
 
   const isEmpty =
@@ -1286,7 +1291,7 @@ export default function DrawingRegisterPanel() {
                   <span className="font-medium text-gray-700 dark:text-gray-200">
                     {formatBytes(usedBytes)}
                   </span>{" "}
-                  of {formatBytes(STORAGE_LIMIT_BYTES)} used
+                  of {formatBytes(storageLimit)} used
                 </span>
                 <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
               </div>
