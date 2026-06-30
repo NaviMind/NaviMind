@@ -769,7 +769,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
-  content: finalText || (aborted ? "⏹️ Stopped." : " "),
+  content: finalText || (aborted ? "Stopped." : " "),
   sources: streamedSources,
   fileSources,
   referencedDrawings,
@@ -946,7 +946,7 @@ if (!summaryLocks.has(summaryKey)) {
       if (aiMessageId) clearStreamingMessage?.(aiMessageId);
       if (aiMessageId && chatId) {
         try {
-          const stopPayload = { content: "⏹️ Stopped." };
+          const stopPayload = { content: "Stopped." };
           if (inTopic && topicId) {
             await updateTopicChatMessage(topicId, chatId, aiMessageId, stopPayload);
           } else {
