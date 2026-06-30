@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { auth } from "@/firebase/config";
-import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
+import { ChatContext } from "@/context/ChatContext";
+import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
-import { clearAllConversations, downloadUserDataExport } from "@/firebase/privacyData";
+import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
+import { storageLimitFor, formatBytes } from "@/lib/planLimits";
+import MaskIcon from "@/components/common/MaskIcon";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
 
@@ -33,6 +36,7 @@ const IcDelete = () => (
     <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
   </svg>
 );
+const IcSweep = () => <MaskIcon src="/Mop.svg" size={20} />;
 const Spinner = ({ className = "" }) => (
   <span className={`inline-block rounded-full border-2 border-current border-t-transparent animate-spin ${className}`} />
 );
@@ -224,6 +228,7 @@ function MemoryView({ uid, userDoc, onBack }) {
 
 export default function PrivacyDataScreen({ userDoc, onBack }) {
   const uid = auth.currentUser?.uid || userDoc?.uid || null;
+  const { clearAllChats } = useContext(ChatContext);
 
   const [view, setView] = useState("main"); // "main" | "memory"
   const [exporting, setExporting] = useState(false);
@@ -232,13 +237,50 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  const [purging, setPurging] = useState(false);
+  const [purgeMsg, setPurgeMsg] = useState("");
+
+  // Account-wide storage usage vs the plan limit.
+  const [usage, setUsage] = useState(null);
+  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    getAccountStorageUsage(uid).then((u) => { if (alive) setUsage(u); });
+    return () => { alive = false; };
+  }, [uid]);
+  const usedBytes = usage?.total || 0;
+  const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
+  const usageBarColor = usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
+  const onPurgeOrphans = async () => {
+    if (!uid || purging) return;
+    setPurging(true);
+    setPurgeMsg("");
+    setError("");
+    try {
+      const res = await purgeOrphanMemoryFiles(uid);
+      const n = res?.deleted ?? 0;
+      setPurgeMsg(n > 0 ? `Cleaned up ${n} unused file${n === 1 ? "" : "s"}.` : "Nothing to clean up — everything's tidy.");
+    } catch (err) {
+      console.error("Purge orphans failed:", err);
+      setError("Couldn't clean up storage. Try again.");
+    } finally {
+      setPurging(false);
+    }
+  };
+
   const onClearChats = async () => {
     if (!uid || clearing) return;
     setClearing(true);
     setError("");
     try {
       await clearAllConversations(uid);
+      // Reset the UI to a fresh "new chat" — drop active chat/topic + cached
+      // sessions so nothing lingers on a now-deleted topic.
+      clearAllChats?.();
       setConfirmClear(false);
+      onBack?.();
     } catch (err) {
       console.error("Clear chats failed:", err);
       setError("Couldn't clear chats. Try again.");
@@ -275,6 +317,30 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
+        {/* Storage usage — one account-wide pool (drawings + topics + chats + memory) */}
+        <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
+          <div className="flex items-center justify-between mb-1.5 text-xs">
+            <span className="font-medium text-gray-700 dark:text-gray-200">Storage</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {usage ? `${formatBytes(usedBytes)} of ${formatBytes(storageLimit)}` : "Calculating…"}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${usageBarColor} transition-all duration-300`}
+              style={{ width: `${usedPct}%` }}
+            />
+          </div>
+          {usage && (
+            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+              <span>Drawings · {formatBytes(usage.drawings)}</span>
+              <span>Topics · {formatBytes(usage.topics)}</span>
+              <span>Chats · {formatBytes(usage.chats)}</span>
+              <span>Memory · {formatBytes(usage.memory)}</span>
+            </div>
+          )}
+        </div>
+
         <div className="space-y-2">
           <ActionRow
             icon={<IcExport />}
@@ -295,6 +361,13 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
 
         <div className="mt-4 space-y-2">
           <ActionRow
+            icon={<IcSweep />}
+            label="Clean up unused files"
+            sub="Removes old assistant files no longer used. Your chats, drawings and memory stay."
+            busy={purging}
+            onPress={onPurgeOrphans}
+          />
+          <ActionRow
             icon={<IcDelete />}
             label="Clear all chats"
             sub="Delete every chat and topic. Your account stays."
@@ -303,6 +376,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
           />
         </div>
 
+        {purgeMsg && <p className="mt-4 text-[12px] text-green-600 dark:text-green-400">{purgeMsg}</p>}
         {error && <p className="mt-4 text-[12px] text-red-500">{error}</p>}
       </div>
 

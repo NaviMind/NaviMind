@@ -4,7 +4,6 @@ import { useState, useEffect, useContext, useRef } from "react";
 import { UIProvider, UIContext } from "@/context/UIContext";
 import { ChatProvider, ChatContext } from "@/context/ChatContext";
 import SidebarContainer from "@/components/app/sidebar/SidebarContainer";
-import MiniSidebar from "@/components/app/sidebar/MiniSidebar";
 import TopBar from "@/components/app/TopBar";
 import MobileSidebarOverlay from "@/components/app/MobileSidebarOverlay";
 import InputBar from "@/components/app/InputBar/InputBar";
@@ -99,7 +98,6 @@ function AppShell({ children }) {
     <>
       <ThemeColorMeta />
       <SidebarContainer />
-      <MiniSidebar />
 
       <div
           id="nm-workarea"

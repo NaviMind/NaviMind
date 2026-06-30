@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useContext } from "react";
+import { createPortal } from "react-dom";
 import { UIContext } from "@/context/UIContext";
+import { ChatContext } from "@/context/ChatContext";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "./ProfileCard";
 import AdvancedCard from "./AdvancedCard";
@@ -40,6 +42,18 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     openAdvancedDirectly, setOpenAdvancedDirectly,
     theme,
   } = useContext(UIContext);
+  const { splitMode } = useContext(ChatContext);
+
+  // Open inside the work area (not over the sidebar). Desktop: portal into
+  // nm-workarea, whose transform makes `fixed` relative to it. Mobile: the work
+  // area slides off-screen when the sidebar is open, so portal to <body>.
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
 
   const [form, setForm] = useState(emptyForm);
   const [savedForm, setSavedForm] = useState(null);
@@ -64,7 +78,10 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
       const raw = localStorage.getItem(VESSEL_STORAGE_KEY);
       if (raw) applyProfile(JSON.parse(raw));
       const savedDept = localStorage.getItem(VESSEL_DEPT_KEY);
-      if (savedDept === "engine" || savedDept === "deck") setDepartment(savedDept);
+      if (savedDept === "engine" || savedDept === "deck") {
+        setDepartment(savedDept);
+        setSavedDepartment(savedDept);
+      }
     } catch {}
   }, []);
 
@@ -95,8 +112,28 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
   const advancedSupportedTypes = ["LNG"];
   const supportsAdvanced = advancedSupportedTypes.includes(form.vesselType);
   const [department, setDepartment] = useState("deck");
+  // The department the saved profile belongs to, plus per-department in-session
+  // drafts so toggling Deck<->Engine doesn't lose unsaved entries.
+  const [savedDepartment, setSavedDepartment] = useState("deck");
+  const deptDraftsRef = useRef({});
   const [step, setStep] = useState("profile");
   const [isPresent, setIsPresent] = useState(false);
+
+  // Deck and Engine are independent: switching stashes the current department's
+  // working values and loads the target's (its in-session draft, the saved
+  // profile if it's the saved department, else a blank form).
+  const changeDepartment = (next) => {
+    if (next === department) return;
+    deptDraftsRef.current[department] = { ...form };
+    if (deptDraftsRef.current[next] !== undefined) {
+      setForm(deptDraftsRef.current[next]);
+    } else if (next === savedDepartment && savedForm) {
+      setForm({ ...savedForm });
+    } else {
+      setForm({ ...emptyForm });
+    }
+    setDepartment(next);
+  };
 
   useEffect(() => {
     if (open) setIsPresent(true);
@@ -128,6 +165,8 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     localStorage.setItem(VESSEL_STORAGE_KEY, JSON.stringify(form));
     localStorage.setItem(VESSEL_DEPT_KEY, department);
     setSavedForm({ ...form });
+    setSavedDepartment(department);
+    deptDraftsRef.current[department] = { ...form };
     setVesselProfileSaved(true);
     setVesselProfileData({ ...form });
 
@@ -168,7 +207,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
     }, 2000);
   };
 
-  if (!isPresent) return null;
+  if (!isPresent || !portalTarget) return null;
 
   const slideVariants = {
     initial: { y: "100%", opacity: 0 },
@@ -178,9 +217,9 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
 
   const slideTransition = { duration: 0.5, ease: [0.16, 1, 0.3, 1] };
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 overflow-hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500`}
+      className={`fixed top-0 bottom-0 left-0 overflow-hidden z-[300] flex items-center justify-center p-4 backdrop-blur-sm ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
       style={{ opacity: open ? 1 : 0 }}
       onClick={handleBackdropClick}
     >
@@ -199,7 +238,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
               form={form}
               setForm={setForm}
               department={department}
-              setDepartment={setDepartment}
+              setDepartment={changeDepartment}
               supportsAdvanced={supportsAdvanced}
               advancedCompleted={advancedCompleted}
               onSubmit={handleSubmit}
@@ -233,6 +272,7 @@ export default function VesselProfileModal({ open, onClose, onSave }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div>,
+    portalTarget
   );
 }

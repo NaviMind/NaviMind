@@ -184,15 +184,16 @@ function buildCitations(text, fileSources) {
 
   const CITE_RE = /\[\[\s*cite:\s*([^\]]+?)\s*\]\]/gi;
 
-  // Count how many DISTINCT files are actually cited. With 0–1, drop all markers
-  // (a single obvious source needs no pills).
+  // Show a source pill whenever a claim is grounded in a real file — including a
+  // single source (users want to see exactly which document/drawing an answer came
+  // from). Only drop markers when NONE of them resolve to a real file.
   const distinct = new Set();
   let m;
   while ((m = CITE_RE.exec(text)) !== null) {
     const meta = resolve(m[1].trim());
     if (meta?.url) distinct.add(meta.url);
   }
-  if (distinct.size < 2) {
+  if (distinct.size < 1) {
     return { text: text.replace(CITE_RE, ""), citations: [] };
   }
 
@@ -232,7 +233,7 @@ function splitHighlight(text) {
 }
 
 // Assistant message — Copy + Share appear only after the answer is complete
-function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false }) {
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null }) {
   const text = String(content ?? "");
 
   const isSyncing =
@@ -278,6 +279,10 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
           </div>
         )}
 
+        {/* Visual sources (plan regions / drawing) — right under the answer, BEFORE
+            the actions and follow-up suggestions, so they read as part of the answer. */}
+        {showActions && sourcesSlot}
+
         {/* Copy + Share — only after typing finishes */}
         {showActions && (
           <div className="flex items-center gap-4 pt-1">
@@ -286,7 +291,7 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
           </div>
         )}
 
-        {/* Follow-up suggestions — only under the last message, after typing */}
+        {/* Follow-up suggestions — LAST, under everything else */}
         {showFollowups && (
           <FollowupChips options={followups} onPick={onFollowup} />
         )}
@@ -326,8 +331,33 @@ function ReferencedDrawings({ drawings = [], onOpen }) {
   );
 }
 
+// The actual drawing tiles the assistant looked at, shown as thumbnails under the
+// answer — visual proof of which part of the plan it read. Click to enlarge.
+function PlanRegions({ tiles = [], onZoom }) {
+  if (!tiles.length) return null;
+  return (
+    <div className="mt-2 ml-1 flex flex-col gap-1.5 items-start">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+        Plan region{tiles.length > 1 ? "s" : ""} read
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {tiles.map((t, idx) => (
+          <button
+            key={(t.url || "") + idx}
+            onClick={() => onZoom?.(t)}
+            title={`${t.name} — click to enlarge`}
+            className="w-[84px] h-[60px] rounded-lg overflow-hidden border border-blue-200 dark:border-blue-500/30 hover:border-blue-400 dark:hover:border-blue-500/60 shadow-sm transition cursor-zoom-in bg-gray-50 dark:bg-gray-800"
+          >
+            <img src={t.url} alt={t.name} className="w-full h-full object-cover" loading="lazy" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [] } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [] } = message;
   const { setPendingPrompt } = useContext(UIContext);
   const { streamingMessages } = useContext(ChatContext);
 
@@ -371,6 +401,7 @@ export default function ChatMessage({ message, isLast = false }) {
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [activeDoc, setActiveDoc] = useState(null);
+  const [zoomTile, setZoomTile] = useState(null);
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -438,6 +469,24 @@ export default function ChatMessage({ message, isLast = false }) {
   }
 
   if (isAssistant) {
+    const sourcesSlot =
+      referencedTiles.length > 0 || extraDrawings.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {referencedTiles.length > 0 && (
+            <PlanRegions tiles={referencedTiles} onZoom={(t) => setZoomTile(t)} />
+          )}
+          {extraDrawings.length > 0 && (
+            <ReferencedDrawings
+              drawings={extraDrawings}
+              onOpen={(d) => {
+                const src = getViewerSrc(d);
+                if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
+              }}
+            />
+          )}
+        </div>
+      ) : null;
+
     return (
       <>
         <AssistantMessage
@@ -452,15 +501,27 @@ export default function ChatMessage({ message, isLast = false }) {
           citations={citations}
           onCite={handleCite}
           isWaiting={isWaiting}
+          sourcesSlot={sourcesSlot}
         />
-        {done && extraDrawings.length > 0 && (
-          <ReferencedDrawings
-            drawings={extraDrawings}
-            onOpen={(d) => {
-              const src = getViewerSrc(d);
-              if (src) setActiveDoc({ src, url: getFileUrl(d), name: d.name });
-            }}
-          />
+        {zoomTile && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setZoomTile(null)}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setZoomTile(null); }}
+              aria-label="Close"
+              className="absolute top-5 right-5 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl leading-none transition"
+            >
+              ✕
+            </button>
+            <img
+              src={zoomTile.url}
+              alt={zoomTile.name}
+              className="max-w-[95vw] max-h-[90vh] object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         )}
         <DocViewerModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
       </>

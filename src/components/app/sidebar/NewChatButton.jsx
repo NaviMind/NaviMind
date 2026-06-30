@@ -4,7 +4,7 @@ import { useContext } from "react";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 
-export default function NewChatButton({ onSidebarItemClick, variant = "icon" }) {
+export default function NewChatButton({ onSidebarItemClick, variant = "icon", collapsed = false }) {
   const {
     setActiveProject,
     setActiveChatId,
@@ -21,6 +21,22 @@ export default function NewChatButton({ onSidebarItemClick, variant = "icon" }) 
     onSidebarItemClick?.();
     router.push("/app");
   };
+
+  // Collapsed rail — a discrete icon square (label is shown via tooltip upstream).
+  if (collapsed) {
+    return (
+      <button
+        onClick={handleNewChat}
+        aria-label="New Chat"
+        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+      >
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    );
+  }
 
   const NewChatIcon = () => (
     <svg

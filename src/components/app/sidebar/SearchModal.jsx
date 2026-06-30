@@ -41,20 +41,44 @@ function Highlighted({ text, query }) {
 }
 
 export default function SearchModal({ open, onClose, onSidebarItemClick }) {
-  const { theme } = useContext(UIContext);
-  const { projectChatSessions, customProjects, openChatSession } =
+  const { theme, closeModals } = useContext(UIContext);
+  const { projectChatSessions, customProjects, openChatSession, splitMode } =
     useContext(ChatContext);
   const router = useRouter();
 
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
 
   const inputRef = useRef(null);
   const backdropRef = useRef(null);
   const rowRefs = useRef([]);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Open inside the work area (not over the sidebar), like the other modals.
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(hover: hover)").matches;
+    setPortalTarget(
+      desktop ? (document.getElementById("nm-workarea") || document.body) : document.body
+    );
+  }, []);
+
+  // One modal at a time: opening Search closes the others; opening another
+  // closes Search.
+  useEffect(() => {
+    if (!open) return;
+    closeModals?.();
+    window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    const onCloseSelf = () => onClose?.();
+    window.addEventListener("nm-close-search", onCloseSelf);
+    return () => window.removeEventListener("nm-close-search", onCloseSelf);
+  }, [onClose]);
 
   useEffect(() => {
     if (open) {
@@ -76,6 +100,9 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
   const allChats = useMemo(() => {
     const out = [];
     Object.entries(projectChatSessions || {}).forEach(([projId, chats]) => {
+      // Skip chats whose topic no longer exists (stale entries left in the
+      // cached sessions after a topic was deleted) — they shouldn't surface.
+      if (projId !== "global" && !customProjects?.[projId]) return;
       const topicName =
         projId === "global" ? null : customProjects?.[projId]?.name || "Topic";
       (chats || []).forEach((c) => {
@@ -142,16 +169,16 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
     if (e.target === backdropRef.current) onClose();
   };
 
-  if (!mounted) return null;
+  if (!mounted || !portalTarget) return null;
 
   return createPortal(
     <AnimatePresence>
       {open && (
         <div
           ref={backdropRef}
-          className={`fixed inset-0 z-[2000] flex items-center justify-center backdrop-blur-sm p-4 ${
+          className={`fixed top-0 bottom-0 left-0 z-[2000] flex items-center justify-center backdrop-blur-sm p-4 overflow-hidden ${
             theme === "dark" ? "bg-black/60" : "bg-black/25"
-          }`}
+          } ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
           onClick={handleBackdrop}
         >
           <motion.div
@@ -167,11 +194,19 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
             {/* Outer card — matches SettingsModal shell */}
             <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl overflow-hidden">
 
-              {/* Header row — gives the ✕ its own space, doesn't overlap pills */}
-              <div className="flex items-center justify-end px-3 pt-3 pb-0">
+              {/* Header row — title on the left, ✕ on the right */}
+              <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-0">
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white tracking-tight">
+                    Search
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Find your topics and chats
+                  </p>
+                </div>
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  className="shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
                   aria-label="Close"
                   type="button"
                 >
@@ -260,6 +295,6 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
         </div>
       )}
     </AnimatePresence>,
-    document.body
+    portalTarget
   );
 }

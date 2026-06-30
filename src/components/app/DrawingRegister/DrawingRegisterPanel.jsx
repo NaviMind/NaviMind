@@ -1,9 +1,9 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { X, ChevronLeft, Trash2, FileText, Loader2, AlertCircle, RefreshCw, Download } from "lucide-react";
 import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
@@ -30,7 +30,10 @@ import {
   getDrawingFolders,
   addDrawingFolder,
   deleteDrawingFolder,
+  getAccountStorageUsage,
 } from "@/firebase/chatStore";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import { storageLimitFor, formatBytes } from "@/lib/planLimits";
 
 const rid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -47,6 +50,13 @@ const DRAWING_TYPE_COLORS = {
   "Safety Equipment": "bg-pink-100   dark:bg-pink-500/20   text-pink-600   dark:text-pink-300",
   "Manual":           "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300",
 };
+
+// Drawing types whose VALUE is the visual layout — worth the (heavier) tiled
+// spatial read. Manuals/Other are text and handled by LlamaParse instead.
+const VISUAL_DRAWING_TYPES = new Set([
+  "GA Plan", "Fire Plan", "Escape Routes", "Tank Plan", "Engine Room",
+  "Cargo Plan", "Electrical", "Piping", "Stability", "Safety Equipment",
+]);
 
 // ── PDF rendering helpers ─────────────────────────────────────────────────────
 // pdfjs-dist is loaded lazily so it doesn't bloat the initial bundle.
@@ -226,22 +236,23 @@ async function renderPdfPages(file) {
   return rendered;
 }
 
-// Storage quota for drawings. Flat value for now — in the subscription phase this
-// will be derived from the user's plan (higher tier → larger quota).
-const STORAGE_LIMIT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes < 0) return "0 MB";
-  const gb = bytes / 1024 ** 3;
-  if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
-  const mb = bytes / 1024 ** 2;
-  if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
+// Storage is one account-wide pool (see getAccountStorageUsage + planLimits);
+// the panel reads the account total/limit rather than enforcing a per-area cap.
 
 export default function DrawingRegisterPanel() {
   const { isDrawingRegisterOpen, setDrawingRegisterOpen } = useContext(UIContext);
   const { splitMode } = useContext(ChatContext);
+  const { data: userDoc } = useCurrentUserDoc();
+  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+
+  // Account-wide bytes already in use (fetched on open, refreshed after uploads).
+  const [accountUsed, setAccountUsed] = useState(0);
+  const refreshUsage = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const u = await getAccountStorageUsage(uid).catch(() => null);
+    if (u) setAccountUsed(u.total);
+  };
 
   const [portalTarget, setPortalTarget] = useState(null);
   const [open, setOpen] = useState(false);
@@ -331,15 +342,17 @@ export default function DrawingRegisterPanel() {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [sid, fl, fo] = await Promise.all([
+      const [sid, fl, fo, usage] = await Promise.all([
         getUserDrawingsStoreId(uid).catch(() => ""),
         getDrawingFolders(uid).catch(() => []),
         getDrawingFiles(uid).catch(() => []),
+        getAccountStorageUsage(uid).catch(() => null),
       ]);
       if (cancelled) return;
       storeIdRef.current = sid || "";
       setFolders(fl);
       setFiles(fo);
+      if (usage) setAccountUsed(usage.total);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -378,13 +391,9 @@ export default function DrawingRegisterPanel() {
   const visibleFiles = files.filter((f) => f.folderId === (currentFolderId ?? null));
   const visiblePending = pending.filter((p) => p.folderId === (currentFolderId ?? null));
 
-  // Storage usage — committed files plus in-flight uploads, against one global pool.
-  const usedBytes = useMemo(() => {
-    const committed = files.reduce((sum, f) => sum + (f.size || 0), 0);
-    const inflight = pending.reduce((sum, p) => sum + (p.size || 0), 0);
-    return committed + inflight;
-  }, [files, pending]);
-  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+  // Account-wide usage = committed total (all areas) + this panel's in-flight uploads.
+  const usedBytes = accountUsed + pending.reduce((sum, p) => sum + (p.size || 0), 0);
+  const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const barColor =
     usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
@@ -414,11 +423,12 @@ export default function DrawingRegisterPanel() {
     // Optimistic UI
     setFolders((prev) => prev.filter((f) => f.id !== folder.id));
     setFiles((prev) => prev.filter((f) => f.folderId !== folder.id));
+    setAccountUsed((b) => Math.max(0, b - inFolder.reduce((s, f) => s + (f.size || 0), 0)));
     if (currentFolderId === folder.id) setCurrentFolderId(null);
 
     // Tear down each file's OpenAI + Storage footprint
     for (const f of inFolder) {
-      for (const fid of [f.openaiFileId, f.visionFileId]) {
+      for (const fid of [f.openaiFileId, f.visionFileId, f.sheetFileId]) {
         if (fid) {
           expireIndexedFile({
             vectorStoreId: f.vectorStoreId || storeIdRef.current,
@@ -427,8 +437,8 @@ export default function DrawingRegisterPanel() {
         }
       }
       if (f.path) deleteObject(storageRef(storage, f.path)).catch(() => {});
-      for (const page of f.pages || []) {
-        if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+      for (const obj of [...(f.pages || []), ...(f.tiles || [])]) {
+        if (obj.path) deleteObject(storageRef(storage, obj.path)).catch(() => {});
       }
     }
     if (uid) {
@@ -439,12 +449,42 @@ export default function DrawingRegisterPanel() {
     }
   };
 
+  // Same-origin proxy that streams the file with attachment headers — bypasses
+  // Firebase Storage's missing CORS and the browser's cross-origin download block.
+  const proxyUrl = (file) =>
+    `/api/drawings/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name || "file")}`;
+
+  // ── Download a file to the user's device ──
+  const downloadFile = (file) => {
+    if (!file?.url) return;
+    const a = document.createElement("a");
+    a.href = proxyUrl(file);          // same-origin → `download` is honored
+    a.download = file.name || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  // Native drag-out — drag a file row onto the desktop / another app to save it.
+  const onFileDragStart = (e, file) => {
+    if (!file?.url) return;
+    const mime = file.type || "application/octet-stream";
+    // Point the drag at our same-origin proxy (absolute URL required by the
+    // DownloadURL spec) so the saved-from-drag download isn't cross-origin.
+    const abs = `${window.location.origin}${proxyUrl(file)}`;
+    try {
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${abs}`);
+      e.dataTransfer.effectAllowed = "copy";
+    } catch { /* not supported in this browser */ }
+  };
+
   // ── File delete ──
   const deleteFile = async (file) => {
     const uid = auth.currentUser?.uid;
     setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    setAccountUsed((b) => Math.max(0, b - (file.size || 0)));
 
-    for (const fid of [file.openaiFileId, file.visionFileId]) {
+    for (const fid of [file.openaiFileId, file.visionFileId, file.sheetFileId]) {
       if (fid) {
         expireIndexedFile({
           vectorStoreId: file.vectorStoreId || storeIdRef.current,
@@ -453,9 +493,9 @@ export default function DrawingRegisterPanel() {
       }
     }
     if (file.path) deleteObject(storageRef(storage, file.path)).catch(() => {});
-    // Delete rendered page images (PDF → JPEG).
-    for (const page of file.pages || []) {
-      if (page.path) deleteObject(storageRef(storage, page.path)).catch(() => {});
+    // Delete rendered page images and drawing tiles.
+    for (const obj of [...(file.pages || []), ...(file.tiles || [])]) {
+      if (obj.path) deleteObject(storageRef(storage, obj.path)).catch(() => {});
     }
     if (uid && file.id) {
       deleteDrawingFileRecordsByIds({ uid, ids: [file.id] }).catch(() => {});
@@ -501,7 +541,7 @@ export default function DrawingRegisterPanel() {
   // text. Shared by the initial upload analysis and the retry path. When the file
   // was already parsed by LlamaParse, pass indexText:false so we don't double-index
   // — the parsed text is the authoritative searchable copy.
-  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType, indexText = true }) => {
+  const applyAnalysis = async ({ uid, fileId, name, pageAnalyses, drawingType, indexText = true, pdfUrl = "" }) => {
     const updates = {};
     if (Array.isArray(pageAnalyses) && pageAnalyses.length) updates.pageAnalyses = pageAnalyses;
     if (drawingType) updates.drawingType = drawingType;
@@ -513,6 +553,73 @@ export default function DrawingRegisterPanel() {
       updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
       setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
     }
+
+    // For an actual visual DRAWING (not a manual), also build the high-res tiled
+    // spatial index so "where is X" questions work. PDFs only (mupdf renders them).
+    if (pdfUrl && /\.pdf$/i.test(name) && VISUAL_DRAWING_TYPES.has(drawingType)) {
+      await buildSheetIndex({ uid, fileId, pdfUrl, name });
+    }
+  };
+
+  // For a drawing: render its main sheet at high DPI and cut it into image TILES.
+  // The tiles are uploaded to Storage and stored on the record so the assistant can
+  // SEE the relevant region of the plan at query time (tracing pipes/lines, not just
+  // reading text). Each tile keeps a short text index of what's in it, so the right
+  // tiles can be picked per question. The combined text is also indexed into File
+  // Search as a fallback.
+  const buildSheetIndex = async ({ uid, fileId, pdfUrl, name }) => {
+    try {
+      const sheet = await fetch("/api/drawings/analyze-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl, name, returnImages: true }),
+      }).then((r) => r.json());
+      if (!sheet?.ok || !Array.isArray(sheet.tileList) || !sheet.tileList.length) return;
+
+      const baseName = name.replace(/\.[a-z0-9]+$/i, "");
+      // Upload each readable tile image to Storage.
+      const tiles = [];
+      for (const t of sheet.tileList) {
+        if (!t.image) continue;
+        try {
+          const blob = await fetch(`data:image/jpeg;base64,${t.image}`).then((r) => r.blob());
+          const tileFile = new File([blob], `${baseName}_tile_${t.col}-${t.row}.jpg`, { type: "image/jpeg" });
+          const up = await uploadFileToStorage({ uid, file: tileFile });
+          tiles.push({ url: up.url, path: up.path, pos: t.pos, col: t.col, row: t.row, description: t.description || "" });
+        } catch { /* skip a tile that fails to upload */ }
+      }
+      if (!tiles.length) return;
+
+      // Index the combined text as a File-Search fallback (helps locate the drawing).
+      let sheetFileId = null;
+      if (sheet.spatialText && sheet.readable) {
+        const res = await indexTextSnippet({
+          vectorStoreId: storeIdRef.current || "",
+          label: "NaviMind Drawings",
+          name: `${name} (spatial)`,
+          content: `DOCUMENT: ${name}\nSpatial layout of the drawing "${name}".\n\n${sheet.spatialText}`,
+        }).catch(() => null);
+        const newStoreId = res?.vectorStoreId || storeIdRef.current;
+        if (newStoreId && newStoreId !== storeIdRef.current) {
+          storeIdRef.current = newStoreId;
+          setUserDrawingsStoreId(uid, newStoreId).catch(() => {});
+        }
+        sheetFileId = res?.texts?.[0]?.openaiFileId || null;
+      }
+
+      // Located objects with full-sheet bounding boxes → enables tight on-demand
+      // crops of exactly the asked-about item at query time. Cap to keep the record small.
+      const items = Array.isArray(sheet.items)
+        ? sheet.items
+            .filter((it) => it?.label && Array.isArray(it.box) && it.box.length === 4)
+            .slice(0, 120)
+        : [];
+
+      const updates = { tiles, sheetIndexed: true, items, sheetPdfUrl: pdfUrl, sheetPage: sheet.pageIndex || 1 };
+      if (sheetFileId) updates.sheetFileId = sheetFileId;
+      updateDrawingFileRecord({ uid, id: fileId, updates }).catch(() => {});
+      setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, ...updates } : f)));
+    } catch { /* non-fatal — drawing is still usable via its other indexes */ }
   };
 
   // ── Re-run vision analysis for a file whose analysis failed or was lost ──
@@ -531,7 +638,7 @@ export default function DrawingRegisterPanel() {
     enqueueAnalysis(() =>
       analyzeAllPages(inputPages, file.name)
         .then(({ pages: pageAnalyses, drawingType }) =>
-          applyAnalysis({ uid, fileId: file.id, name: file.name, pageAnalyses, drawingType })
+          applyAnalysis({ uid, fileId: file.id, name: file.name, pageAnalyses, drawingType, pdfUrl: file.url })
         )
         .catch(() => {})
         .finally(() => {
@@ -581,12 +688,12 @@ export default function DrawingRegisterPanel() {
       if (!items.length) return;
     }
 
-    // Quota gate (committed + in-flight + incoming).
+    // Account-wide quota gate (current usage + incoming).
     const incoming = items.reduce((sum, f) => sum + (f.size || 0), 0);
-    if (usedBytes + incoming > STORAGE_LIMIT_BYTES) {
-      const left = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+    if (usedBytes + incoming > storageLimit) {
+      const left = Math.max(0, storageLimit - usedBytes);
       setQuotaError(
-        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(STORAGE_LIMIT_BYTES)}. Remove some drawings or upgrade your plan.`
+        `Not enough storage — ${formatBytes(left)} left of ${formatBytes(storageLimit)}. Remove some files or upgrade your plan.`
       );
       return;
     }
@@ -761,6 +868,7 @@ export default function DrawingRegisterPanel() {
                       drawingType,
                       // LlamaParse text is already the searchable copy — don't double-index.
                       indexText: !llamaText,
+                      pdfUrl: uploaded.url,
                     })
                   )
                   .catch(() => {})
@@ -808,6 +916,7 @@ export default function DrawingRegisterPanel() {
         markFileWorkDone(false);
       }
     }
+    refreshUsage(); // committed sizes are in Firestore now
   };
 
   const isEmpty =
@@ -856,7 +965,12 @@ export default function DrawingRegisterPanel() {
               bg-white dark:bg-[#1a2235] rounded-2xl shadow-2xl
               ring-1 ring-black/5 dark:ring-white/10"
             onClick={(e) => e.stopPropagation()}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragOver={(e) => {
+              // Only react to external file drags — not a row being dragged OUT.
+              if (!Array.from(e.dataTransfer?.types || []).includes("Files")) return;
+              e.preventDefault();
+              setDragging(true);
+            }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
             onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer?.files); }}
           >
@@ -901,7 +1015,7 @@ export default function DrawingRegisterPanel() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Upload drawings"
-                  className="shrink-0 p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition"
+                  className="shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
                 >
                   <MaskIcon src="/library_add.svg" size={20} />
                 </button>
@@ -1075,6 +1189,9 @@ export default function DrawingRegisterPanel() {
                           return (
                             <div
                               key={file.id}
+                              draggable
+                              onDragStart={(e) => onFileDragStart(e, file)}
+                              onDragEnd={() => setDragging(false)}
                               className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition"
                             >
                               <button
@@ -1134,6 +1251,17 @@ export default function DrawingRegisterPanel() {
                                 </button>
                               )}
                               <button
+                                onClick={() => downloadFile(file)}
+                                aria-label="Download file"
+                                className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10
+                                  [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <Download size={16} />
+                                <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100">
+                                  Download
+                                </span>
+                              </button>
+                              <button
                                 onClick={() => deleteFile(file)}
                                 aria-label="Delete file"
                                 className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10
@@ -1163,7 +1291,7 @@ export default function DrawingRegisterPanel() {
                   <span className="font-medium text-gray-700 dark:text-gray-200">
                     {formatBytes(usedBytes)}
                   </span>{" "}
-                  of {formatBytes(STORAGE_LIMIT_BYTES)} used
+                  of {formatBytes(storageLimit)} used
                 </span>
                 <span className="text-gray-400 dark:text-gray-500">{Math.round(usedPct)}%</span>
               </div>

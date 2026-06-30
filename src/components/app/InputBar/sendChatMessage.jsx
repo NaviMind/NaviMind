@@ -129,6 +129,28 @@ function scorePageForQuestion(description, questionLower) {
   return score;
 }
 
+// Pick the most relevant TILE images of a drawing for the question. Each tile has
+// a short text index of what it contains; we score by that, then send those tile
+// images so the assistant can visually read that region. Falls back to a spread of
+// tiles when nothing matches (so it still "sees" the plan).
+const MAX_TILES_PER_DRAWING = 2;
+function selectTiles(tiles, question) {
+  const q = question.toLowerCase();
+  const withUrl = tiles.filter((t) => t.url);
+  if (!withUrl.length) return [];
+
+  const scored = withUrl
+    .map((t) => ({ t, s: scorePageForQuestion(t.description || "", q) }))
+    .sort((a, b) => b.s - a.s);
+
+  // Prefer the tiles that actually match the question (the specific region). Only
+  // when nothing matches do we fall back to a small spread so the model still sees
+  // the sheet. Keep it tight — the user wants the relevant piece, not the whole grid.
+  const matched = scored.filter((x) => x.s > 0).slice(0, MAX_TILES_PER_DRAWING);
+  const chosen = matched.length ? matched : scored.slice(0, Math.min(2, withUrl.length));
+  return chosen.map(({ t }) => ({ url: t.url, pageNum: 1, description: t.description }));
+}
+
 const MAX_PAGES_PER_DRAWING = 3;
 
 // Pick the most relevant pages of a drawing for the current question.
@@ -484,16 +506,26 @@ sendLocks.add(sendKey);
     // Select the most relevant drawings to attach as vision inputs. The model
     // will see the actual image — layout, labels, pipe runs — not just OCR text.
     const selectedDrawings = selectDrawings(allDrawingFiles, ragQuestion);
-    vesselDrawings = selectedDrawings
-      .filter((f) => f.url)
-      .map((f) => ({
+    vesselDrawings = [];
+    for (const f of selectedDrawings.filter((d) => d.url)) {
+      // Show the fixed grid tile whose OCR text matches the question — a real,
+      // correctly-located region of the sheet. We deliberately do NOT crop a
+      // pixel-tight box from model-estimated coordinates: those are unreliable
+      // and produce wrong-region close-ups. A coarser-but-correct tile beats a
+      // sharp-but-wrong crop.
+      const selectedPages = f.tiles?.length
+        ? selectTiles(f.tiles, ragQuestion)
+        : selectPages(f, ragQuestion);
+
+      vesselDrawings.push({
         url: f.url,
         name: f.name,
         type: f.type,
         drawingType: f.drawingType || null,
-        // Pre-select the most relevant pages so the API only receives what's needed.
-        selectedPages: selectPages(f, ragQuestion),
-      }));
+        tiled: !!f.tiles?.length,
+        selectedPages,
+      });
+    }
   } catch (e) {
     console.error("Drawings prep failed (continuing without drawings):", e);
     drawingsStoreId = "";
@@ -715,13 +747,24 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 
-  // Drawings consulted for this answer — surfaced as openable pills so the user
-  // can always open the referenced drawing, even when the model doesn't emit a
-  // [[cite:]] marker (drawings are described from vision, not File Search). We
-  // already selected these as relevant, so they are the answer's visual sources.
+  // The answer's visual source = the plan that was actually READ (its tiles were
+  // sent), not every drawing that happened to be in scope. Showing only the used
+  // drawing keeps the footer clean even with a big library.
   const referencedDrawings = (vesselDrawings || [])
+    .filter((d) => d.tiled && (d.selectedPages || []).some((p) => p.url))
     .map((d) => ({ name: d.name, url: d.url, type: d.type }))
     .filter((d) => d.name && d.url);
+
+  // The actual plan TILES the assistant looked at — shown under the answer as
+  // thumbnails so the user can see exactly which region of the drawing was read.
+  const referencedTiles = (vesselDrawings || [])
+    .filter((d) => d.tiled)
+    .flatMap((d) =>
+      (d.selectedPages || [])
+        .filter((p) => p.url)
+        .map((p) => ({ url: p.url, name: d.name }))
+    )
+    .slice(0, 3);
 
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
@@ -730,6 +773,7 @@ if (res.body && contentType.includes("text/event-stream")) {
   sources: streamedSources,
   fileSources,
   referencedDrawings,
+  referencedTiles,
 };
     if (inTopic) {
       await updateTopicChatMessage(topicId, chatId, aiMessageId, payload);

@@ -10,6 +10,7 @@ import { auth } from "@/firebase/config";
 import Icon from "@/components/common/Icon";
 import SearchModal from "./SearchModal";
 import MiniPinned from "./MiniPinned";
+import InventoryIcon from "@/components/app/DrawingRegister/InventoryIcon";
 
 // ─── Tooltip rendered in a portal (escapes overflow:hidden) ──────────────────
 
@@ -36,11 +37,11 @@ function MiniBtn({ children, morph, tooltip, onClick }) {
         onClick={onClick}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
       >
         {morph ? (
           // Cross-fade between idle (logo) and hover (hamburger)
-          <span className="relative w-9 h-9 flex items-center justify-center">
+          <span className="relative w-7 h-7 flex items-center justify-center">
             <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered ? "opacity-0" : "opacity-100"}`}>
               {morph.idle}
             </span>
@@ -69,13 +70,13 @@ function MiniBtn({ children, morph, tooltip, onClick }) {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const IcMenu = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 const IcNewChat = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -90,6 +91,7 @@ export default function MiniSidebar() {
     toggleSettings,
     setVesselProfileOpen,
     setIsTopicModalOpen,
+    setDrawingRegisterOpen,
   } = useContext(UIContext);
 
   const { setActiveProject, setActiveChatId, setMessages } = useContext(ChatContext);
@@ -148,7 +150,7 @@ export default function MiniSidebar() {
       >
         {/* Floating card */}
         <div className="flex-1 flex flex-col items-center pt-2 pb-2.5 gap-0.5 rounded-2xl
-          bg-white/95 dark:bg-[#151e30]/95
+          bg-white/95 dark:bg-[#1a2438]/95
           backdrop-blur-md
           shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
           dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
@@ -158,7 +160,7 @@ export default function MiniSidebar() {
             tooltip="Open Sidebar"
             onClick={toggleSidebar}
             morph={{
-              idle: <img src="/compass.png" alt="" className="w-9 h-9 object-contain" draggable={false} />,
+              idle: <img src="/compass.png" alt="" className="w-7 h-7 object-contain" draggable={false} />,
               hover: <IcMenu />,
             }}
           />
@@ -168,21 +170,24 @@ export default function MiniSidebar() {
           </MiniBtn>
 
           <MiniBtn tooltip="Search topics and chats" onClick={() => setIsSearchOpen(true)}>
-            <Icon name="search" size={26} />
+            <Icon name="search" size={20} />
           </MiniBtn>
 
+          {/* Same order as the open sidebar: New Chat → Vessel Profile →
+              Drawings / Manuals → Create Topic */}
           <MiniBtn tooltip="Vessel Profile" onClick={() => setVesselProfileOpen(true)}>
-            <Icon name="vessel-profile" size={24} />
+            <Icon name="vessel-profile" size={20} />
+          </MiniBtn>
+
+          <MiniBtn tooltip="Drawings / Manuals" onClick={() => setDrawingRegisterOpen(true)}>
+            <InventoryIcon size={20} />
           </MiniBtn>
 
           <MiniBtn tooltip="Create Topic" onClick={() => setIsTopicModalOpen(true)}>
-            <Icon name="create-new" size={24} />
+            <Icon name="create-new" size={20} />
           </MiniBtn>
 
-          {/* Divider — separates fixed actions (above) from the workflow zone (below) */}
-          <div className="w-7 h-px bg-gray-200 dark:bg-white/10 my-1 flex-shrink-0" />
-
-          {/* Pinned quick-access — workflow zone, below the divider */}
+          {/* Pinned quick-access — appears only when something is pinned */}
           <MiniPinned />
 
           {/* User avatar — pinned to bottom inside card */}

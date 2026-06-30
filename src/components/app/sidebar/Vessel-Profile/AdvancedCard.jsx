@@ -31,22 +31,23 @@ export default function AdvancedCard({
         sm:p-6
       ">
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-2 shrink-0">
-          <div className="w-6" />
-          <div className="text-center mb-4">
-            <h2 className="text-xl font-bold">Advanced Vessel Data</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-6">
-              Add vessel-specific technical parameters to improve
-              operational reasoning and cargo system guidance.
+        <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+              Advanced Vessel Data
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Add vessel-specific technical parameters to improve operational reasoning and cargo system guidance.
             </p>
-            <button
-              type="button"
-              onClick={onBack}
-              className="absolute top-1 right-1 text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-            >
-              ✕
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Close"
+            className="shrink-0 -mr-1 -mt-1 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition"
+          >
+            ✕
+          </button>
         </div>
 
         {/* SCROLLABLE CONTENT */}

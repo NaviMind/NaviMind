@@ -1,10 +1,51 @@
 import React, { useState } from "react";
+import { Download } from "lucide-react";
 import MaskIcon from "@/components/common/MaskIcon";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getFileExt(name = "") {
   return name.split(".").pop()?.toLowerCase() || "";
+}
+
+// Best persisted URL for downloading (not a blob/data preview).
+function dlUrl(file) {
+  return file.url || file.downloadURL || file.previewUrl || "";
+}
+
+// Same-origin proxy → bypasses Firebase Storage's missing CORS and the browser's
+// cross-origin download/drag block. Blob/data URLs are already local, use as-is.
+function downloadHref(file) {
+  const u = dlUrl(file);
+  if (!u || u.startsWith("blob:") || u.startsWith("data:")) return u;
+  return `/api/drawings/download?url=${encodeURIComponent(u)}&name=${encodeURIComponent(file.name || "file")}`;
+}
+
+function downloadFile(file) {
+  const href = downloadHref(file);
+  if (!href) return;
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = file.name || "file";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// Native drag-out — drag onto the desktop / another app to save the file.
+function onAttachmentDragStart(e, file) {
+  const u = dlUrl(file);
+  if (!u) return;
+  const mime = file.type || "application/octet-stream";
+  try {
+    if (u.startsWith("blob:") || u.startsWith("data:")) {
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${u}`);
+    } else {
+      const abs = `${window.location.origin}${downloadHref(file)}`;
+      e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${abs}`);
+    }
+    e.dataTransfer.effectAllowed = "copy";
+  } catch { /* not supported in this browser */ }
 }
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "heic", "heif", "avif"];
@@ -80,30 +121,57 @@ export function getViewerSrc(file) {
 
 // ─── Document pill (unified blue theme) ──────────────────────────────────────
 
+// Small styled hover tooltip (matches the app's blue Tooltip) for icon buttons.
+// Pair it with `group/dl relative` on the button so it doesn't clash with any
+// parent row's `group` hover-reveal.
+function Tip({ children, down }) {
+  return (
+    <span
+      className={`pointer-events-none absolute right-0 z-30 whitespace-nowrap rounded-md bg-blue-600 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/dl:opacity-100 ${down ? "top-full mt-1.5" : "bottom-full mb-1.5"}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 function DocPill({ file, onClick }) {
   const ext = getFileExt(file.name);
   const label = getDocLabel(ext);
 
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] text-left group cursor-pointer"
+    <div
+      draggable
+      onDragStart={(e) => onAttachmentDragStart(e, file)}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50/50 dark:hover:bg-gray-700/60 shadow-sm transition-all duration-150 max-w-[280px] group cursor-pointer"
     >
-      {/* Type badge — themed type icon on subtle blue tint */}
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
-        <FileTypeIcon name={file.name} type={file.type} size={20} />
-      </div>
+      {/* Clickable area — opens the viewer */}
+      <button onClick={onClick} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+        {/* Type badge — themed type icon on subtle blue tint */}
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0 bg-blue-50 dark:bg-blue-500/10">
+          <FileTypeIcon name={file.name} type={file.type} size={20} />
+        </div>
 
-      {/* Name + type */}
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
-          {file.name}
-        </p>
-        <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
-          {label}
-        </p>
-      </div>
-    </button>
+        {/* Name + type */}
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium text-gray-800 dark:text-white/90 truncate leading-snug">
+            {file.name}
+          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider mt-[1px] text-blue-500 dark:text-blue-400">
+            {label}
+          </p>
+        </div>
+      </button>
+
+      {/* Download — appears on hover */}
+      <button
+        onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
+        aria-label="Download file"
+        className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      >
+        <Download size={15} />
+        <Tip>Download</Tip>
+      </button>
+    </div>
   );
 }
 
@@ -134,6 +202,13 @@ export function DocViewerModal({ doc, onClose }) {
           <span className="text-sm font-medium text-gray-800 dark:text-white/90 truncate flex-1">
             {doc.name}
           </span>
+          <button
+            onClick={() => downloadFile({ url: doc.url, name: doc.name })}
+            className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 flex items-center gap-1 flex-shrink-0"
+          >
+            Download
+            <Download size={14} />
+          </button>
           <a
             href={doc.url}
             target="_blank"
@@ -167,9 +242,20 @@ function ImageTile({ file, sizeClass, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center justify-center ${sizeClass} rounded-xl overflow-hidden cursor-pointer hover:scale-[1.03] transition-transform shadow-sm`}
+      draggable
+      onDragStart={(e) => onAttachmentDragStart(e, file)}
+      className={`group relative flex items-center justify-center ${sizeClass} rounded-xl overflow-hidden cursor-pointer hover:scale-[1.03] transition-transform shadow-sm`}
     >
       <img src={previewUrl} alt={file.name} className="object-cover w-full h-full" draggable={false} />
+      {/* Download — appears on hover */}
+      <button
+        onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
+        aria-label="Download image"
+        className="group/dl absolute top-1.5 right-1.5 w-7 h-7 flex items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      >
+        <Download size={14} />
+        <Tip down>Download</Tip>
+      </button>
       <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-[3px] truncate">
         {file.name}
       </div>
@@ -210,7 +296,7 @@ export default function MessageAttachments({ attachments = [] }) {
               key={file.name + idx}
               file={file}
               sizeClass={imgSize}
-              onClick={() => setActiveImage(file.previewUrl || file.url || file.downloadURL)}
+              onClick={() => setActiveImage(file)}
             />
           ))}
         </div>
@@ -236,16 +322,26 @@ export default function MessageAttachments({ attachments = [] }) {
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
         >
           <button
+            onClick={(e) => { e.stopPropagation(); downloadFile(activeImage); }}
+            aria-label="Download image"
+            className="group/dl absolute top-6 right-20 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white shadow-lg hover:bg-gray-800 transition"
+          >
+            <Download size={18} />
+            <Tip down>Download</Tip>
+          </button>
+          <button
             onClick={() => setActiveImage(null)}
             className="absolute top-6 right-6 w-11 h-11 flex items-center justify-center rounded-full bg-black text-white text-xl shadow-lg hover:bg-gray-800 transition"
           >
             ✕
           </button>
           <img
-            src={activeImage}
+            src={activeImage.previewUrl || activeImage.url || activeImage.downloadURL}
             alt="preview"
             className="max-w-[95vw] max-h-[90vh] object-contain"
             onClick={(e) => e.stopPropagation()}
+            draggable
+            onDragStart={(e) => onAttachmentDragStart(e, activeImage)}
           />
         </div>
       )}

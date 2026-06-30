@@ -140,6 +140,37 @@ export async function deleteChatFromFirestore(uid, chatId, topicId = null) {
       } catch (cleanupErr) {
         console.warn("Chat library cleanup failed:", cleanupErr);
       }
+    } else {
+      // Topic chats: the topic owns user-attached library files until the topic
+      // itself is deleted, BUT this chat's url-less MEMORY snippets (memory-*.txt)
+      // are tied to this chat — remove them now so they don't pile up in OpenAI.
+      try {
+        const libFiles = await getLibraryFiles({ uid, topicId });
+        const mine = libFiles.filter((f) => f.chatId === chatId && !f.url && f.openaiFileId);
+        // Group by each record's own vector store (normally the topic store).
+        const byStore = {};
+        for (const f of mine) {
+          const sid = f.vectorStoreId || "";
+          (byStore[sid] ||= []).push(f.openaiFileId);
+        }
+        for (const [sid, fileIds] of Object.entries(byStore)) {
+          if (fileIds.length === 0) continue;
+          await fetch("/api/library/expire", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vectorStoreId: sid, fileIds }),
+          }).catch(() => {});
+        }
+        if (mine.length > 0) {
+          await deleteLibraryFileRecordsByIds({
+            uid,
+            topicId,
+            ids: mine.map((f) => f.id),
+          });
+        }
+      } catch (cleanupErr) {
+        console.warn("Topic chat memory cleanup failed:", cleanupErr);
+      }
     }
 
     const chatRef = topicId
@@ -515,10 +546,100 @@ export async function addLibraryFileRecords({ uid, topicId = null, chatId, files
           vectorStoreId: f.vectorStoreId || "",
           hash: f.hash || "",
           chatId: chatId || null,
+          folderId: f.folderId || null,
+          size: f.size || 0,
           addedAt: serverTimestamp(),
         })
       )
   );
+}
+
+// Move a library file into (or out of) a folder.
+export async function updateLibraryFileRecord({ uid, topicId = null, id, updates }) {
+  if (!uid || !id) return;
+  const base = topicId
+    ? ["users", uid, "topics", topicId, "libraryFiles"]
+    : ["users", uid, "libraryFiles"];
+  try {
+    await updateDoc(doc(db, ...base, id), updates);
+  } catch (e) {
+    console.error("❌ Failed to update library file record:", e);
+  }
+}
+
+// Topic-library folders — organisational only (the topic's vector store stays
+// flat, so the assistant always searches every file in the topic).
+//   users/{uid}/topics/{topicId}/libraryFolders/{id}
+export async function getLibraryFolders({ uid, topicId }) {
+  if (!uid || !topicId) return [];
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "users", uid, "topics", topicId, "libraryFolders"),
+        orderBy("createdAt", "desc")
+      )
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+}
+
+export async function addLibraryFolder({ uid, topicId, name }) {
+  const trimmed = (name || "").trim();
+  if (!uid || !topicId || !trimmed) return null;
+  const ref = await addDoc(
+    collection(db, "users", uid, "topics", topicId, "libraryFolders"),
+    { name: trimmed, createdAt: serverTimestamp() }
+  );
+  return { id: ref.id, name: trimmed };
+}
+
+export async function deleteLibraryFolder({ uid, topicId, folderId }) {
+  if (!uid || !topicId || !folderId) return;
+  try {
+    await deleteDoc(doc(db, "users", uid, "topics", topicId, "libraryFolders", folderId));
+  } catch (e) {
+    console.error("❌ Failed to delete library folder:", e);
+  }
+}
+
+// Account-wide storage usage, summed from the size recorded on each file (no
+// expensive Storage listing). One pool for everything the user stores:
+//   drawings + topic library files + chat uploads + memory snippets.
+export async function getAccountStorageUsage(uid) {
+  const empty = { total: 0, drawings: 0, topics: 0, chats: 0, memory: 0 };
+  if (!uid) return empty;
+  try {
+    const [drawings, globalLib, topicsSnap] = await Promise.all([
+      getDrawingFiles(uid),
+      getLibraryFiles({ uid, topicId: null }),
+      getDocs(collection(db, "users", uid, "topics")),
+    ]);
+
+    const sumIf = (files, keep) =>
+      files.reduce((s, f) => (keep(f) ? s + (f.size || 0) : s), 0);
+
+    const drawingsBytes = drawings.reduce((s, f) => s + (f.size || 0), 0);
+    // url-less records are memory snippets; url-bearing are real uploads.
+    let chatsBytes = sumIf(globalLib, (f) => f.url);
+    let memoryBytes = sumIf(globalLib, (f) => !f.url);
+
+    let topicsBytes = 0;
+    const perTopic = await Promise.all(
+      topicsSnap.docs.map((t) => getLibraryFiles({ uid, topicId: t.id }))
+    );
+    for (const files of perTopic) {
+      topicsBytes += sumIf(files, (f) => f.url);
+      memoryBytes += sumIf(files, (f) => !f.url);
+    }
+
+    const total = drawingsBytes + chatsBytes + topicsBytes + memoryBytes;
+    return { total, drawings: drawingsBytes, topics: topicsBytes, chats: chatsBytes, memory: memoryBytes };
+  } catch (e) {
+    console.error("getAccountStorageUsage failed:", e);
+    return empty;
+  }
 }
 
 // ─────────── DRAWINGS (vessel drawings — account-wide File Search store) ───────────
@@ -573,9 +694,15 @@ export async function addDrawingFileRecords({ uid, files = [] }) {
           url: f.url || "",
           path: f.path || "",
           pages: Array.isArray(f.pages) ? f.pages : [],
+          tiles: Array.isArray(f.tiles) ? f.tiles : [],
           pageAnalyses: Array.isArray(f.pageAnalyses) ? f.pageAnalyses : [],
           drawingType: f.drawingType || null,
           visionFileId: f.visionFileId || null,
+          sheetFileId: f.sheetFileId || null,
+          sheetIndexed: f.sheetIndexed || false,
+          items: Array.isArray(f.items) ? f.items : [],
+          sheetPdfUrl: f.sheetPdfUrl || "",
+          sheetPage: f.sheetPage || 1,
           openaiFileId: f.openaiFileId,
           vectorStoreId: f.vectorStoreId || "",
           hash: f.hash || "",

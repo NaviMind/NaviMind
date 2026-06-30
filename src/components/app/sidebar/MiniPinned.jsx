@@ -88,6 +88,9 @@ export default function MiniPinned() {
     setOpen(false);
   };
 
+  // Nothing pinned → no button at all (it appears only once something is pinned).
+  if (isEmpty) return null;
+
   return (
     <div className="flex justify-center w-full">
       <button
@@ -95,14 +98,14 @@ export default function MiniPinned() {
         onClick={toggle}
         onMouseEnter={showTip}
         onMouseLeave={() => setTip(null)}
-        className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
+        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors ${
           open
             ? "bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white"
             : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"
         }`}
         aria-label="Pinned"
       >
-        <Icon name="chat" size={24} />
+        <Icon name="chat" size={20} />
       </button>
 
       {/* Hover tooltip */}
@@ -121,17 +124,12 @@ export default function MiniPinned() {
         <div
           ref={panelRef}
           className="fixed z-[9999] w-60 max-h-[70vh] overflow-y-auto custom-scroll p-2
-            rounded-2xl bg-white/95 dark:bg-[#151e30]/95 backdrop-blur-md
+            rounded-2xl bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
             shadow-[0_8px_32px_rgba(0,0,0,0.14)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)]
             ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
           style={{ top: pos.top, left: pos.left }}
         >
-          {isEmpty ? (
-            <div className="px-3 py-6 text-center text-[13px] text-gray-400 dark:text-gray-500">
-              No pinned items yet
-            </div>
-          ) : (
-            <>
+          <>
               {pinnedTopics.length > 0 && (
                 <>
                   <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-gray-400 dark:text-gray-500 select-none">
@@ -169,8 +167,7 @@ export default function MiniPinned() {
                   ))}
                 </>
               )}
-            </>
-          )}
+          </>
         </div>,
         document.body
       )}
