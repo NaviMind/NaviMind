@@ -3,9 +3,10 @@
 import { useContext, useEffect, useState } from "react";
 import { auth } from "@/firebase/config";
 import { ChatContext } from "@/context/ChatContext";
-import { loadUserTopics, updateTopicMemory } from "@/firebase/chatStore";
+import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
+import { storageLimitFor, formatBytes } from "@/lib/planLimits";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
 
@@ -242,6 +243,19 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const [purging, setPurging] = useState(false);
   const [purgeMsg, setPurgeMsg] = useState("");
 
+  // Account-wide storage usage vs the plan limit.
+  const [usage, setUsage] = useState(null);
+  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    getAccountStorageUsage(uid).then((u) => { if (alive) setUsage(u); });
+    return () => { alive = false; };
+  }, [uid]);
+  const usedBytes = usage?.total || 0;
+  const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
+  const usageBarColor = usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
   const onPurgeOrphans = async () => {
     if (!uid || purging) return;
     setPurging(true);
@@ -306,6 +320,30 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
+        {/* Storage usage — one account-wide pool (drawings + topics + chats + memory) */}
+        <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
+          <div className="flex items-center justify-between mb-1.5 text-xs">
+            <span className="font-medium text-gray-700 dark:text-gray-200">Storage</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {usage ? `${formatBytes(usedBytes)} of ${formatBytes(storageLimit)}` : "Calculating…"}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${usageBarColor} transition-all duration-300`}
+              style={{ width: `${usedPct}%` }}
+            />
+          </div>
+          {usage && (
+            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+              <span>Drawings · {formatBytes(usage.drawings)}</span>
+              <span>Topics · {formatBytes(usage.topics)}</span>
+              <span>Chats · {formatBytes(usage.chats)}</span>
+              <span>Memory · {formatBytes(usage.memory)}</span>
+            </div>
+          )}
+        </div>
+
         <div className="space-y-2">
           <ActionRow
             icon={<IcExport />}

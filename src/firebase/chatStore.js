@@ -604,6 +604,44 @@ export async function deleteLibraryFolder({ uid, topicId, folderId }) {
   }
 }
 
+// Account-wide storage usage, summed from the size recorded on each file (no
+// expensive Storage listing). One pool for everything the user stores:
+//   drawings + topic library files + chat uploads + memory snippets.
+export async function getAccountStorageUsage(uid) {
+  const empty = { total: 0, drawings: 0, topics: 0, chats: 0, memory: 0 };
+  if (!uid) return empty;
+  try {
+    const [drawings, globalLib, topicsSnap] = await Promise.all([
+      getDrawingFiles(uid),
+      getLibraryFiles({ uid, topicId: null }),
+      getDocs(collection(db, "users", uid, "topics")),
+    ]);
+
+    const sumIf = (files, keep) =>
+      files.reduce((s, f) => (keep(f) ? s + (f.size || 0) : s), 0);
+
+    const drawingsBytes = drawings.reduce((s, f) => s + (f.size || 0), 0);
+    // url-less records are memory snippets; url-bearing are real uploads.
+    let chatsBytes = sumIf(globalLib, (f) => f.url);
+    let memoryBytes = sumIf(globalLib, (f) => !f.url);
+
+    let topicsBytes = 0;
+    const perTopic = await Promise.all(
+      topicsSnap.docs.map((t) => getLibraryFiles({ uid, topicId: t.id }))
+    );
+    for (const files of perTopic) {
+      topicsBytes += sumIf(files, (f) => f.url);
+      memoryBytes += sumIf(files, (f) => !f.url);
+    }
+
+    const total = drawingsBytes + chatsBytes + topicsBytes + memoryBytes;
+    return { total, drawings: drawingsBytes, topics: topicsBytes, chats: chatsBytes, memory: memoryBytes };
+  } catch (e) {
+    console.error("getAccountStorageUsage failed:", e);
+    return empty;
+  }
+}
+
 // ─────────── DRAWINGS (vessel drawings — account-wide File Search store) ───────────
 //
 // Drawings are the user's vessel documents (GA plans, manuals, drawings). Unlike
