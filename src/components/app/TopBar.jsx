@@ -156,24 +156,25 @@ export default function TopBar() {
         {/* Vessel profile pill — desktop only, and hidden while split is active
             (the breadcrumb topic/chat is more useful there and space is tight). */}
         {vesselProfileData && !splitMode && (
-          <button
-            onClick={() => setVesselProfileOpen(true)}
-            className="hidden [@media(hover:hover)]:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
-              border border-blue-500/35 bg-blue-500/[0.07]
-              hover:border-blue-400/60 hover:bg-blue-500/[0.13]
-              focus:outline-none focus:ring-2 focus:ring-blue-500/50
-              transition-all duration-200 group"
-            style={{ boxShadow: "0 0 14px rgba(59,130,246,0.10)" }}
-            aria-label="Open Vessel Profile"
-          >
-            <span className="text-gray-700 dark:text-white/80 font-normal">{vesselProfileData.rank}</span>
-            <span className="text-gray-300 dark:text-white/25 mx-0.5">·</span>
-            <span className="text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
-              {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
-                ? vesselProfileData.offshoreType
-                : vesselProfileData.vesselType}
-            </span>
-          </button>
+          <HoverTip content="Vessel Profile" position="bottom" align="right">
+            <button
+              onClick={() => setVesselProfileOpen(true)}
+              className="hidden [@media(hover:hover)]:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm
+                border border-blue-500/25 bg-blue-500/[0.05]
+                hover:border-blue-500/45 hover:bg-blue-500/[0.12]
+                focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                transition-colors duration-200 group"
+              aria-label="Open Vessel Profile"
+            >
+              <span className="text-gray-700 dark:text-white/80 font-normal group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{vesselProfileData.rank}</span>
+              <span className="text-gray-300 dark:text-white/25 mx-0.5">·</span>
+              <span className="text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                {vesselProfileData.vesselType === "Offshore" && vesselProfileData.offshoreType
+                  ? vesselProfileData.offshoreType
+                  : vesselProfileData.vesselType}
+              </span>
+            </button>
+          </HoverTip>
         )}
 
         {/* NewChatButton — только мобилка и НЕ внутри топика */}
