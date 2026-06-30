@@ -7,7 +7,6 @@ import { UIContext } from "@/context/UIContext";
 import { ChatContext } from "@/context/ChatContext";
 import NewChatButton from "@/components/app/sidebar/NewChatButton";
 import TopicSettingsMenu from "@/components/app/TopicSettingsMenu";
-import TopBarClock from "@/components/app/TopBarClock";
 import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
 import HoverTip from "@/components/common/Tooltip";
@@ -154,9 +153,6 @@ export default function TopBar() {
 
       {/* ── Правый блок ── */}
       <div className="flex items-center gap-3 ml-auto">
-        {/* Live UTC + local clock (desktop) */}
-        <TopBarClock />
-
         {/* Vessel profile pill — desktop only, and hidden while split is active
             (the breadcrumb topic/chat is more useful there and space is tight). */}
         {vesselProfileData && !splitMode && (
