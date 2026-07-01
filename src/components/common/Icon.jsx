@@ -83,6 +83,14 @@ const ICONS = {
   "search": (
     <path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
   ),
+  // Same artwork as /public/library_books.svg — inlined so it renders instantly.
+  "library": (
+    <path d="M120-160v-160h720v160H120Zm80-40h80v-80h-80v80Zm-80-440v-160h720v160H120Zm80-40h80v-80h-80v80Zm-80 280v-160h720v160H120Zm80-40h80v-80h-80v80Z" />
+  ),
+  // Same artwork as /public/Split_scene_right.svg — inlined so it renders instantly.
+  "split": (
+    <path d="M200-160q-33 0-56.5-23.5T120-240v-480q0-33 23.5-56.5T200-800h160v80H200v480h160v80H200Zm240 80v-800h80v80h240q33 0 56.5 23.5T840-720v480q0 33-23.5 56.5T760-160H520v80h-80ZM200-240v-480 480Z" />
+  ),
 };
 
 export default function Icon({ name, className, style, size = 20 }) {

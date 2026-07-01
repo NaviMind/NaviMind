@@ -11,7 +11,7 @@ import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
-import { Folder, ChevronRight, Plus, FileText, Library, PanelRight, Share2 } from "lucide-react";
+import { Folder, ChevronRight, Plus, FileText, Share2 } from "lucide-react";
 
 
 // Мобайл‑детектор
@@ -248,7 +248,7 @@ export default function ChatOptionsDropdown({
     onClick={() => { onOpenLibrary(); onClose(); }}
     className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
-    <Library size={19} className="opacity-80" />
+    <Icon name="library" size={19} className="opacity-80" />
     <span>Library</span>
   </button>
 )}
@@ -261,7 +261,7 @@ export default function ChatOptionsDropdown({
     onClick={() => { enableSplit(chatId, topicId); onClose(); }}
     className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
-    <PanelRight size={19} className="opacity-80" />
+    <Icon name="split" size={19} className="opacity-80" />
     <span>{splitMode ? "Move to split" : "Open in split"}</span>
   </button>
 )}
