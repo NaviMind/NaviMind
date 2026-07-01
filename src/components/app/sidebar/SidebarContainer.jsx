@@ -18,6 +18,7 @@ import SearchModal from "./SearchModal";
 import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
 import DrawingRegisterButton from "@/components/app/DrawingRegister/DrawingRegisterButton";
+import MiniPinned from "./MiniPinned";
 
 
 // Tooltip rendered to the RIGHT of its trigger via a portal, so it escapes
@@ -387,6 +388,14 @@ useEffect(() => {
           <Icon name="create-new" size={20} />
         </button>
       </HoverTipRight>
+    </div>
+  )}
+
+  {/* Collapsed rail: pinned topics/chats quick-access — appears only when
+      something is pinned (renders null otherwise). */}
+  {collapsed && (
+    <div className="-mx-2 px-1 py-0 mt-1">
+      <MiniPinned />
     </div>
   )}
 

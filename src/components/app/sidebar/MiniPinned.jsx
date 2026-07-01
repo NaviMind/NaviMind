@@ -92,7 +92,7 @@ export default function MiniPinned() {
   if (isEmpty) return null;
 
   return (
-    <div className="flex justify-center w-full">
+    <div className="flex">
       <button
         ref={btnRef}
         onClick={toggle}
