@@ -3,7 +3,7 @@
 import { useContext, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import TopicModal from "./TopicModal";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
 import { createUserTopic, updateTopicDescription } from "@/firebase/chatStore";
@@ -63,9 +63,35 @@ export default function SidebarContainer({
   toggleSidebar,
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const ui = useContext(UIContext);
   const { isVesselProfileOpen, setVesselProfileOpen, vesselProfileData, isTopicModalOpen, setIsTopicModalOpen, theme } = ui;
-  const { customProjects, projectChatSessions } = useContext(ChatContext);
+  const { customProjects, projectChatSessions, activeChatId, activeProject } = useContext(ChatContext);
+
+  // Whenever the user actually navigates — opens a chat or a topic — collapse any
+  // open work-area modal (Vessel Profile / Drawings / Library / Instructions /
+  // Search / Create Topic) so the thing they clicked is shown. Opening a modal
+  // never changes the route or the active chat/topic, so those buttons don't
+  // self-close; only real navigation trips this.
+  const navSig = `${pathname}|${activeChatId ?? ""}|${activeProject ?? ""}`;
+  const navSigRef = useRef(navSig);
+  const navFirstRef = useRef(true);
+  useEffect(() => {
+    if (navFirstRef.current) {
+      navFirstRef.current = false;
+      navSigRef.current = navSig;
+      return;
+    }
+    if (navSigRef.current === navSig) return;
+    navSigRef.current = navSig;
+    ui.closeModals?.();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("nm-close-search"));
+      window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+      window.dispatchEvent(new CustomEvent("nm-close-topic-instructions"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navSig]);
   const [topicName, setTopicName] = useState("");
   const [topicInstruction, setTopicInstruction] = useState("");
   const [topicsCollapsed, setTopicsCollapsed] = useState(false);
