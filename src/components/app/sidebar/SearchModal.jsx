@@ -71,6 +71,7 @@ export default function SearchModal({ open, onClose, onSidebarItemClick }) {
     if (!open) return;
     closeModals?.();
     window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
+    window.dispatchEvent(new CustomEvent("nm-close-topic-instructions"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 

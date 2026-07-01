@@ -1,11 +1,11 @@
 "use client";
 
-import { useContext, useState, useEffect, createRef, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useContext, useState, createRef, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import ChatOptionsDropdown from "@/components/app/ChatOptionsDropdown";
 import TopicLibraryModal from "./TopicLibraryModal";
+import TopicInstructionsModal from "./TopicInstructionsModal";
 import ChatItem from "./ChatItem";
 import Icon from "@/components/common/Icon";
 import { togglePinTopic, deleteChatFromFirestore, updateTopicDescription } from "@/firebase/chatStore";
@@ -47,21 +47,6 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
   const [instrTopic, setInstrTopic] = useState(null);
   const [instrText, setInstrText] = useState("");
   const [savingInstr, setSavingInstr] = useState(false);
-
-  // Keyboard height (mobile) — keep the instructions sheet above the keyboard.
-  const [kbHeight, setKbHeight] = useState(0);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => setKbHeight(Math.max(0, window.innerHeight - vv.height));
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
 
   // ── Topic library modal ──
   const [libraryTopic, setLibraryTopic] = useState(null);
@@ -524,55 +509,15 @@ export default function MyTopicsSection({ onSidebarItemClick, collapsedMode = fa
       )}
 
       {/* ── Topic instructions modal ── */}
-      {instrTopic && typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm"
-            onClick={(e) => { if (e.target === e.currentTarget && !savingInstr) setInstrTopic(null); }}
-          >
-            <div
-              style={{ marginBottom: kbHeight }}
-              className="w-full sm:max-w-md max-h-[88vh] overflow-y-auto custom-scroll bg-white dark:bg-[#1a2235] rounded-t-2xl sm:rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 flex flex-col gap-3"
-            >
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-                Topic instructions
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
-                Context the assistant applies to every chat in “{customProjects?.[instrTopic]?.name || "this topic"}”.
-              </p>
-              <textarea
-                value={instrText}
-                onChange={(e) => setInstrText(e.target.value)}
-                rows={6}
-                autoFocus
-                placeholder="e.g. We're a Panama-flagged LPG carrier preparing for a SIRE 2.0 inspection. Focus on cargo ops and respond in Russian."
-                className="w-full resize-none rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-400 dark:focus:border-blue-500 custom-scroll"
-              />
-              <div className="flex justify-end gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setInstrTopic(null)}
-                  disabled={savingInstr}
-                  className="px-3.5 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/15 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-60 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveInstructions}
-                  disabled={savingInstr}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-60 transition-colors"
-                >
-                  {savingInstr && (
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  )}
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      <TopicInstructionsModal
+        open={!!instrTopic}
+        topicName={customProjects?.[instrTopic]?.name || "this topic"}
+        value={instrText}
+        setValue={setInstrText}
+        onSave={saveInstructions}
+        onClose={() => { if (!savingInstr) setInstrTopic(null); }}
+        saving={savingInstr}
+      />
 
       {/* ── Topic library modal ── */}
       {libraryTopic && (

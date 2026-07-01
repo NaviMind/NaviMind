@@ -96,6 +96,7 @@ export default function TopicLibraryModal({ topicId, topicName, onClose }) {
     // they never stack on top of each other.
     closeModals?.();
     window.dispatchEvent(new CustomEvent("nm-close-search"));
+    window.dispatchEvent(new CustomEvent("nm-close-topic-instructions"));
     // And if a UIContext modal opens later, slide this one out (animated).
     const onCloseSelf = () => setOpen(false);
     window.addEventListener("nm-close-topic-library", onCloseSelf);

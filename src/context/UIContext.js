@@ -52,6 +52,7 @@ export function UIProvider({ children }) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("nm-close-topic-library"));
       window.dispatchEvent(new CustomEvent("nm-close-search"));
+      window.dispatchEvent(new CustomEvent("nm-close-topic-instructions"));
     }
     if (activeModal && activeModal !== name) {
       setPendingModal(name);
