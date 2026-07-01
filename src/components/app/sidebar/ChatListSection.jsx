@@ -147,10 +147,11 @@ export default function ChatListSection({ onSidebarItemClick }) {
             >
               <svg
                 width="14" height="14" viewBox="0 0 16 16" fill="none"
-                className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+                className={`transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`}
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
-                <polyline points="4 10 8 6 12 10" />
+                {/* Down (⌄) when open → rotates to right (›) when collapsed */}
+                <polyline points="4 6 8 10 12 6" />
               </svg>
             </button>
           </div>
