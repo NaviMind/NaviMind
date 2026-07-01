@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import Tooltip from "@/components/common/Tooltip";
 import Icon from "@/components/common/Icon";
-import MaskIcon from "@/components/common/MaskIcon";
 import { FileText } from "lucide-react";
 
 // Topic settings gear — shown in the top bar only when inside a topic. Opens a
@@ -78,7 +77,7 @@ export default function TopicSettingsMenu() {
             className="bg-white/95 dark:bg-[#1a2235]/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-1 text-sm"
           >
             <button onClick={() => fire("nm-topic-library")} className={itemCls}>
-              <MaskIcon src="/library_books.svg" size={19} className="opacity-80" />
+              <Icon name="library" size={19} className="opacity-80" />
               <span>Library</span>
             </button>
             <button onClick={() => fire("nm-topic-instruction")} className={itemCls}>
