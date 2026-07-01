@@ -11,8 +11,7 @@ import { exportChatAsTxt } from "@/utils/exportChatAsTxt";
 import { getChatMessages } from "@/firebase/chatStore";
 import { togglePinChat } from "@/firebase/chatStore";
 import Icon from "@/components/common/Icon";
-import MaskIcon from "@/components/common/MaskIcon";
-import { Folder, ChevronRight, Plus, FileText } from "lucide-react";
+import { Folder, ChevronRight, Plus, FileText, Library, PanelRight, Share2 } from "lucide-react";
 
 
 // Мобайл‑детектор
@@ -221,6 +220,9 @@ export default function ChatOptionsDropdown({
             className="bg-white/95 dark:bg-[#1a2235]/95 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08] p-1 text-sm"
           >
 
+{/* ── Type-specific actions (top) ───────────────────────────── */}
+
+{/* Topic-only */}
 {onNewChat && (
   <button
     onClick={() => { onNewChat(); onClose(); }}
@@ -246,10 +248,56 @@ export default function ChatOptionsDropdown({
     onClick={() => { onOpenLibrary(); onClose(); }}
     className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
   >
-    <MaskIcon src="/library_books.svg" size={19} className="opacity-80" />
+    <Library size={19} className="opacity-80" />
     <span>Library</span>
   </button>
 )}
+
+{/* Chat-only */}
+{/* Open in split — desktop only; pin this chat to the right pane while the
+    left pane stays free for the sidebar. Hidden when it's already pinned. */}
+{!isTopic && enableSplit && !(splitMode && pinned?.chatId === chatId) && (
+  <button
+    onClick={() => { enableSplit(chatId, topicId); onClose(); }}
+    className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
+  >
+    <PanelRight size={19} className="opacity-80" />
+    <span>{splitMode ? "Move to split" : "Open in split"}</span>
+  </button>
+)}
+
+            {!isTopic && (
+              <button
+  onClick={async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const messages = await getChatMessages(user.uid, chatId, topicId);
+    await exportChatAsTxt(messages, currentTitle);
+    onClose();
+  }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
+            >
+              <Share2 size={19} className="opacity-80" />
+              <span>Share</span>
+            </button>
+            )}
+
+            {!isTopic && topicEntries.length > 0 && (
+              <button
+                ref={moveRowRef}
+                onMouseEnter={openSubmenu}
+                onMouseLeave={scheduleCloseSubmenu}
+                onClick={() => (submenuCoords ? setSubmenuCoords(null) : openSubmenu())}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
+              >
+                <Folder size={19} className="opacity-80" />
+                <span className="flex-1 text-left">Move to topic</span>
+                <ChevronRight size={16} className="opacity-50" />
+              </button>
+            )}
+
+{/* ── Common tail (same order for chats and topics) ─────────── */}
 
 <button
   onClick={async () => {
@@ -267,35 +315,6 @@ export default function ChatOptionsDropdown({
   <span>{isPinned ? "Unpin" : "Pin"}</span>
 </button>
 
-{/* Open in split — desktop only; pin this chat to the right pane while the
-    left pane stays free for the sidebar. Hidden when it's already pinned. */}
-{!isTopic && enableSplit && !(splitMode && pinned?.chatId === chatId) && (
-  <button
-    onClick={() => { enableSplit(chatId, topicId); onClose(); }}
-    className="hidden [@media(hover:hover)]:flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
-  >
-    <MaskIcon src="/Split_scene_right.svg" size={19} className="opacity-80" />
-    <span>{splitMode ? "Move to split" : "Open in split"}</span>
-  </button>
-)}
-
-            {!isTopic && (
-              <button
-  onClick={async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const messages = await getChatMessages(user.uid, chatId, topicId);
-    await exportChatAsTxt(messages, currentTitle);
-    onClose();
-  }}
-              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
-            >
-              <Icon name="share" size={20} className="opacity-80" />
-              <span>Share</span>
-            </button>
-            )}
-
             <button
               onClick={() => {
                 onRename(chatId);
@@ -306,20 +325,6 @@ export default function ChatOptionsDropdown({
               <Icon name="edit" size={20} className="opacity-80" />
               <span>Rename</span>
             </button>
-
-            {!isTopic && topicEntries.length > 0 && (
-              <button
-                ref={moveRowRef}
-                onMouseEnter={openSubmenu}
-                onMouseLeave={scheduleCloseSubmenu}
-                onClick={() => (submenuCoords ? setSubmenuCoords(null) : openSubmenu())}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[0.08] transition"
-              >
-                <Folder size={19} className="opacity-80" />
-                <span className="flex-1 text-left">Move to topic</span>
-                <ChevronRight size={16} className="opacity-50" />
-              </button>
-            )}
 
             {onEnterSelectMode && (
               <button
