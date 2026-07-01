@@ -86,7 +86,7 @@ export default function TopicInstructionsModal({
 
   return createPortal(
     <div
-      className={`fixed left-0 top-0 z-[300] flex items-center justify-center backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
+      className={`fixed left-0 top-0 z-[300] flex items-center justify-center overflow-hidden backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
       style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: open ? 1 : 0 }}
       onClick={handleBackdropClick}
     >
