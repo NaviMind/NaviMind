@@ -1,8 +1,6 @@
 "use client";
 
 import { useContext, useRef, useState, useEffect, useCallback, createRef } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
 import { ChatContext } from "@/context/ChatContext";
 import { UIContext } from "@/context/UIContext";
@@ -13,6 +11,7 @@ import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTo
 import { auth } from "@/firebase/config";
 import { sendChatMessage } from "@/components/app/InputBar/sendChatMessage";
 import TopicLibraryModal from "@/components/app/sidebar/TopicLibraryModal";
+import TopicInstructionsModal from "@/components/app/sidebar/TopicInstructionsModal";
 
 export default function DynamicProjectPage() {
   const { project } = useParams();
@@ -31,9 +30,8 @@ export default function DynamicProjectPage() {
     messages,
     isLoadingMessages,
     setIsLoadingMessages,
-    splitMode,
   } = useContext(ChatContext);
-  const { theme, vesselProfileData } = useContext(UIContext);
+  const { vesselProfileData } = useContext(UIContext);
 
   const hasChat = Boolean(activeChatId) && (messages?.length > 0 || isLoadingMessages);
   const toMs = (v) => typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
@@ -52,15 +50,22 @@ export default function DynamicProjectPage() {
 
   const [instrModalOpen, setInstrModalOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [isInstrPresent, setIsInstrPresent] = useState(false);
   const [instrText, setInstrText] = useState("");
-  const [kbHeight, setKbHeight] = useState(0);
+  const [savingInstr, setSavingInstr] = useState(false);
 
-  // Open modals inside the main work area (not over the sidebar).
-  const [portalTarget, setPortalTarget] = useState(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("nm-workarea") || document.body);
-  }, []);
+  const saveInstructions = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    setSavingInstr(true);
+    try {
+      await updateTopicDescription(user.uid, project, instrText.trim());
+    } catch (e) {
+      console.error("Failed to save topic instructions:", e);
+    } finally {
+      setSavingInstr(false);
+      setInstrModalOpen(false);
+    }
+  };
 
   // The Library / Instruction modals are opened from the top-bar gear
   // (TopicSettingsMenu) via window events.
@@ -87,21 +92,6 @@ export default function DynamicProjectPage() {
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => { if (instrModalOpen) setIsInstrPresent(true); }, [instrModalOpen]);
-
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => setKbHeight(Math.max(0, window.innerHeight - vv.height));
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
   }, []);
 
   // Fetch AI-suggested questions for empty topics (cached per topic+instruction)
@@ -281,58 +271,15 @@ export default function DynamicProjectPage() {
         />
       )}
 
-      {isInstrPresent && portalTarget && createPortal(
-        <div
-          className={`fixed left-0 top-0 z-[200] flex items-center justify-center overflow-hidden backdrop-blur-sm px-3 py-4 ${theme === "dark" ? "bg-black/60" : "bg-black/25"} transition-opacity duration-500 ${splitMode ? "right-0 [@media(hover:hover)]:right-1/2" : "right-0"}`}
-          style={{ bottom: kbHeight, transition: "bottom 200ms, opacity 500ms", opacity: instrModalOpen ? 1 : 0 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setInstrModalOpen(false); }}
-        >
-          <AnimatePresence onExitComplete={() => { if (!instrModalOpen) setIsInstrPresent(false); }}>
-            {instrModalOpen && (
-              <motion.div
-                key="instr-modal"
-                variants={{ initial: { y: "100%", opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: "100%", opacity: 0 } }}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="bg-white/90 dark:bg-gray-800/40 backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10 p-4 sm:p-6 rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-2xl flex flex-col items-stretch"
-                onKeyDown={(e) => { if (e.key === "Escape") setInstrModalOpen(false); }}
-              >
-                <h2 className="text-lg font-bold tracking-wide text-center text-gray-900 dark:text-white mb-4">
-                  {customProjects?.[project]?.description ? "Edit Instruction" : "Add Instruction"}
-                </h2>
-                <textarea
-                  value={instrText}
-                  onChange={(e) => setInstrText(e.target.value)}
-                  placeholder="e.g. PSC inspection prep for Hamburg, Aug 2025. Focus on SOLAS II-2 and MARPOL Annex V."
-                  autoFocus
-                  className="w-full px-3 py-2 mb-3 rounded-xl border text-base bg-white dark:bg-white/5 border-gray-300 dark:border-white/10 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition resize-none custom-scroll min-h-[120px] sm:min-h-[260px]"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setInstrModalOpen(false)}
-                    className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const user = auth.currentUser;
-                      if (user) await updateTopicDescription(user.uid, project, instrText.trim());
-                      setInstrModalOpen(false);
-                    }}
-                    className="flex-1 px-4 py-2 rounded-xl font-medium text-base transition bg-blue-600 hover:bg-blue-700 text-white shadow"
-                  >
-                    Save
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>,
-        portalTarget
-      )}
+      <TopicInstructionsModal
+        open={instrModalOpen}
+        topicName={customProjects?.[project]?.name || "this topic"}
+        value={instrText}
+        setValue={setInstrText}
+        onSave={saveInstructions}
+        onClose={() => { if (!savingInstr) setInstrModalOpen(false); }}
+        saving={savingInstr}
+      />
     </>
   );
 
