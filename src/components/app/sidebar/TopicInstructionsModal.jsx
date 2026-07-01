@@ -128,15 +128,9 @@ export default function TopicInstructionsModal({
               ref={inputRef}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={`Tell the assistant what to keep in mind for every chat in this topic. For example:
+              placeholder={`Tell the assistant how to behave in every chat here. For example:
 
-• Vessel — Panama-flagged LPG carrier, built 2015, 45,000 m³
-• Goal — preparing for a SIRE 2.0 inspection next month
-• Focus on — cargo operations, mooring, and enclosed-space entry
-• Reference — company SMS procedures and MARPOL Annex VI
-• Style — concise answers, cite regulations by number
-
-Write it in any language — the assistant follows your lead.`}
+Act as an experienced maritime superintendent helping us prepare for a SIRE 2.0 inspection. Always focus on cargo operations, mooring and enclosed-space entry, and flag anything that could raise an observation. When I describe a procedure, check it against MARPOL Annex VI and our company SMS and point out the gaps. Keep answers short and practical, cite the exact regulation or checklist item, and call out safety-critical points up front. Reply in the language I write in.`}
               className="w-full px-3 py-2.5 rounded-xl border text-base bg-white dark:bg-white/5 border-gray-300 dark:border-white/10 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition resize-none custom-scroll min-h-[160px] sm:min-h-[260px]"
               autoFocus
             />
