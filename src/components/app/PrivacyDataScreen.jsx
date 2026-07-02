@@ -6,7 +6,9 @@ import { ChatContext } from "@/context/ChatContext";
 import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
-import { storageLimitFor, formatBytes } from "@/lib/planLimits";
+import { storageLimitFor, formatBytes, tokenLimitFor, formatTokens, planFor } from "@/lib/planLimits";
+import { usageForCurrentPeriod } from "@/firebase/userRepo";
+import { Zap } from "lucide-react";
 import MaskIcon from "@/components/common/MaskIcon";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
@@ -253,6 +255,13 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const usageBarColor = usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
+  // Monthly AI usage (tokens) vs the plan budget.
+  const plan = planFor(userDoc?.plan || "free");
+  const tokenLimit = tokenLimitFor(userDoc?.plan || "free");
+  const tokensUsed = usageForCurrentPeriod(userDoc);
+  const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
+  const tokenBarColor = tokenPct >= 100 ? "bg-red-500" : tokenPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+
   const onPurgeOrphans = async () => {
     if (!uid || purging) return;
     setPurging(true);
@@ -317,6 +326,28 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
+        {/* Monthly AI usage (tokens) — the primary metered resource */}
+        <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
+          <div className="flex items-center justify-between mb-1.5 text-xs">
+            <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
+              <Zap size={14} className="text-gray-400 dark:text-gray-500" />
+              AI usage · {plan.name}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {formatTokens(tokensUsed)} of {formatTokens(tokenLimit)} tokens
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${tokenBarColor} transition-all duration-300`}
+              style={{ width: `${tokenPct}%` }}
+            />
+          </div>
+          <div className="mt-2.5 text-[11px] text-gray-500 dark:text-gray-400">
+            Resets monthly.
+          </div>
+        </div>
+
         {/* Storage usage — one account-wide pool (drawings + topics + chats + memory) */}
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
