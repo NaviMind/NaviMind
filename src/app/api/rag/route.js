@@ -141,8 +141,11 @@ function getAnthropic() {
 const CHAT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
 // Adaptive-thinking effort ("low" | "medium" | "high" | "xhigh" | "max").
-// Defaults to "medium"; override via ANTHROPIC_EFFORT.
-const EFFORT = process.env.ANTHROPIC_EFFORT || "medium";
+// Cost-aware: everyday chat runs "low" (cheap, snappy — adaptive thinking still
+// deepens on its own when needed); safety-critical operational questions run
+// "high". Both overridable via env.
+const EFFORT = process.env.ANTHROPIC_EFFORT || "low";
+const EFFORT_OPERATIONAL = process.env.ANTHROPIC_EFFORT_OPERATIONAL || "high";
 
 // Output cap. Generous so long maritime answers (+ adaptive thinking) aren't
 // truncated; only tokens actually produced are billed. Override via ANTHROPIC_MAX_TOKENS.
@@ -530,9 +533,22 @@ const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length
     ].join("\n")
   : null;
 
-const contextualBlocks = [
+// Split the system prompt by volatility so we can PROMPT-CACHE the stable part.
+// The stable prefix (base instructions + vessel profile + library + topic
+// context) is identical across messages in a session, so Claude caches it and
+// re-reads it at ~10% of the input price — the single biggest cost saver.
+const stableSystemText = [
+  basePrompt,
   vesselBlock,
   vesselLibraryBlock,
+  topicInstructionBlock,
+  topicMemoryBlock,
+  crossTopicMemoryBlock,
+].filter(Boolean).join("\n\n---\n\n");
+
+// Per-message guidance depends on THIS message's attachments/question, so it
+// changes every turn and stays out of the cached prefix.
+const perMessageGuidance = [
   drawingAnalysisBlock,
   hasDrawings ? drawingsGuidance : null,
   hasImages ? imageAnalysisGuide : null,
@@ -541,14 +557,7 @@ const contextualBlocks = [
   fileCitationBlock,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
   needsWebSearch(question, vesselProfile) ? webAutonomyPolicy : null,
-].filter(Boolean);
-
-const assembledSystemPrompt = [
-  basePrompt,
-  ...contextualBlocks,
-].join("\n\n---\n\n");
-
-    const isImageMode = hasImages || hasDocs;
+].filter(Boolean).join("\n\n---\n\n");
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(sse("error", "Missing ANTHROPIC_API_KEY"), {
@@ -596,18 +605,17 @@ const assembledSystemPrompt = [
             ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
-          // Claude takes the system prompt as one top-level field; fold every
-          // "system-role" block into it (order preserved).
-          const systemPrompt = [
-            assembledSystemPrompt,
-            topicInstructionBlock,
-            topicMemoryBlock,
-            crossTopicMemoryBlock,
-            summaryBlock,
-            retrievedBlock,
-          ]
+          // Volatile system content (per-message guidance + running summary +
+          // retrieved chunks) goes AFTER the cached prefix so it never breaks it.
+          const volatileSystemText = [perMessageGuidance, summaryBlock, retrievedBlock]
             .filter(Boolean)
             .join("\n\n---\n\n");
+
+          // System as blocks: cache the stable prefix (ephemeral), volatile after.
+          const system = [
+            { type: "text", text: stableSystemText, cache_control: { type: "ephemeral" } },
+            ...(volatileSystemText ? [{ type: "text", text: volatileSystemText }] : []),
+          ];
 
           // Collect drawing page images, skipping anything that isn't a fetchable
           // raster image (Vision can't decode PDF/TIFF URLs). Cap the total so a
@@ -644,10 +652,12 @@ const assembledSystemPrompt = [
           const claudeStream = getAnthropic().messages.stream({
             model: CHAT_MODEL,
             max_tokens: MAX_TOKENS,
-            system: systemPrompt,
+            system,
             messages,
             thinking: { type: "adaptive" },
-            output_config: { effort: EFFORT },
+            output_config: {
+              effort: isOperationalScenario(question) ? EFFORT_OPERATIONAL : EFFORT,
+            },
             ...(tools ? { tools } : {}),
           });
 
