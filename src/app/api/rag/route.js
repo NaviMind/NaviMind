@@ -658,6 +658,13 @@ const assembledSystemPrompt = [
 
           const finalMessage = await claudeStream.finalMessage();
 
+          // Proof-of-provider + cost signal in the server logs (Vercel → Logs):
+          // shows the exact Claude model that answered and the token usage.
+          console.log(
+            `[rag] answered by ${finalMessage.model} | usage:`,
+            finalMessage.usage
+          );
+
           // Collect trusted web-search sources for the clickable source pills.
           const collectedSources = [];
           const seenUrls = new Set();
