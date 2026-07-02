@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.109.1",
     "dayjs": "^1.11.13",
     "firebase": "^12.1.0",
     "framer-motion": "^12.23.12",

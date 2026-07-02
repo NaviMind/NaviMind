@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 import { systemInstruction } from "@/ai/systemInstruction";
 import { responseStyle } from "@/ai/responseStyle";
@@ -121,25 +122,102 @@ export const runtime = "nodejs";
 // cost bounded (too many high-detail images can stall the request).
 const MAX_DRAWING_IMAGES = 6;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Clients are created lazily (only at request time) so a missing key never
+// breaks the build's page-data collection step.
+// OpenAI stays as the RETRIEVAL/vector-DB provider: we search its vector
+// stores directly (retrieve-then-generate) and feed the chunks to Claude.
+let _openai;
+function getOpenAI() {
+  return (_openai ||= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+}
 
-// Main chat model. Defaults to gpt-5.5; override via the OPENAI_MODEL env
-// var if the account needs a different id (e.g. a dated suffix).
-const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
+// Anthropic is the GENERATION provider — the "brain" that writes the answer.
+let _anthropic;
+function getAnthropic() {
+  return (_anthropic ||= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
+}
 
-// Reasoning effort ("low" | "medium" | "high") for reasoning-class models.
-// Defaults to "medium"; override via OPENAI_REASONING_EFFORT.
-const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "medium";
+// Main chat model. Defaults to Claude Sonnet 5; override via ANTHROPIC_MODEL.
+const CHAT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
-// File Search retrieval tuning. Capping results and dropping low-relevance
-// chunks keeps answers sharper and cheaper (fewer tokens). Overridable via env.
+// Adaptive-thinking effort ("low" | "medium" | "high" | "xhigh" | "max").
+// Defaults to "medium"; override via ANTHROPIC_EFFORT.
+const EFFORT = process.env.ANTHROPIC_EFFORT || "medium";
+
+// Output cap. Generous so long maritime answers (+ adaptive thinking) aren't
+// truncated; only tokens actually produced are billed. Override via ANTHROPIC_MAX_TOKENS.
+const MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS) || 8000;
+
+// Retrieval tuning. Capping results and dropping low-relevance chunks keeps
+// answers sharper and cheaper (fewer tokens). Overridable via env.
 const FILE_SEARCH_MAX_RESULTS = Number(process.env.OPENAI_FILE_SEARCH_MAX_RESULTS) || 8;
 const FILE_SEARCH_SCORE_THRESHOLD =
   process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD !== undefined
     ? Number(process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD)
     : 0.3;
+
+// ===== Retrieval (OpenAI vector stores → chunks) =====
+
+// Search each vector store directly and return the top chunks overall. This
+// replaces OpenAI's agentic `file_search` tool: we do the retrieval ourselves so
+// the generated answer can come from Claude while the vector DB stays on OpenAI.
+async function retrieveContext(question, storeIds) {
+  if (!storeIds.length) return [];
+  const perStore = await Promise.all(
+    storeIds.map((id) =>
+      getOpenAI().vectorStores
+        .search(id, {
+          query: String(question),
+          max_num_results: FILE_SEARCH_MAX_RESULTS,
+          rewrite_query: true,
+          ranking_options: { ranker: "auto", score_threshold: FILE_SEARCH_SCORE_THRESHOLD },
+        })
+        .then((r) => r.data || [])
+        .catch((e) => {
+          console.error("Vector store search failed:", id, e?.message || e);
+          return [];
+        })
+    )
+  );
+  return perStore
+    .flat()
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, FILE_SEARCH_MAX_RESULTS);
+}
+
+// Turn retrieved chunks into a system-prompt block. Each chunk is labelled with
+// its source filename so the model can cite it inline via [[cite:FILENAME]].
+function buildRetrievedBlock(chunks) {
+  if (!chunks.length) return null;
+  const parts = chunks.map((c) => {
+    const text = (c.content || [])
+      .map((p) => p?.text)
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    return `SOURCE FILE: ${c.filename || "unknown"}\n${text}`;
+  });
+  return [
+    "═══════════════════════════════════════════",
+    "RETRIEVED LIBRARY CONTEXT (from the user's documents)",
+    "═══════════════════════════════════════════",
+    "The passages below were retrieved from the user's uploaded documents as most relevant to this question. Prefer these facts over generic knowledge, and cite the SOURCE FILE inline via [[cite:EXACT_FILENAME]] when a claim comes from one. If they don't answer the question, say so — do not invent a source.",
+    "",
+    parts.join("\n\n---\n\n"),
+    "═══════════════════════════════════════════",
+  ].join("\n");
+}
+
+// Build a Claude image content block from a URL or a data: URL.
+function toImageBlock(url) {
+  if (typeof url !== "string") return null;
+  if (url.startsWith("data:")) {
+    const m = url.match(/^data:([^;]+);base64,(.*)$/);
+    if (!m) return null;
+    return { type: "image", source: { type: "base64", media_type: m[1], data: m[2] } };
+  }
+  return { type: "image", source: { type: "url", url } };
+}
 
 // ===== SSE helper =====
 
@@ -472,8 +550,14 @@ const assembledSystemPrompt = [
 
     const isImageMode = hasImages || hasDocs;
 
-    if (!process.env.OPENAI_API_KEY) {
-      return new Response(sse("error", "Missing OPENAI_API_KEY"), {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return new Response(sse("error", "Missing ANTHROPIC_API_KEY"), {
+        status: 500,
+        headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+      });
+    }
+    if (hasDocs && !process.env.OPENAI_API_KEY) {
+      return new Response(sse("error", "Missing OPENAI_API_KEY (needed for document retrieval)"), {
         status: 500,
         headers: { "Content-Type": "text/event-stream; charset=utf-8" },
       });
@@ -493,108 +577,103 @@ const assembledSystemPrompt = [
         try {
           controller.enqueue(encoder.encode(sse("status", "start")));
 
+          // ── Retrieval step (OpenAI vector DB) ──
+          // Pull the most relevant chunks from the user's documents ourselves,
+          // then hand them to Claude as context (retrieve-then-generate).
+          let retrievedBlock = null;
+          if (hasDocs) {
+            let chunks = await retrieveContext(question, allVectorStoreIds);
+            // Respect the "past conversation memory" toggle: drop memory-* files.
+            if (!searchPastChats) {
+              chunks = chunks.filter(
+                (c) => !String(c.filename || "").startsWith("memory-")
+              );
+            }
+            retrievedBlock = buildRetrievedBlock(chunks);
+          }
+
           const summaryBlock = summary
-            ? {
-                role: "system",
-                content: `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`,
-              }
+            ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
+          // Claude takes the system prompt as one top-level field; fold every
+          // "system-role" block into it (order preserved).
+          const systemPrompt = [
+            assembledSystemPrompt,
+            topicInstructionBlock,
+            topicMemoryBlock,
+            crossTopicMemoryBlock,
+            summaryBlock,
+            retrievedBlock,
+          ]
+            .filter(Boolean)
+            .join("\n\n---\n\n");
+
           // Collect drawing page images, skipping anything that isn't a fetchable
-          // raster image (OpenAI Vision can't decode PDF/TIFF URLs). Cap the total
-          // so a multi-drawing query can't flood the request with high-detail images.
+          // raster image (Vision can't decode PDF/TIFF URLs). Cap the total so a
+          // multi-drawing query can't flood the request with high-detail images.
           const drawingImageUrls = vesselDrawings
             .flatMap((d) => (d.selectedPages || []).map((p) => p?.url))
             .filter((u) => typeof u === "string" && /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u))
             .slice(0, MAX_DRAWING_IMAGES);
 
+          // Anthropic messages: user/assistant only (system is top-level), and
+          // the first message must be `user` — drop any leading assistant turns.
+          const historyMsgs = chatHistory
+            .filter((m) => m && (m.role === "user" || m.role === "assistant"))
+            .map((m) => ({ role: m.role, content: String(m.content) }));
+          while (historyMsgs[0]?.role === "assistant") historyMsgs.shift();
+
           const messages = [
-            { role: "system", content: assembledSystemPrompt },
-            ...(topicInstructionBlock ? [{ role: "system", content: topicInstructionBlock }] : []),
-            ...(topicMemoryBlock ? [{ role: "system", content: topicMemoryBlock }] : []),
-            ...(crossTopicMemoryBlock ? [{ role: "system", content: crossTopicMemoryBlock }] : []),
-            ...(summaryBlock ? [summaryBlock] : []),
-            ...chatHistory.map((m) => ({
-              role: m.role,
-              content: String(m.content),
-            })),
+            ...historyMsgs,
             {
               role: "user",
               content: [
-                { type: "input_text", text: String(question) },
-                ...drawingImageUrls.map((url) => ({
-                  type: "input_image",
-                  image_url: url,
-                  detail: "high",
-                })),
-                ...imageUrls.map((url) => ({
-                  type: "input_image",
-                  image_url: url,
-                  detail: "high",
-                })),
+                { type: "text", text: String(question) },
+                ...drawingImageUrls.map(toImageBlock).filter(Boolean),
+                ...imageUrls.map(toImageBlock).filter(Boolean),
               ],
             },
           ];
 
           const useWebSearch = needsWebSearch(question, vesselProfile);
+          const tools = useWebSearch
+            ? [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }]
+            : undefined;
 
-          // Assemble tools: File Search over the scope's vector store(s) for
-          // document grounding, plus web search when the question warrants it.
-          const tools = [];
-          if (hasDocs) {
-            tools.push({
-              type: "file_search",
-              vector_store_ids: allVectorStoreIds,
-              max_num_results: FILE_SEARCH_MAX_RESULTS,
-              ranking_options: {
-                ranker: "auto",
-                score_threshold: FILE_SEARCH_SCORE_THRESHOLD,
-              },
-            });
-          }
-          if (useWebSearch) {
-            tools.push({ type: "web_search_preview" });
-          }
-
-          const completion = await openai.responses.create({
+          const claudeStream = getAnthropic().messages.stream({
             model: CHAT_MODEL,
-            stream: true,
-            ...(REASONING_EFFORT ? { reasoning: { effort: REASONING_EFFORT } } : {}),
-            ...(tools.length ? { tools } : {}),
-            // Force a tool only for pure web-search queries (preserves prior
-            // behaviour). When documents are in play, let the model decide.
-            ...(useWebSearch && !hasDocs ? { tool_choice: "required" } : {}),
-            input: messages,
+            max_tokens: MAX_TOKENS,
+            system: systemPrompt,
+            messages,
+            thinking: { type: "adaptive" },
+            output_config: { effort: EFFORT },
+            ...(tools ? { tools } : {}),
           });
 
+          // Stream text deltas out as `token` events (thinking stays server-side).
+          claudeStream.on("text", (delta) => {
+            controller.enqueue(encoder.encode(sse("token", delta)));
+          });
+
+          const finalMessage = await claudeStream.finalMessage();
+
+          // Collect trusted web-search sources for the clickable source pills.
           const collectedSources = [];
-
-          for await (const event of completion) {
-            if (event.type === "response.output_text.delta") {
-              controller.enqueue(encoder.encode(sse("token", event.delta)));
-            }
-
-            if (event.type === "response.completed") {
-              // Search all output items and all content parts for url_citation annotations
-              for (const outputItem of (event.response?.output || [])) {
-                for (const contentPart of (outputItem?.content || [])) {
-                  for (const annotation of (contentPart?.annotations || [])) {
-                    if (
-                      annotation.type === "url_citation" &&
-                      annotation.url &&
-                      isTrustedSource(annotation.url)
-                    ) {
-                      collectedSources.push({ title: annotation.title, url: annotation.url });
-                    }
-                  }
-                }
+          const seenUrls = new Set();
+          for (const block of finalMessage.content || []) {
+            if (block.type !== "web_search_tool_result") continue;
+            const results = Array.isArray(block.content) ? block.content : [];
+            for (const r of results) {
+              if (
+                r?.type === "web_search_result" &&
+                r.url &&
+                !seenUrls.has(r.url) &&
+                isTrustedSource(r.url)
+              ) {
+                seenUrls.add(r.url);
+                collectedSources.push({ title: r.title, url: r.url });
               }
-            }
-
-            if (event.type === "response.error") {
-              controller.enqueue(
-                encoder.encode(sse("error", event.error?.message || "Unknown error"))
-              );
             }
           }
 
