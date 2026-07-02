@@ -19,7 +19,8 @@ import {
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
 import { indexTextSnippet } from "./attachmentProcessing";
-import { updateUserProfile, recordTokenUsage } from "@/firebase/userRepo";
+import { updateUserProfile, recordTokenUsage, usageForCurrentPeriod, trialStatus } from "@/firebase/userRepo";
+import { tokenLimitFor } from "@/lib/planLimits";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
 import { updateDoc } from "firebase/firestore";
@@ -282,6 +283,32 @@ export async function sendChatMessage({
   const trimmedMessage = message?.trim() || "";
   const hasAttachments = (attachments?.length || 0) > 0;
   if (!trimmedMessage && !hasAttachments) return;
+
+  // ── Token-quota / trial enforcement ──
+  // Gated OFF until checkout exists (env flag) so we never wall a user with no
+  // way to upgrade. When enabled: block over-quota or expired-trial sends with a
+  // toast instead of calling the API. A metering-read failure never blocks a send.
+  if (process.env.NEXT_PUBLIC_BILLING_ENFORCE === "true") {
+    try {
+      const snap = await getDoc(doc(db, "users", currentUser.uid));
+      const ud = snap.exists() ? snap.data() : null;
+      const overTokens = usageForCurrentPeriod(ud) >= tokenLimitFor(ud?.plan || "free");
+      const trial = trialStatus(ud);
+      const blockMsg = trial.ended
+        ? "Your free trial has ended. Upgrade to a plan to keep using NaviMind."
+        : overTokens
+        ? "You've used all your AI tokens for this month. Upgrade your plan to keep chatting."
+        : null;
+      if (blockMsg) {
+        window.dispatchEvent(
+          new CustomEvent("navimind-toast", { detail: { message: blockMsg, type: "error" } })
+        );
+        return;
+      }
+    } catch {
+      /* never block a send on a metering read failure */
+    }
+  }
 
   // When the user sends files without typing, give the model a sensible default
   // instruction (it can't answer an empty question), and seed a title.

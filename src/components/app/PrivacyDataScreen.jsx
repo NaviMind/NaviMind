@@ -7,7 +7,7 @@ import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/fir
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
 import { storageLimitFor, formatBytes, tokenLimitFor, formatTokens, planFor } from "@/lib/planLimits";
-import { usageForCurrentPeriod } from "@/firebase/userRepo";
+import { usageForCurrentPeriod, trialStatus } from "@/firebase/userRepo";
 import { Zap } from "lucide-react";
 import MaskIcon from "@/components/common/MaskIcon";
 
@@ -261,6 +261,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const tokensUsed = usageForCurrentPeriod(userDoc);
   const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
   const tokenBarColor = tokenPct >= 100 ? "bg-red-500" : tokenPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+  const trial = trialStatus(userDoc);
 
   const onPurgeOrphans = async () => {
     if (!uid || purging) return;
@@ -344,7 +345,11 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
             />
           </div>
           <div className="mt-2.5 text-[11px] text-gray-500 dark:text-gray-400">
-            Resets monthly.
+            {trial.isTrial
+              ? trial.ended
+                ? "Free trial ended."
+                : `Free trial · ${trial.daysLeft} day${trial.daysLeft === 1 ? "" : "s"} left · resets monthly`
+              : "Resets monthly."}
           </div>
         </div>
 

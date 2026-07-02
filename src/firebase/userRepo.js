@@ -24,6 +24,7 @@ export async function ensureUserDoc(user, extra = {}) {
     authProvider: user.providerData?.[0]?.providerId || "password",
     plan: "free",
     tokens: 0,
+    trialStartedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -71,6 +72,30 @@ export async function recordTokenUsage(uid, billedTokens) {
 export function usageForCurrentPeriod(userDoc) {
   const u = userDoc?.usage;
   return u?.period === currentPeriodKey() ? u.tokens || 0 : 0;
+}
+
+// ── Free-trial window ─────────────────────────────────────────────────────────
+export const TRIAL_DAYS = 21;
+
+const toMs = (v) =>
+  typeof v === "number" ? v : v?.toMillis?.() ?? (v?.seconds ?? 0) * 1000;
+
+// Trial state for a userDoc. Paid plans are never "in trial". If we can't find a
+// start timestamp we default to active (never wrongly cut a user off).
+export function trialStatus(userDoc) {
+  if (!userDoc || (userDoc.plan && userDoc.plan !== "free")) {
+    return { isTrial: false, active: true, ended: false, daysLeft: null };
+  }
+  const startMs = toMs(userDoc.trialStartedAt) || toMs(userDoc.createdAt);
+  if (!startMs) return { isTrial: true, active: true, ended: false, daysLeft: TRIAL_DAYS };
+  const endMs = startMs + TRIAL_DAYS * 86400000;
+  const now = Date.now();
+  return {
+    isTrial: true,
+    active: now < endMs,
+    ended: now >= endMs,
+    daysLeft: Math.max(0, Math.ceil((endMs - now) / 86400000)),
+  };
 }
 
 export async function updateUserProfile(uid, data) {
