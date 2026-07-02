@@ -19,7 +19,7 @@ import {
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
 import { indexTextSnippet } from "./attachmentProcessing";
-import { updateUserProfile } from "@/firebase/userRepo";
+import { updateUserProfile, recordTokenUsage } from "@/firebase/userRepo";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
 import { updateDoc } from "firebase/firestore";
@@ -617,6 +617,7 @@ if (inTopic) {
   let finalText = "";
   let sources = [];
   let streamedSources = [];
+  let billedTokens = 0;
 
 if (res.body && contentType.includes("text/event-stream")) {
   const reader = res.body.getReader();
@@ -689,6 +690,11 @@ if (res.body && contentType.includes("text/event-stream")) {
   }
 }
 
+      if (event === "usage") {
+        const n = Number(data);
+        if (Number.isFinite(n)) billedTokens += n;
+      }
+
       if (event === "error") {
         throw new Error(data || "SSE error");
       }
@@ -702,6 +708,12 @@ if (res.body && contentType.includes("text/event-stream")) {
     } else {
       throw streamErr;
     }
+  }
+
+  // Metering: record the AI tokens this answer used against the user's monthly
+  // quota (fire-and-forget — never block or fail the chat on a metering write).
+  if (billedTokens > 0 && currentUser?.uid) {
+    recordTokenUsage(currentUser.uid, billedTokens).catch(() => {});
   }
 
   // ── Inline source citations ──

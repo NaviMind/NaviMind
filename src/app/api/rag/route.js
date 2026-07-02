@@ -675,6 +675,15 @@ const perMessageGuidance = [
             finalMessage.usage
           );
 
+          // Metering: billed = uncached input + output (Anthropic's input_tokens
+          // already excludes the cached prefix, so caching isn't charged to the
+          // user). The client records this against the user's monthly quota.
+          const u = finalMessage.usage || {};
+          const billed = (u.input_tokens || 0) + (u.output_tokens || 0);
+          if (billed > 0) {
+            controller.enqueue(encoder.encode(sse("usage", String(billed))));
+          }
+
           // Collect trusted web-search sources for the clickable source pills.
           const collectedSources = [];
           const seenUrls = new Set();

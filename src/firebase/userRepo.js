@@ -41,6 +41,38 @@ export async function ensureUserDoc(user, extra = {}) {
   }
 }
 
+// ── Token metering ────────────────────────────────────────────────────────────
+// Billing period key, e.g. "2026-07" (UTC month). Paid plans will later be
+// reset by the provider webhook on the real billing cycle; until then this gives
+// free users a clean monthly rollover.
+function currentPeriodKey() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Record billed AI tokens (input + output) against the user's current period.
+// Called client-side after each answer completes (the user is authenticated,
+// so Firestore rules apply).
+export async function recordTokenUsage(uid, billedTokens) {
+  if (!uid || !billedTokens || billedTokens <= 0) return;
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  const period = currentPeriodKey();
+  const prev = snap.exists() ? snap.data()?.usage : null;
+  const tokens = (prev?.period === period ? prev.tokens || 0 : 0) + billedTokens;
+  await setDoc(
+    ref,
+    { usage: { period, tokens }, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+// Tokens used in the CURRENT period from a live userDoc (0 if a new period).
+export function usageForCurrentPeriod(userDoc) {
+  const u = userDoc?.usage;
+  return u?.period === currentPeriodKey() ? u.tokens || 0 : 0;
+}
+
 export async function updateUserProfile(uid, data) {
   if (!uid) return;
   const ref = doc(db, "users", uid);
