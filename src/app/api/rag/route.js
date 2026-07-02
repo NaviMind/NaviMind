@@ -153,11 +153,14 @@ const MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS) || 8000;
 
 // Retrieval tuning. Capping results and dropping low-relevance chunks keeps
 // answers sharper and cheaper (fewer tokens). Overridable via env.
-const FILE_SEARCH_MAX_RESULTS = Number(process.env.OPENAI_FILE_SEARCH_MAX_RESULTS) || 8;
+const FILE_SEARCH_MAX_RESULTS = Number(process.env.OPENAI_FILE_SEARCH_MAX_RESULTS) || 6;
 const FILE_SEARCH_SCORE_THRESHOLD =
   process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD !== undefined
     ? Number(process.env.OPENAI_FILE_SEARCH_SCORE_THRESHOLD)
-    : 0.3;
+    : 0.4;
+// Hard cap on characters injected per retrieved chunk — keeps RAG context (and
+// its token cost) bounded even when a document returns very long passages.
+const FILE_SEARCH_CHUNK_CHARS = Number(process.env.OPENAI_FILE_SEARCH_CHUNK_CHARS) || 1200;
 
 // ===== Retrieval (OpenAI vector stores → chunks) =====
 
@@ -193,11 +196,14 @@ async function retrieveContext(question, storeIds) {
 function buildRetrievedBlock(chunks) {
   if (!chunks.length) return null;
   const parts = chunks.map((c) => {
-    const text = (c.content || [])
+    let text = (c.content || [])
       .map((p) => p?.text)
       .filter(Boolean)
       .join("\n")
       .trim();
+    if (text.length > FILE_SEARCH_CHUNK_CHARS) {
+      text = text.slice(0, FILE_SEARCH_CHUNK_CHARS) + "…";
+    }
     return `SOURCE FILE: ${c.filename || "unknown"}\n${text}`;
   });
   return [
@@ -537,13 +543,13 @@ const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length
 // The stable prefix (base instructions + vessel profile + library + topic
 // context) is identical across messages in a session, so Claude caches it and
 // re-reads it at ~10% of the input price — the single biggest cost saver.
+// NOTE: memory blocks are deliberately NOT here — they get rewritten after every
+// answer, so keeping them in the cached prefix would bust the cache each turn.
 const stableSystemText = [
   basePrompt,
   vesselBlock,
   vesselLibraryBlock,
   topicInstructionBlock,
-  topicMemoryBlock,
-  crossTopicMemoryBlock,
 ].filter(Boolean).join("\n\n---\n\n");
 
 // Per-message guidance depends on THIS message's attachments/question, so it
@@ -605,9 +611,16 @@ const perMessageGuidance = [
             ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
-          // Volatile system content (per-message guidance + running summary +
-          // retrieved chunks) goes AFTER the cached prefix so it never breaks it.
-          const volatileSystemText = [perMessageGuidance, summaryBlock, retrievedBlock]
+          // Volatile system content (memory that changes each turn + per-message
+          // guidance + running summary + retrieved chunks) goes AFTER the cached
+          // prefix so it never breaks the cache.
+          const volatileSystemText = [
+            topicMemoryBlock,
+            crossTopicMemoryBlock,
+            perMessageGuidance,
+            summaryBlock,
+            retrievedBlock,
+          ]
             .filter(Boolean)
             .join("\n\n---\n\n");
 
@@ -643,6 +656,15 @@ const perMessageGuidance = [
               ],
             },
           ];
+
+          // Cache the conversation prefix too: mark the last PRIOR turn so
+          // Claude re-reads all earlier history at ~10% instead of full price.
+          if (historyMsgs.length > 0) {
+            const last = messages[historyMsgs.length - 1];
+            last.content = [
+              { type: "text", text: String(last.content), cache_control: { type: "ephemeral" } },
+            ];
+          }
 
           const useWebSearch = needsWebSearch(question, vesselProfile);
           const tools = useWebSearch
