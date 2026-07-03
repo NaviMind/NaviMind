@@ -3,20 +3,50 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── User scope ───────────────────────────────────────────────────────────
-    // Every document under users/{userId} — including the profile doc itself
-    // and ALL sub-collections (chats, topics, libraryFiles, drawings,
-    // drawingFolders, …) — is readable and writable only by that user.
-    //
-    // The recursive wildcard {document=**} covers every depth, so we don't
-    // need to enumerate each sub-collection. Adding a new collection in code
-    // does NOT require a rules change.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
 
+    // Field readers that tolerate the field being absent (older docs).
+    function planOf(d)  { return ('plan' in d) ? d.plan : 'free'; }
+    function topUpOf(d) { return ('topUpTokens' in d) ? d.topUpTokens : 0; }
+
+    // Billing integrity — enforced against CLIENT writes only. The Admin SDK
+    // (Paddle webhook, cron) bypasses these rules entirely, so the server can
+    // still set any plan and grant top-up.
+    //
+    //  • plan: a client may create with plan == 'free', keep it unchanged, or
+    //    downgrade to 'free' — but can NEVER raise itself to a paid tier.
+    //  • topUpTokens: a client may only keep or DECREASE it (metering spends it);
+    //    it can never inflate its own top-up balance. Only the server grants it.
+    function planClientOk(nw, old) {
+      return !('plan' in nw) || planOf(nw) == planOf(old) || nw.plan == 'free';
+    }
+    function topUpClientOk(nw, old) {
+      return topUpOf(nw) <= topUpOf(old);
+    }
+
+    // ─── User scope ───────────────────────────────────────────────────────────
+    // The profile doc itself is guarded field-by-field for billing integrity;
+    // every sub-collection (chats, topics, libraryFiles, drawings, …) stays
+    // fully owner read/write.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+
+      // Create: only a free plan, no self-granted top-up.
+      allow create: if isOwner(userId)
+                    && (!('plan' in request.resource.data) || request.resource.data.plan == 'free')
+                    && topUpOf(request.resource.data) == 0;
+
+      // Update: plan can't be raised, top-up can't be inflated, by the client.
+      allow update: if isOwner(userId)
+                    && planClientOk(request.resource.data, resource.data)
+                    && topUpClientOk(request.resource.data, resource.data);
+
+      allow delete: if isOwner(userId);
 
       match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
 
