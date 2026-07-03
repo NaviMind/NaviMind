@@ -2,192 +2,178 @@
 
 import LegalShell from "../LegalShell";
 
-// Public Privacy Policy for NaviMind. Mirrors the in-app Privacy screen and
-// reflects the real data flows in the codebase: Firebase (Auth/Firestore/
-// Storage), Anthropic (answer generation + web search), OpenAI (vector search/
-// OCR/drawing analysis/voice transcription), LlamaParse (document extraction),
-// and Paddle (payments). NaviMind is a web-only app with no native apps, push
-// notifications, or analytics/crash-reporting SDKs, so none are described here.
+// Public Privacy Policy for NaviMind. Follows the standard SaaS structure and
+// reflects the real data flows: Firebase (Auth/Firestore/Storage), Anthropic
+// (answer generation + web search), OpenAI (vector search/OCR/drawing analysis/
+// voice transcription), LlamaParse (document extraction), and Paddle (payments).
+// NaviMind is a web-only app with no native apps, push notifications, or
+// analytics/crash-reporting SDKs, so none are described here.
 // Served at /legal/privacy (also reachable at /privacy via a redirect).
 export default function PrivacyPolicy() {
   return (
     <LegalShell title="Privacy Policy" updated="July 2026">
+      <h2>1. Introduction</h2>
       <p>
-        At NaviMind we take your privacy seriously. This Privacy Policy explains how NaviMind
-        (“we”, “our”, “us”) collects, uses, shares, and protects your information when you use our
-        AI-powered copilot for maritime professionals (the “Service”). By using the Service you
-        agree to the practices described here.
+        At NaviMind, we take your privacy seriously. This Privacy Policy explains how we collect,
+        use, disclose, and safeguard your information when you use our AI-powered copilot for
+        maritime professionals, including ship masters, senior officers, marine engineers, and
+        watchkeeping officers.
       </p>
 
-      <h2>1. Information we collect</h2>
-      <p>
-        <strong>Account information.</strong> When you sign in with Google or with email and
-        password (managed by Firebase Authentication), we collect your name, email address,
-        profile photo, country, email-verification status, and the authentication identifiers
-        for your account.
-      </p>
-      <p>
-        <strong>Vessel profile &amp; preferences.</strong> To personalize answers to your ship,
-        you may provide a vessel profile — your rank/role, vessel type, flag state,
-        classification society, ice class, capacity, engine and machinery details, LNG
-        containment details, ship particulars, and notes — as well as interface preferences such
-        as language, theme, and whether past-conversation memory is used.
-      </p>
-      <p>
-        <strong>Conversations &amp; content.</strong> Chat messages, threads, topics, and
-        folders; AI-generated memories; uploaded documents, manuals, spreadsheets, images, and
-        vessel drawings; voice recordings you submit for transcription; and web-search queries
-        made during a conversation.
-      </p>
-      <p>
-        <strong>Usage &amp; billing data.</strong> AI-token consumption (per billing period, per
-        day, and during your trial), feature usage such as document uploads and web searches,
-        your plan tier and status, billing-period dates, and your Paddle customer and
-        subscription identifiers.
-      </p>
-      <p>
-        <strong>Technical data.</strong> IP address and device/browser information used to
-        operate and secure the Service. Payments are handled entirely by Paddle — we never
-        receive or store your card details.
-      </p>
-
-      <h2>2. Files you upload and how we process them</h2>
-      <p>
-        You can upload the following file types: PDF, DOC/DOCX, PPT/PPTX, TXT, Markdown, RTF,
-        HTML, JSON, spreadsheets (XLSX/XLS/CSV), images (JPG/PNG/TIFF), and vessel drawings and
-        plans. We process them as follows:
-      </p>
+      <h2>2. Information We Collect</h2>
+      <p><strong>Account Information</strong></p>
+      <p>When you create an account via Google Sign-In or email and password, we collect:</p>
       <ul>
-        <li>Files are stored in your private space in Firebase Storage, subject to a per-file size limit.</li>
-        <li>
-          We extract the text (scanned PDFs and images are read using OCR), split it into chunks,
-          create embeddings, and store them in a private OpenAI vector store so your documents can
-          be searched.
-        </li>
-        <li>
-          When you ask a question, the most relevant excerpts are retrieved and sent to Anthropic
-          to generate an answer grounded in your documents, with citations back to the source file.
-        </li>
-        <li>
-          Vessel drawings are converted to page images and analyzed to build a searchable index;
-          relevant pages are sent to the AI’s vision model when you ask about a drawing.
-        </li>
-        <li>Voice input is sent to OpenAI to be transcribed into text.</li>
-      </ul>
-      <p>You can delete any uploaded file, and its stored content, at any time.</p>
-
-      <h2>3. AI processing and providers</h2>
-      <ul>
-        <li><strong>Anthropic</strong> generates the answers; it receives your questions and the relevant excerpts and context.</li>
-        <li><strong>OpenAI</strong> indexes your documents for search, performs OCR, analyzes drawings, and transcribes voice input.</li>
-        <li><strong>LlamaIndex (LlamaParse)</strong> extracts text from complex documents.</li>
-        <li>
-          <strong>Web search:</strong> for questions about current regulations, NaviMind searches
-          the web through Anthropic, limited to trusted maritime sources such as the IMO, flag
-          registries, classification societies, port-state-control regimes, and industry bodies.
-        </li>
+        <li>Name and email address</li>
+        <li>Profile photo URL (if provided by your sign-in provider)</li>
+        <li>Authentication identifiers managed by Firebase Authentication</li>
       </ul>
 
-      <h2>4. Memory</h2>
-      <p>
-        NaviMind builds a memory of key facts, decisions, and vessel details discussed in each
-        topic so answers stay consistent across conversations. Memory is stored with your account
-        and used only to help you. You can turn off memory referencing and clear stored memory at
-        any time.
-      </p>
-
-      <h2>5. How we use your information</h2>
+      <p><strong>Profile &amp; Personalization Data</strong></p>
+      <p>To personalize your experience, you may optionally provide:</p>
       <ul>
-        <li>generate AI answers and analyze your documents and drawings;</li>
-        <li>index your content so it can be searched to ground responses;</li>
-        <li>personalize responses based on your vessel profile and preferences;</li>
-        <li>authenticate you and secure your account;</li>
-        <li>meter AI-token usage, enforce plan limits, and process your subscription;</li>
-        <li>diagnose technical issues and protect against fraud and abuse;</li>
-        <li>comply with legal obligations (including GDPR).</li>
+        <li>Your vessel profile — rank/role, vessel type, flag state, classification society, ice class, capacity, engine and machinery details, LNG containment details, ship particulars, and notes</li>
+        <li>Interface preferences (language and theme)</li>
+        <li>Memory and chat-history referencing preferences</li>
       </ul>
 
-      <h2>6. Third-party services</h2>
-      <p>We use the following providers to run NaviMind, each receiving only the data needed for its function:</p>
+      <p><strong>Conversation &amp; Content Data</strong></p>
       <ul>
-        <li><strong>Google Firebase</strong> — authentication, database (Firestore), and file storage;</li>
-        <li><strong>Anthropic</strong> — AI answer generation and web search;</li>
-        <li><strong>OpenAI</strong> — document indexing and search, OCR, drawing analysis, and voice transcription;</li>
-        <li><strong>LlamaIndex (LlamaParse)</strong> — document text extraction;</li>
-        <li><strong>Paddle (Paddle.com Market Ltd)</strong> — payment processing and subscription management as our Merchant of Record.</li>
+        <li>Chat messages and conversation threads</li>
+        <li>AI-generated memories (contextual information the assistant remembers about you)</li>
+        <li>Uploaded documents (PDF, DOC/DOCX, PPT/PPTX, TXT, Markdown, RTF, HTML, JSON), spreadsheets (XLSX/XLS/CSV), images, and vessel drawings</li>
+        <li>Voice recordings you submit for transcription</li>
+        <li>Web search queries initiated during conversations</li>
       </ul>
 
-      <h2>7. Data sharing and disclosure</h2>
-      <p>
-        We do not sell your personal information. We share it only with the providers listed above
-        to operate the Service, to comply with legal obligations, to protect our rights and prevent
-        fraud, or in connection with a merger or acquisition.
-      </p>
-
-      <h2>8. Where your data is stored</h2>
-      <p>
-        Your content is stored in Firebase (file bytes in Storage; account data, vessel profile,
-        chat history, and memories in Firestore) and, for searchable content, in OpenAI vector
-        stores. Some providers process data in other countries, including the United States, under
-        their own safeguards.
-      </p>
-
-      <h2>9. Data retention and deletion</h2>
+      <p><strong>Usage Data</strong></p>
       <ul>
-        <li>We keep your content while your account is active.</li>
-        <li>You can delete individual conversations, memories, and documents from within the app at any time.</li>
-        <li>You can export all your data (profile, conversations, memories) as JSON from within the app.</li>
-        <li>When you delete your account, your personal information is anonymized or removed and your authentication credentials are removed.</li>
-        <li>If a free trial ends without a subscription, associated storage may be removed after a grace period.</li>
+        <li>Token usage metrics (input/output tokens) per billing period, per day, and during your trial</li>
+        <li>Feature usage counts (web searches, document uploads)</li>
       </ul>
 
-      <h2>10. Your rights</h2>
+      <p><strong>Subscription Data</strong></p>
+      <ul>
+        <li>Subscription tier, status, and renewal information</li>
+        <li>Billing-period dates and Paddle customer and subscription identifiers</li>
+        <li>Payment processing is handled entirely by Paddle. We do not store credit card or payment details</li>
+      </ul>
+
+      <h2>3. How We Use Your Information</h2>
+      <p>We use the information we collect to:</p>
+      <ul>
+        <li>Provide, maintain, and improve the NaviMind service</li>
+        <li>Personalize AI responses based on your vessel profile and preferences</li>
+        <li>Ground answers in your uploaded documents and drawings</li>
+        <li>Process and manage your subscription</li>
+        <li>Enforce usage limits based on your subscription tier</li>
+        <li>Monitor service health and diagnose technical issues</li>
+        <li>Protect against fraudulent or illegal activity</li>
+      </ul>
+
+      <h2>4. Chat Data and AI Processing</h2>
       <p>
-        Depending on your location, you may have the right to access, correct, delete, export, or
-        restrict processing of your personal data, to object to processing, and to withdraw
-        consent. Use the in-app controls or contact us at support@navimind.io to exercise these
-        rights.
+        When you send a message, your conversation history and relevant context are processed by
+        third-party AI model providers to generate responses. Important details:
+      </p>
+      <ul>
+        <li>Conversations are sent to Anthropic solely to generate responses</li>
+        <li>Uploaded documents are extracted, chunked, embedded, and stored in a vector database (OpenAI vector stores) to enable document-grounded answers; document text may also be extracted using LlamaParse, and OpenAI performs OCR, drawing analysis, and voice transcription</li>
+        <li>The Memory feature allows the AI to store and recall contextual information about you across conversations — you can view and delete memories at any time</li>
+        <li>Web search queries are sent through Anthropic’s web search and limited to trusted maritime sources when you use the Web Search feature</li>
+        <li>You can delete your chat history, memories, and documents at any time</li>
+      </ul>
+
+      <h2>5. Third-Party Services</h2>
+      <p>
+        We use the following third-party services to operate NaviMind. Each service receives only
+        the data necessary for its function:
+      </p>
+      <ul>
+        <li><strong>Firebase (Google)</strong> — Authentication, database (Firestore), and file storage</li>
+        <li><strong>Anthropic</strong> — AI model inference; receives conversation messages and context to generate responses, and performs web search</li>
+        <li><strong>OpenAI</strong> — Document indexing and vector search, OCR, drawing analysis, and voice transcription</li>
+        <li><strong>LlamaIndex (LlamaParse)</strong> — Document text extraction</li>
+        <li><strong>Paddle</strong> — Payment processing and subscription management for the web application; processes billing information, invoices, and handles tax compliance</li>
+      </ul>
+
+      <h2>6. Data Sharing and Disclosure</h2>
+      <p>We do not sell your personal information. We may share your information only:</p>
+      <ul>
+        <li>With your consent</li>
+        <li>With the third-party service providers listed above, solely to operate the Service</li>
+        <li>To comply with legal obligations</li>
+        <li>To protect our rights and prevent fraud</li>
+        <li>In connection with a merger or acquisition</li>
+      </ul>
+
+      <h2>7. Data Security</h2>
+      <p>We implement appropriate technical and organizational measures to protect your data:</p>
+      <ul>
+        <li>Encryption in transit (TLS/SSL) for all communications</li>
+        <li>Secure authentication via Firebase with Google sign-in and email verification</li>
+        <li>Per-user access controls (Firebase security rules) ensuring users can only access their own data</li>
+        <li>File validation and size limits for uploads</li>
+      </ul>
+
+      <h2>8. Data Retention and Deletion</h2>
+      <p>We retain your personal information for as long as your account is active or as needed to provide you services.</p>
+      <ul>
+        <li>You can delete individual conversations, memories, and documents at any time from within the app</li>
+        <li>You can export all your data (profile, conversations, memories) in JSON format via Settings</li>
+        <li>When you delete your account, your personal information is anonymized and your Firebase authentication is removed</li>
+        <li>If a free trial ends without a subscription, associated storage may be removed after a grace period</li>
+      </ul>
+
+      <h2>9. Your Rights</h2>
+      <p>Depending on your location, you may have the right to:</p>
+      <ul>
+        <li>Access the personal information we hold about you</li>
+        <li>Request correction of inaccurate data</li>
+        <li>Request deletion of your data (available in-app via Settings)</li>
+        <li>Export your data in a portable format (available in-app via Settings)</li>
+        <li>Object to processing of your data</li>
+        <li>Withdraw consent at any time</li>
+      </ul>
+      <p>To exercise these rights, use the in-app controls or contact us at support@navimind.io</p>
+
+      <h2>10. Cookies and Tracking</h2>
+      <p>Our web application uses essential cookies and local storage to:</p>
+      <ul>
+        <li>Keep you logged in</li>
+        <li>Remember your preferences</li>
+      </ul>
+      <p>
+        We do not use third-party analytics, advertising, or tracking cookies. You can control
+        cookies through your browser settings, though this may affect functionality.
       </p>
 
-      <h2>11. Security</h2>
-      <p>
-        We protect your data with encryption in transit (TLS/SSL), authentication via Firebase with
-        email verification, per-user access controls that ensure you can only access your own data,
-        and file-type and file-size limits on uploads. No method of transmission or storage is
-        completely secure, so we cannot guarantee absolute security.
-      </p>
-
-      <h2>12. Cookies</h2>
-      <p>
-        We use only essential cookies and local storage to keep you signed in and remember your
-        preferences. We do not use third-party analytics, advertising, or tracking cookies.
-      </p>
-
-      <h2>13. International data transfers</h2>
+      <h2>11. International Data Transfers</h2>
       <p>
         Your information may be transferred to and processed in countries other than your own,
-        including the United States, through the providers listed above, which apply appropriate
-        safeguards for such transfers.
+        including through the third-party services listed in Section 5. We ensure appropriate
+        safeguards are in place for such transfers, including standard contractual clauses where
+        applicable.
       </p>
 
-      <h2>14. Children’s privacy</h2>
+      <h2>12. Children’s Privacy</h2>
       <p>
-        The Service is not intended for users under 18. We do not knowingly collect data from
-        children, and we will delete such data promptly if we learn we have collected it.
+        Our Service is not intended for users under 18 years of age. We do not knowingly collect
+        personal information from children. If we learn we have collected such information, we will
+        delete it promptly.
       </p>
 
-      <h2>15. Changes to this Policy</h2>
+      <h2>13. Changes to This Policy</h2>
       <p>
-        We may update this Policy from time to time. We will post the updated Policy here and update
-        the “Last updated” date. Continued use of the Service after changes constitutes acceptance
-        of the updated Policy.
+        We may update this Privacy Policy from time to time. We will notify you of any material
+        changes by posting the new policy on this page and updating the “Last updated” date. We
+        encourage you to review this policy periodically.
       </p>
 
-      <h2>16. Contact</h2>
+      <h2>14. Contact Us</h2>
       <p>
-        NaviMind —{" "}
-        <a href="mailto:support@navimind.io" className="text-blue-600 underline">support@navimind.io</a>{" "}
-        · navimind.io
+        If you have questions about this Privacy Policy or our data practices, please contact us at{" "}
+        <a href="mailto:support@navimind.io" className="text-blue-600 underline">support@navimind.io</a>.
       </p>
     </LegalShell>
   );
