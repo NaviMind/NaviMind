@@ -6,8 +6,8 @@ import { ChatContext } from "@/context/ChatContext";
 import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
-import { storageLimitFor, formatBytes, tokenLimitFor, formatTokens, planFor } from "@/lib/planLimits";
-import { usageForCurrentPeriod, trialStatus } from "@/firebase/userRepo";
+import { storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
+import { getUsageStatus } from "@/firebase/userRepo";
 import { Zap } from "lucide-react";
 import MaskIcon from "@/components/common/MaskIcon";
 
@@ -255,13 +255,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const usageBarColor = usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
-  // Monthly AI usage (tokens) vs the plan budget.
-  const plan = planFor(userDoc?.plan || "free");
-  const tokenLimit = tokenLimitFor(userDoc?.plan || "free");
-  const tokensUsed = usageForCurrentPeriod(userDoc);
-  const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
+  // AI usage vs the plan budget (trial-total + daily for free, monthly for paid).
+  const st = getUsageStatus(userDoc);
+  const tokenPct = st.pct;
   const tokenBarColor = tokenPct >= 100 ? "bg-red-500" : tokenPct >= 80 ? "bg-amber-500" : "bg-blue-500";
-  const trial = trialStatus(userDoc);
 
   const onPurgeOrphans = async () => {
     if (!uid || purging) return;
@@ -332,10 +329,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
               <Zap size={14} className="text-gray-400 dark:text-gray-500" />
-              AI usage · {plan.name}
+              AI usage · {st.plan.name}
             </span>
             <span className="text-gray-500 dark:text-gray-400">
-              {formatTokens(tokensUsed)} of {formatTokens(tokenLimit)} tokens
+              {formatTokens(st.used)} of {formatTokens(st.limit)} tokens
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
@@ -345,10 +342,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
             />
           </div>
           <div className="mt-2.5 text-[11px] text-gray-500 dark:text-gray-400">
-            {trial.isTrial
-              ? trial.ended
+            {st.isTrial
+              ? st.trial.ended
                 ? "Free trial ended."
-                : `Free trial · ${trial.daysLeft} day${trial.daysLeft === 1 ? "" : "s"} left · resets monthly`
+                : `Free trial · ${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left · ${formatTokens(st.daily.limit)}/day`
               : "Resets monthly."}
           </div>
         </div>

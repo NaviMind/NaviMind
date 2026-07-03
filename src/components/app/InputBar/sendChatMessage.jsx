@@ -19,8 +19,7 @@ import {
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
 import { indexTextSnippet } from "./attachmentProcessing";
-import { updateUserProfile, recordTokenUsage, usageForCurrentPeriod, trialStatus } from "@/firebase/userRepo";
-import { tokenLimitFor } from "@/lib/planLimits";
+import { updateUserProfile, recordTokenUsage, getUsageStatus } from "@/firebase/userRepo";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
 import { updateDoc } from "firebase/firestore";
@@ -292,16 +291,15 @@ export async function sendChatMessage({
     try {
       const snap = await getDoc(doc(db, "users", currentUser.uid));
       const ud = snap.exists() ? snap.data() : null;
-      const overTokens = usageForCurrentPeriod(ud) >= tokenLimitFor(ud?.plan || "free");
-      const trial = trialStatus(ud);
-      const blockMsg = trial.ended
-        ? "Your free trial has ended. Upgrade to a plan to keep using NaviMind."
-        : overTokens
-        ? "You've used all your AI tokens for this month. Upgrade your plan to keep chatting."
-        : null;
-      if (blockMsg) {
+      const status = getUsageStatus(ud);
+      if (status.blocked) {
+        const msg = status.trial?.ended
+          ? "Your free trial has ended. Upgrade to a plan to keep using NaviMind."
+          : status.daily?.over
+          ? "You've hit today's free limit. It resets tomorrow — or upgrade for more."
+          : "You've used all your AI tokens. Upgrade your plan to keep chatting.";
         window.dispatchEvent(
-          new CustomEvent("navimind-toast", { detail: { message: blockMsg, type: "error" } })
+          new CustomEvent("navimind-toast", { detail: { message: msg, type: "error" } })
         );
         return;
       }

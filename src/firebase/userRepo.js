@@ -2,6 +2,7 @@
 import { db, storage } from "./config";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { planFor, tokenLimitFor, dailyTokenLimitFor, isTrialPlan } from "@/lib/planLimits";
 
 export async function ensureUserDoc(user, extra = {}) {
   if (!user || !user.uid) return;
@@ -43,35 +44,90 @@ export async function ensureUserDoc(user, extra = {}) {
 }
 
 // ── Token metering ────────────────────────────────────────────────────────────
-// Billing period key, e.g. "2026-07" (UTC month). Paid plans will later be
-// reset by the provider webhook on the real billing cycle; until then this gives
-// free users a clean monthly rollover.
+// Monthly period key ("2026-07", UTC) for paid plans; daily key ("2026-07-02")
+// for the free daily cap. `trialTokens` is a cumulative counter used for the
+// free trial's TOTAL budget.
 function currentPeriodKey() {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+function currentDayKey() {
+  const d = new Date();
+  return `${currentPeriodKey()}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
 
-// Record billed AI tokens (input + output) against the user's current period.
-// Called client-side after each answer completes (the user is authenticated,
-// so Firestore rules apply).
+// Record billed AI tokens (input + output). Maintains three counters at once:
+//   • monthly (period/tokens)      → paid-plan allowance
+//   • daily   (day/dayTokens)      → free per-day cap
+//   • trial   (trialTokens, cum.)  → free total trial budget
+// Called client-side after each answer (user authenticated → Firestore rules).
 export async function recordTokenUsage(uid, billedTokens) {
   if (!uid || !billedTokens || billedTokens <= 0) return;
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
-  const period = currentPeriodKey();
   const prev = snap.exists() ? snap.data()?.usage : null;
-  const tokens = (prev?.period === period ? prev.tokens || 0 : 0) + billedTokens;
-  await setDoc(
-    ref,
-    { usage: { period, tokens }, updatedAt: serverTimestamp() },
-    { merge: true }
-  );
+  const period = currentPeriodKey();
+  const day = currentDayKey();
+  const usage = {
+    period,
+    tokens: (prev?.period === period ? prev.tokens || 0 : 0) + billedTokens,
+    day,
+    dayTokens: (prev?.day === day ? prev.dayTokens || 0 : 0) + billedTokens,
+    trialTokens: (prev?.trialTokens || 0) + billedTokens,
+  };
+  await setDoc(ref, { usage, updatedAt: serverTimestamp() }, { merge: true });
 }
 
-// Tokens used in the CURRENT period from a live userDoc (0 if a new period).
+// ── Usage readers (from a live userDoc) ───────────────────────────────────────
 export function usageForCurrentPeriod(userDoc) {
   const u = userDoc?.usage;
   return u?.period === currentPeriodKey() ? u.tokens || 0 : 0;
+}
+export function dailyUsage(userDoc) {
+  const u = userDoc?.usage;
+  return u?.day === currentDayKey() ? u.dayTokens || 0 : 0;
+}
+export function trialUsage(userDoc) {
+  return userDoc?.usage?.trialTokens || 0;
+}
+
+// Unified status for the meter UI and enforcement. For free/trial it reports the
+// TRIAL-TOTAL budget plus the daily cap and trial-window state; for paid it
+// reports the MONTHLY allowance. `blocked` is true when any applicable limit is
+// hit (used by gated enforcement).
+export function getUsageStatus(userDoc) {
+  const planKey = userDoc?.plan || "free";
+  const plan = planFor(planKey);
+  const limit = tokenLimitFor(planKey);
+
+  if (isTrialPlan(planKey)) {
+    const used = trialUsage(userDoc);
+    const dayLimit = dailyTokenLimitFor(planKey);
+    const dayUsed = dailyUsage(userDoc);
+    const trial = trialStatus(userDoc);
+    return {
+      plan,
+      isTrial: true,
+      used,
+      limit,
+      pct: Math.min(100, limit ? (used / limit) * 100 : 0),
+      daily: { used: dayUsed, limit: dayLimit, over: dayLimit > 0 && dayUsed >= dayLimit },
+      trial,
+      blocked: trial.ended || used >= limit || (dayLimit > 0 && dayUsed >= dayLimit),
+    };
+  }
+
+  const used = usageForCurrentPeriod(userDoc);
+  return {
+    plan,
+    isTrial: false,
+    used,
+    limit,
+    pct: Math.min(100, limit ? (used / limit) * 100 : 0),
+    daily: null,
+    trial: { isTrial: false, active: true, ended: false, daysLeft: null },
+    blocked: used >= limit,
+  };
 }
 
 // ── Free-trial window ─────────────────────────────────────────────────────────
