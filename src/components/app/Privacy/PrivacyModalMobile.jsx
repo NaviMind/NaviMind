@@ -48,8 +48,8 @@ export default function PrivacyModalMobile({ onClose }) {
           <li>Usage Data: chat history, preferences, activity logs.</li>
           <li>Technical Data: IP address, browser type, device info, cookies.</li>
           <li>
-            Payment Data: billing details processed securely by providers
-            (Stripe, Google, Apple).
+            Payment Data: handled by Paddle. We do not store your card
+            details.
           </li>
         </ul>
 
@@ -66,7 +66,7 @@ export default function PrivacyModalMobile({ onClose }) {
         <h3 className="font-semibold mt-4">3. Sharing Your Information</h3>
         <p>We do not sell your personal data. We may share only with:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Service providers (Firebase, Stripe, Google)</li>
+          <li>Service providers (Google Firebase, Anthropic, OpenAI, LlamaIndex, Paddle)</li>
           <li>Legal authorities if required by law</li>
         </ul>
 
@@ -80,7 +80,7 @@ export default function PrivacyModalMobile({ onClose }) {
         <h3 className="font-semibold mt-4">5. Your Rights (GDPR)</h3>
         <p>
           Access, correct, request deletion, restrict processing, request data
-          copy. Contact us: support@[yourdomain].com
+          copy. Contact us: support@navimind.io
         </p>
 
         <h3 className="font-semibold mt-4">6. Security</h3>
@@ -107,7 +107,7 @@ export default function PrivacyModalMobile({ onClose }) {
         </p>
 
         <h3 className="font-semibold mt-4">10. Contact</h3>
-        <p>Questions? support@[yourdomain].com</p>
+        <p>Questions? support@navimind.io</p>
       </div>
 
       {/* Кнопка (активна только после доскролла) */}

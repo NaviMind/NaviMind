@@ -109,7 +109,7 @@ export default function TermsModalDesktop({ onClose }) {
         </p>
 
         <h3 className="font-semibold mt-4">10. Contact</h3>
-        <p>If you have any questions, contact us: support@[yourdomain].com</p>
+        <p>If you have any questions, contact us: support@navimind.io</p>
       </div>
 
       {/* Button (fixed bottom) */}

@@ -104,7 +104,7 @@ export default function TermsModalMobile({ onClose }) {
         </p>
 
         <h3 className="font-semibold mt-4">10. Contact</h3>
-        <p>Questions: support@[yourdomain].com</p>
+        <p>Questions: support@navimind.io</p>
       </div>
 
       {/* Кнопка (вне скролла, широкая для мобилки) */}

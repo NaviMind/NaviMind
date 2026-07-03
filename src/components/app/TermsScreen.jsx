@@ -15,18 +15,22 @@ export default function TermsScreen({ onBack }) {
         </button>
         <div>
           <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Terms of Service</h3>
-          <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-none mt-0.5">Last updated: September 2025</p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-none mt-0.5">Last updated: July 2026</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-6 py-5 text-[13.5px] text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
         <p>
-          Welcome to NaviMind ("Company", "we", "our", "us"). These Terms of Service ("Terms") govern your use of our website, applications, and services (collectively, the "Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.
+          Welcome to NaviMind ("Company", "we", "our", "us"). These Terms of Service ("Terms") govern your use of our website and services (collectively, the "Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.
         </p>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">1. Eligibility</h3>
         <p>
-          You must be at least 18 years old to use the Service. By creating an account, you confirm that you are legally capable of entering into this agreement.
+          NaviMind is an AI-powered copilot for maritime professionals. It uses third-party AI models (including Anthropic and OpenAI) to provide answers grounded in maritime regulations and in your own uploaded documents and drawings. <strong>Information provided by NaviMind is for general informational and operational-support purposes only. It does not replace official regulations, class or flag-state determinations, manufacturer documentation, or the professional judgement of the crew and company. Always verify safety-critical information against official sources.</strong>
+        </p>
+
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">1. Eligibility &amp; Sign-in</h3>
+        <p>
+          You must be at least 18 years old to use the Service. You sign in using Google or email and password (email verification is required before first login). By creating an account, you confirm that you are legally capable of entering into this agreement.
         </p>
 
         <h3 className="font-semibold text-gray-900 dark:text-white mt-2">2. Accounts</h3>
@@ -46,18 +50,24 @@ export default function TermsScreen({ onBack }) {
 
         <h3 className="font-semibold text-gray-900 dark:text-white mt-2">4. Subscriptions &amp; Payments</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Some features may require a paid subscription.</li>
-          <li>By subscribing, you agree to pay the applicable fees.</li>
+          <li>New accounts include a free trial with a capped AI-token allowance; no payment is taken to start it.</li>
+          <li>Paid plans are billed monthly through our Merchant of Record, Paddle, which handles billing, taxes, and refunds.</li>
+          <li>Each plan includes a monthly allowance of AI tokens and storage; unused monthly tokens do not roll over.</li>
           <li>Subscriptions automatically renew unless cancelled before the renewal date.</li>
-          <li>Refunds may be provided in accordance with our Refund Policy.</li>
+          <li>Refunds are provided in accordance with our Refund &amp; Cancellation Policy.</li>
         </ul>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">5. Intellectual Property</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">5. Your Content &amp; Documents</h3>
+        <p>
+          You retain ownership of the chats, documents, drawings, and vessel profile you submit. You grant us a limited license to process, index, embed, and store them, and to send relevant excerpts to our AI providers, solely to provide document-grounded answers to you. You must have the right to upload any content you submit.
+        </p>
+
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">6. Intellectual Property</h3>
         <p>
           All content, features, and functionality of the Service (except for user-generated content) are the exclusive property of the Company and protected by copyright and trademark laws.
         </p>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">6. Termination</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">7. Termination</h3>
         <p>We may suspend or terminate your access if you:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li>Violate these Terms,</li>
@@ -66,7 +76,7 @@ export default function TermsScreen({ onBack }) {
         </ul>
         <p>You may terminate your account at any time by contacting us.</p>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">7. Limitation of Liability</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">8. Limitation of Liability</h3>
         <p>To the maximum extent permitted by law, we are not liable for:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li>Any indirect, incidental, or consequential damages,</li>
@@ -74,17 +84,17 @@ export default function TermsScreen({ onBack }) {
           <li>Issues caused by third-party providers.</li>
         </ul>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">8. Governing Law</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">9. Governing Law</h3>
         <p>
           These Terms shall be governed by and interpreted in accordance with the laws of the European Union, unless otherwise required by local law.
         </p>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">9. Changes to Terms</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">10. Changes to Terms</h3>
         <p>
           We may update these Terms from time to time. Updated versions will be posted with a new "Last Updated" date. Continued use of the Service means you accept the new Terms.
         </p>
 
-        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">10. Contact</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white mt-2">11. Contact</h3>
         <p>If you have any questions, contact us: <a href="mailto:support@navimind.io" className="text-blue-500 hover:underline">support@navimind.io</a></p>
       </div>
     </div>
