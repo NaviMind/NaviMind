@@ -347,7 +347,9 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
                 ? st.trial.ended
                   ? "Free trial ended."
                   : `Free trial · ${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left · ${formatTokens(st.daily.limit)}/day`
-                : "Resets monthly."}
+                : st.topUp > 0
+                  ? `Resets monthly · +${formatTokens(st.topUp)} top-up`
+                  : "Resets monthly."}
             </span>
             <a
               href="/subscription"

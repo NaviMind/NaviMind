@@ -65,17 +65,38 @@ export async function recordTokenUsage(uid, billedTokens) {
   if (!uid || !billedTokens || billedTokens <= 0) return;
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
-  const prev = snap.exists() ? snap.data()?.usage : null;
+  const d = snap.exists() ? snap.data() : {};
+  const prev = d?.usage || null;
   const period = currentPeriodKey();
   const day = currentDayKey();
-  const usage = {
-    period,
-    tokens: (prev?.period === period ? prev.tokens || 0 : 0) + billedTokens,
-    day,
-    dayTokens: (prev?.day === day ? prev.dayTokens || 0 : 0) + billedTokens,
-    trialTokens: (prev?.trialTokens || 0) + billedTokens,
+  const prevPeriodTokens = prev?.period === period ? prev.tokens || 0 : 0;
+
+  const update = {
+    usage: {
+      period,
+      tokens: prevPeriodTokens + billedTokens,
+      day,
+      dayTokens: (prev?.day === day ? prev.dayTokens || 0 : 0) + billedTokens,
+      trialTokens: (prev?.trialTokens || 0) + billedTokens,
+    },
+    updatedAt: serverTimestamp(),
   };
-  await setDoc(ref, { usage, updatedAt: serverTimestamp() }, { merge: true });
+
+  // Paid plans: tokens used BEYOND the monthly allowance draw down the top-up
+  // balance. The plan bucket refills monthly (period key); top-up persists and
+  // only depletes when the plan is exhausted.
+  const planKey = d?.plan || "free";
+  if (!isTrialPlan(planKey)) {
+    const allowance = tokenLimitFor(planKey);
+    const overflowBefore = Math.max(0, prevPeriodTokens - allowance);
+    const overflowAfter = Math.max(0, prevPeriodTokens + billedTokens - allowance);
+    const consumed = overflowAfter - overflowBefore;
+    if (consumed > 0) {
+      update.topUpTokens = Math.max(0, (d?.topUpTokens || 0) - consumed);
+    }
+  }
+
+  await setDoc(ref, update, { merge: true });
 }
 
 // ── Usage readers (from a live userDoc) ───────────────────────────────────────
@@ -110,6 +131,7 @@ export function getUsageStatus(userDoc) {
       isTrial: true,
       used,
       limit,
+      topUp: 0,
       pct: Math.min(100, limit ? (used / limit) * 100 : 0),
       daily: { used: dayUsed, limit: dayLimit, over: dayLimit > 0 && dayUsed >= dayLimit },
       trial,
@@ -117,16 +139,24 @@ export function getUsageStatus(userDoc) {
     };
   }
 
+  // Paid: effective budget = monthly allowance + any purchased top-up. Overflow
+  // already consumed this period is folded into the limit so used/limit stays
+  // consistent (remaining = limit - used = remaining top-up).
+  const allowance = limit; // tokenLimitFor(plan) for paid = monthly allowance
+  const topUp = Math.max(0, userDoc?.topUpTokens || 0);
   const used = usageForCurrentPeriod(userDoc);
+  const overflowUsed = Math.max(0, used - allowance);
+  const effectiveLimit = allowance + topUp + overflowUsed;
   return {
     plan,
     isTrial: false,
     used,
-    limit,
-    pct: Math.min(100, limit ? (used / limit) * 100 : 0),
+    limit: effectiveLimit,
+    topUp,
+    pct: Math.min(100, effectiveLimit ? (used / effectiveLimit) * 100 : 0),
     daily: null,
     trial: { isTrial: false, active: true, ended: false, daysLeft: null },
-    blocked: used >= limit,
+    blocked: used >= allowance && topUp <= 0,
   };
 }
 
