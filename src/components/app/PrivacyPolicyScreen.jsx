@@ -21,7 +21,7 @@ export default function PrivacyPolicyScreen({ onBack }) {
 
       <div className="flex-1 overflow-y-auto custom-scroll px-6 py-5 text-[13.5px] text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
         <p>
-          At NaviMind we take your privacy seriously. This Privacy Policy explains how NaviMind ("NaviMind", "Company", "we", "our", "us") collects, uses, shares, and protects your information when you use our AI-powered copilot for maritime professionals (the "Service"). By using the Service, you agree to the practices described here.
+          At NaviMind we take your privacy seriously. This Privacy Policy explains how NaviMind ("we", "our", "us") collects, uses, shares, and protects your information when you use our AI-powered copilot for maritime professionals (the "Service"). By using the Service, you agree to the practices described here.
         </p>
 
         <h3 className="font-semibold text-gray-900 dark:text-white mt-2">1. Information We Collect</h3>

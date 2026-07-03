@@ -11,8 +11,8 @@ export default function TermsOfService() {
     <LegalShell title="Terms of Service" updated="July 2026">
       <p>
         These Terms of Service (“Terms”) govern your use of NaviMind (the “Service”), provided by
-        NaviMind (“NaviMind”, “Company”, “we”, “our”, “us”). By creating an account or using the
-        Service, you agree to these Terms. If you do not agree, please do not use the Service.
+        NaviMind (“we”, “our”, “us”). By creating an account or using the Service, you agree to
+        these Terms. If you do not agree, please do not use the Service.
       </p>
 
       <h2>1. The Service</h2>

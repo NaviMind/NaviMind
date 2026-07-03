@@ -14,9 +14,9 @@ export default function PrivacyPolicy() {
     <LegalShell title="Privacy Policy" updated="July 2026">
       <p>
         At NaviMind we take your privacy seriously. This Privacy Policy explains how NaviMind
-        (“NaviMind”, “Company”, “we”, “our”, “us”) collects, uses, shares, and protects your
-        information when you use our AI-powered copilot for maritime professionals (the
-        “Service”). By using the Service you agree to the practices described here.
+        (“we”, “our”, “us”) collects, uses, shares, and protects your information when you use our
+        AI-powered copilot for maritime professionals (the “Service”). By using the Service you
+        agree to the practices described here.
       </p>
 
       <h2>1. Information we collect</h2>

@@ -21,7 +21,7 @@ export default function TermsScreen({ onBack }) {
 
       <div className="flex-1 overflow-y-auto custom-scroll px-6 py-5 text-[13.5px] text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
         <p>
-          These Terms of Service ("Terms") govern your use of NaviMind (the "Service"), provided by NaviMind ("NaviMind", "Company", "we", "our", "us"). By creating an account or using the Service, you agree to these Terms. If you do not agree, please do not use the Service.
+          These Terms of Service ("Terms") govern your use of NaviMind (the "Service"), provided by NaviMind ("we", "our", "us"). By creating an account or using the Service, you agree to these Terms. If you do not agree, please do not use the Service.
         </p>
 
         <h3 className="font-semibold text-gray-900 dark:text-white mt-2">1. The Service</h3>
