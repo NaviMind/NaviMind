@@ -341,12 +341,22 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
               style={{ width: `${tokenPct}%` }}
             />
           </div>
-          <div className="mt-2.5 text-[11px] text-gray-500 dark:text-gray-400">
-            {st.isTrial
-              ? st.trial.ended
-                ? "Free trial ended."
-                : `Free trial · ${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left · ${formatTokens(st.daily.limit)}/day`
-              : "Resets monthly."}
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">
+              {st.isTrial
+                ? st.trial.ended
+                  ? "Free trial ended."
+                  : `Free trial · ${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left · ${formatTokens(st.daily.limit)}/day`
+                : "Resets monthly."}
+            </span>
+            <a
+              href="/subscription"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-lg bg-blue-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-blue-700 transition"
+            >
+              {st.isTrial ? "Upgrade" : "Change plan"}
+            </a>
           </div>
         </div>
 
