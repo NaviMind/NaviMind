@@ -1,13 +1,58 @@
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/firebase/config";
 import { PLANS, PAID_PLANS, formatTokens, formatBytes } from "@/lib/planLimits";
 
 // Which paid tier to highlight as the recommended one.
 const HIGHLIGHT = "pro";
 
-// A short, honest feature line-up per tier. Kept generic so it stays true as the
-// product grows; the concrete numbers (tokens/storage) come from the plan model.
+// Paddle config (all client-safe NEXT_PUBLIC_* env vars, inlined at build time).
+const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
+
+// plan key → Paddle price id. Set NEXT_PUBLIC_PADDLE_PRICE_IDS to a JSON string,
+// e.g. {"starter":"pri_...","plus":"pri_...","pro":"pri_...",...}
+function priceIdFor(planKey) {
+  try {
+    const map = JSON.parse(process.env.NEXT_PUBLIC_PADDLE_PRICE_IDS || "{}");
+    return map[planKey] || null;
+  } catch {
+    return null;
+  }
+}
+
+// Load Paddle.js once and initialise it. Returns whether it's ready. Does
+// nothing (stays not-ready) until a client token is configured — so before
+// Paddle is set up the page simply falls back to the sign-up flow.
+function usePaddle() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!PADDLE_TOKEN || typeof window === "undefined") return;
+    if (window.Paddle) {
+      setReady(true);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+    s.async = true;
+    s.onload = () => {
+      try {
+        if (PADDLE_ENV !== "production") window.Paddle.Environment.set("sandbox");
+        window.Paddle.Initialize({ token: PADDLE_TOKEN });
+        setReady(true);
+      } catch (e) {
+        console.error("Paddle init failed:", e);
+      }
+    };
+    document.body.appendChild(s);
+  }, []);
+  return ready;
+}
+
+// A short, honest feature line-up per tier.
 function planFeatures(plan) {
   return [
     `${formatTokens(plan.tokens)} AI tokens / month`,
@@ -20,7 +65,7 @@ function planFeatures(plan) {
   ];
 }
 
-function PriceCard({ plan, highlighted, cta }) {
+function PriceCard({ plan, highlighted, onChoose }) {
   return (
     <div
       className={`relative flex flex-col rounded-2xl p-6 bg-white ring-1 transition-shadow ${
@@ -58,19 +103,42 @@ function PriceCard({ plan, highlighted, cta }) {
         ))}
       </ul>
 
-      <Link
-        href={cta.href}
+      <button
+        onClick={() => onChoose(plan.key)}
         className={`mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition ${
           highlighted ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200"
         }`}
       >
-        {cta.label}
-      </Link>
+        Choose {plan.name}
+      </button>
     </div>
   );
 }
 
 export default function SubscriptionPage() {
+  const paddleReady = usePaddle();
+  const [user, setUser] = useState(null);
+  useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  const choose = useCallback(
+    (planKey) => {
+      const priceId = priceIdFor(planKey);
+      // Paddle not configured yet, or not ready → send to sign-up. Same for a
+      // signed-out visitor: we need their uid to link the subscription.
+      if (!priceId || !paddleReady || !user || typeof window === "undefined" || !window.Paddle) {
+        window.location.href = "/welcome";
+        return;
+      }
+      window.Paddle.Checkout.open({
+        items: [{ priceId, quantity: 1 }],
+        ...(user.email ? { customer: { email: user.email } } : {}),
+        customData: { userId: user.uid }, // ← the webhook links the payment to this Firebase user
+        settings: { successUrl: `${window.location.origin}/app` },
+      });
+    },
+    [paddleReady, user]
+  );
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-14">
       <div className="mx-auto max-w-6xl">
@@ -108,7 +176,7 @@ export default function SubscriptionPage() {
               key={plan.key}
               plan={plan}
               highlighted={plan.key === HIGHLIGHT}
-              cta={{ href: "/welcome", label: `Choose ${plan.name}` }}
+              onChoose={choose}
             />
           ))}
         </div>
