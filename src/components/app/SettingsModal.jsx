@@ -12,6 +12,8 @@ import PrivacyDataScreen from "@/components/app/PrivacyDataScreen";
 import SupportScreen from "@/components/app/SupportScreen";
 import PrivacyPolicyScreen from "@/components/app/PrivacyPolicyScreen";
 import TermsScreen from "@/components/app/TermsScreen";
+import BillingScreen from "@/components/app/BillingScreen";
+import { planFor } from "@/lib/planLimits";
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
 
@@ -190,7 +192,7 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
             <SettingCell
               iconName="Credit_card.svg"
               label="Billing"
-              badge={plan === "free" ? "Free" : "Pro"}
+              badge={planFor(plan).name}
               right={<IcChevron />}
               onPress={() => onNavigate("subscription")}
             />
@@ -359,6 +361,8 @@ export default function SettingsModal() {
                       <PrivacyPolicyScreen onBack={() => setStep("main")} />
                     ) : step === "terms" ? (
                       <TermsScreen onBack={() => setStep("main")} />
+                    ) : step === "subscription" ? (
+                      <BillingScreen userDoc={userDoc} onBack={() => setStep("main")} />
                     ) : (
                       <SubScreen
                         title={SUB_TITLES[step] || step}
