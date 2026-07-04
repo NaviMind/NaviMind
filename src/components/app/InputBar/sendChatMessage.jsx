@@ -620,6 +620,7 @@ if (inTopic) {
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
+      uid: currentUser.uid,
       question: ragQuestion,
       chatHistory,
       summary,
@@ -643,6 +644,7 @@ if (inTopic) {
   let sources = [];
   let streamedSources = [];
   let billedTokens = 0;
+  let usageServerRecorded = false;
 
 if (res.body && contentType.includes("text/event-stream")) {
   const reader = res.body.getReader();
@@ -716,8 +718,15 @@ if (res.body && contentType.includes("text/event-stream")) {
 }
 
       if (event === "usage") {
-        const n = Number(data);
-        if (Number.isFinite(n)) billedTokens += n;
+        try {
+          const u = JSON.parse(data);
+          if (Number.isFinite(u.billed)) billedTokens += u.billed;
+          if (u.serverRecorded) usageServerRecorded = true;
+        } catch {
+          // Backward-compat: a plain number payload.
+          const n = Number(data);
+          if (Number.isFinite(n)) billedTokens += n;
+        }
       }
 
       if (event === "error") {
@@ -735,9 +744,10 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
   }
 
-  // Metering: record the AI tokens this answer used against the user's monthly
-  // quota (fire-and-forget — never block or fail the chat on a metering write).
-  if (billedTokens > 0 && currentUser?.uid) {
+  // Metering fallback: the server records usage tamper-proof via the Admin SDK
+  // when it can. Only record client-side if the server didn't (Admin creds not
+  // configured yet) — fire-and-forget, never block the chat on a metering write.
+  if (billedTokens > 0 && !usageServerRecorded && currentUser?.uid) {
     recordTokenUsage(currentUser.uid, billedTokens).catch(() => {});
   }
 

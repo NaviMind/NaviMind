@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import { hasAdminCreds } from "@/firebase/admin";
+import { recordTokenUsageAdmin } from "@/firebase/adminUsage";
 
 import { systemInstruction } from "@/ai/systemInstruction";
 import { responseStyle } from "@/ai/responseStyle";
@@ -243,6 +245,7 @@ export async function POST(req) {
     console.log("BODY:", body);
     
     const {
+      uid = null,
       question,
       chatHistory = [],
       summary = "",
@@ -699,11 +702,23 @@ const perMessageGuidance = [
 
           // Metering: billed = uncached input + output (Anthropic's input_tokens
           // already excludes the cached prefix, so caching isn't charged to the
-          // user). The client records this against the user's monthly quota.
+          // user). Record it SERVER-SIDE (tamper-proof) when Admin creds + uid are
+          // available; otherwise fall back to the client recording it.
           const u = finalMessage.usage || {};
           const billed = (u.input_tokens || 0) + (u.output_tokens || 0);
+          let serverRecorded = false;
+          if (billed > 0 && uid && hasAdminCreds()) {
+            try {
+              await recordTokenUsageAdmin(uid, billed);
+              serverRecorded = true;
+            } catch (e) {
+              console.error("[rag] server metering failed:", e?.message || e);
+            }
+          }
           if (billed > 0) {
-            controller.enqueue(encoder.encode(sse("usage", String(billed))));
+            controller.enqueue(
+              encoder.encode(sse("usage", JSON.stringify({ billed, serverRecorded })))
+            );
           }
 
           // Collect trusted web-search sources for the clickable source pills.
