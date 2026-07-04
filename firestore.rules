@@ -1,24 +1,26 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // 🔧 Утилиты
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+    function willBeOwner() {
+      return isSignedIn() && request.resource.data.ownerId == uid();
+    }
+    function isOwner(ownerId) {
+      return isSignedIn() && ownerId == uid();
     }
 
-    // Field readers that tolerate the field being absent (older docs).
+    // 💳 Billing integrity: a client can't raise its own plan to a paid tier or
+    //    inflate topUpTokens. Only the server (Admin SDK / Paddle webhook)
+    //    bypasses these rules.
     function planOf(d)  { return ('plan' in d) ? d.plan : 'free'; }
     function topUpOf(d) { return ('topUpTokens' in d) ? d.topUpTokens : 0; }
-
-    // Billing integrity — enforced against CLIENT writes only. The Admin SDK
-    // (Paddle webhook, cron) bypasses these rules entirely, so the server can
-    // still set any plan and grant top-up.
-    //
-    //  • plan: a client may create with plan == 'free', keep it unchanged, or
-    //    downgrade to 'free' — but can NEVER raise itself to a paid tier.
-    //  • topUpTokens: a client may only keep or DECREASE it (metering spends it);
-    //    it can never inflate its own top-up balance. Only the server grants it.
     function planClientOk(nw, old) {
       return !('plan' in nw) || planOf(nw) == planOf(old) || nw.plan == 'free';
     }
@@ -26,31 +28,80 @@ service cloud.firestore {
       return topUpOf(nw) <= topUpOf(old);
     }
 
-    // ─── User scope ───────────────────────────────────────────────────────────
-    // The profile doc itself is guarded field-by-field for billing integrity;
-    // every sub-collection (chats, topics, libraryFiles, drawings, …) stays
-    // fully owner read/write.
+    // 🔐 1) Профиль пользователя (с защитой биллинга)
     match /users/{userId} {
       allow read: if isOwner(userId);
-
-      // Create: only a free plan, no self-granted top-up.
       allow create: if isOwner(userId)
                     && (!('plan' in request.resource.data) || request.resource.data.plan == 'free')
                     && topUpOf(request.resource.data) == 0;
-
-      // Update: plan can't be raised, top-up can't be inflated, by the client.
       allow update: if isOwner(userId)
                     && planClientOk(request.resource.data, resource.data)
                     && topUpClientOk(request.resource.data, resource.data);
-
       allow delete: if isOwner(userId);
+    }
 
-      match /{document=**} {
-        allow read, write: if isOwner(userId);
+    // ✅ Универсально открыть ВСЕ подколлекции внутри /users/{uid}
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 📁 2) Фиксированные шаблоны (например, IMPA, Checklists)
+    match /templates/{templateId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    // 🗂 3) My Topics (папки, ярлыки и т.п.)
+    match /topics/{topicId} {
+      allow create: if willBeOwner();
+      allow read, update, delete: if isOwner(resource.data.ownerId);
+    }
+
+    // 💬 4) Общие (глобальные) чаты: /chats/{chatId}
+    match /chats/{chatId} {
+      allow create: if willBeOwner();
+      allow read, update, delete: if isOwner(resource.data.ownerId);
+
+      match /messages/{msgId} {
+        allow create, read, update, delete: if isOwner(
+          get(/databases/$(database)/documents/chats/$(chatId)).data.ownerId
+        );
       }
     }
 
-    // Deny everything else that isn't nested under a user document.
+    // 👤 5) Личные чаты юзера: /users/{uid}/chats/{chatId}
+    match /users/{userId}/chats/{chatId} {
+      allow create, read, update, delete: if isOwner(userId);
+
+      match /messages/{msgId} {
+        allow create, read, update, delete: if isOwner(userId);
+      }
+    }
+
+    // 🗂 5.1) Топики пользователя: /users/{uid}/topics/{topicId}
+    match /users/{userId}/topics/{topicId} {
+      allow create, read, update, delete: if isOwner(userId);
+    }
+
+    // 💬 5.2) Чаты внутри топика: /users/{uid}/topics/{topicId}/chats/{chatId}
+    match /users/{userId}/topics/{topicId}/chats/{chatId} {
+      allow create, read, update, delete: if isOwner(userId);
+
+      match /messages/{msgId} {
+        allow create, read, update, delete: if isOwner(userId);
+      }
+    }
+
+    // 🧩 6) Проектные чаты: /users/{uid}/projectChats/{templateId}/{chatId}
+    match /users/{userId}/projectChats/{templateId}/{chatId} {
+      allow create, read, update, delete: if isOwner(userId);
+
+      match /messages/{msgId} {
+        allow create, read, update, delete: if isOwner(userId);
+      }
+    }
+
+    // 🚫 7) Всё остальное закрыто
     match /{document=**} {
       allow read, write: if false;
     }
