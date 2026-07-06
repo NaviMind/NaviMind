@@ -8,7 +8,7 @@ import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
 import { storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
 import { getUsageStatus } from "@/firebase/userRepo";
-import { Zap } from "lucide-react";
+import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
 
 // ─── icons (Material Design, viewBox 0 -960 960 960) ────────────────────────
@@ -328,7 +328,7 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
-              <Zap size={14} className="text-gray-400 dark:text-gray-500" />
+              <Icon name="flash" size={14} className="text-gray-400 dark:text-gray-500" />
               AI usage · {st.plan.name}
             </span>
             <span className="text-gray-500 dark:text-gray-400">

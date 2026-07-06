@@ -5,7 +5,7 @@ import { auth } from "@/firebase/config";
 import { getAccountStorageUsage } from "@/firebase/chatStore";
 import { getUsageStatus } from "@/firebase/userRepo";
 import { planFor, storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
-import { Zap, HardDrive } from "lucide-react";
+import Icon from "@/components/common/Icon";
 
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
@@ -75,7 +75,7 @@ export default function BillingScreen({ userDoc, onBack }) {
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
-              <Zap size={14} className="text-gray-400 dark:text-gray-500" />
+              <Icon name="flash" size={14} className="text-gray-400 dark:text-gray-500" />
               AI usage
             </span>
             <span className="text-gray-500 dark:text-gray-400">
@@ -100,7 +100,7 @@ export default function BillingScreen({ userDoc, onBack }) {
         <div className="mb-5 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
-              <HardDrive size={14} className="text-gray-400 dark:text-gray-500" />
+              <Icon name="storage" size={14} className="text-gray-400 dark:text-gray-500" />
               Document storage
             </span>
             <span className="text-gray-500 dark:text-gray-400">
@@ -115,8 +115,6 @@ export default function BillingScreen({ userDoc, onBack }) {
         {/* Primary action */}
         <a
           href="/subscription"
-          target="_blank"
-          rel="noopener noreferrer"
           className="block w-full rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition"
         >
           {st.isTrial ? "Upgrade your plan" : "Change plan"}
