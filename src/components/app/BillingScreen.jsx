@@ -147,7 +147,7 @@ export default function BillingScreen({ userDoc, onBack }) {
           onClick={() => setPickerOpen(true)}
           className="block w-full rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition"
         >
-          {st.isTrial ? "Upgrade your plan" : "Change plan"}
+          {st.isTrial ? "Choose your plan" : "Change your plan"}
         </button>
 
         {/* Manage / cancel for paying users → Paddle customer portal */}
