@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { hasAdminCreds } from "@/firebase/admin";
+import { adminDb, hasAdminCreds } from "@/firebase/admin";
 import { recordTokenUsageAdmin } from "@/firebase/adminUsage";
+import { modelTierFor, docChunksFor } from "@/lib/planLimits";
 
 import { systemInstruction } from "@/ai/systemInstruction";
 import { responseStyle } from "@/ai/responseStyle";
@@ -149,6 +150,37 @@ const CHAT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 const EFFORT = process.env.ANTHROPIC_EFFORT || "low";
 const EFFORT_OPERATIONAL = process.env.ANTHROPIC_EFFORT_OPERATIONAL || "high";
 
+// Per-plan reasoning tier. Higher paid tiers think harder (more adaptive-thinking
+// budget) and, once a stronger model is configured, run it. "standard" keeps the
+// cheap defaults; "advance"/"deep" raise effort and can point at a bigger model
+// via env. All values are env-tunable so the cost/quality dial stays in one place.
+const EFFORT_ADVANCE = process.env.ANTHROPIC_EFFORT_ADVANCE || "medium";
+const EFFORT_DEEP = process.env.ANTHROPIC_EFFORT_DEEP || "high";
+
+function aiConfigForModelTier(tier) {
+  if (tier === "deep") {
+    return { model: process.env.ANTHROPIC_MODEL_DEEP || CHAT_MODEL, effort: EFFORT_DEEP };
+  }
+  if (tier === "advance") {
+    return { model: process.env.ANTHROPIC_MODEL_ADVANCE || CHAT_MODEL, effort: EFFORT_ADVANCE };
+  }
+  return { model: CHAT_MODEL, effort: EFFORT };
+}
+
+// Resolve the user's plan authoritatively on the server so the model/context tier
+// can't be spoofed from the client. Falls back to a client hint, then "free".
+async function resolvePlanKey(uid, clientHint) {
+  if (uid && hasAdminCreds()) {
+    try {
+      const snap = await adminDb().collection("users").doc(uid).get();
+      if (snap.exists) return snap.data()?.plan || "free";
+    } catch (e) {
+      console.error("[rag] plan lookup failed:", e?.message || e);
+    }
+  }
+  return clientHint || "free";
+}
+
 // Output cap. Generous so long maritime answers (+ adaptive thinking) aren't
 // truncated; only tokens actually produced are billed. Override via ANTHROPIC_MAX_TOKENS.
 const MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS) || 8000;
@@ -169,14 +201,14 @@ const FILE_SEARCH_CHUNK_CHARS = Number(process.env.OPENAI_FILE_SEARCH_CHUNK_CHAR
 // Search each vector store directly and return the top chunks overall. This
 // replaces OpenAI's agentic `file_search` tool: we do the retrieval ourselves so
 // the generated answer can come from Claude while the vector DB stays on OpenAI.
-async function retrieveContext(question, storeIds) {
+async function retrieveContext(question, storeIds, maxResults = FILE_SEARCH_MAX_RESULTS) {
   if (!storeIds.length) return [];
   const perStore = await Promise.all(
     storeIds.map((id) =>
       getOpenAI().vectorStores
         .search(id, {
           query: String(question),
-          max_num_results: FILE_SEARCH_MAX_RESULTS,
+          max_num_results: maxResults,
           rewrite_query: true,
           ranking_options: { ranker: "auto", score_threshold: FILE_SEARCH_SCORE_THRESHOLD },
         })
@@ -190,7 +222,7 @@ async function retrieveContext(question, storeIds) {
   return perStore
     .flat()
     .sort((a, b) => (b.score || 0) - (a.score || 0))
-    .slice(0, FILE_SEARCH_MAX_RESULTS);
+    .slice(0, maxResults);
 }
 
 // Turn retrieved chunks into a system-prompt block. Each chunk is labelled with
@@ -246,6 +278,7 @@ export async function POST(req) {
     
     const {
       uid = null,
+      plan: clientPlan = null,
       question,
       chatHistory = [],
       summary = "",
@@ -595,12 +628,21 @@ const perMessageGuidance = [
         try {
           controller.enqueue(encoder.encode(sse("status", "start")));
 
+          // ── Plan tier (authoritative, server-side) ──
+          // Drives which reasoning model/effort the answer runs at and how many
+          // document chunks it may draw on. Read from the user doc so it can't be
+          // spoofed by the client.
+          const planKey = await resolvePlanKey(uid, clientPlan);
+          const modelTier = modelTierFor(planKey);
+          const { model: chatModel, effort: tierEffort } = aiConfigForModelTier(modelTier);
+          const maxResults = docChunksFor(planKey);
+
           // ── Retrieval step (OpenAI vector DB) ──
           // Pull the most relevant chunks from the user's documents ourselves,
           // then hand them to Claude as context (retrieve-then-generate).
           let retrievedBlock = null;
           if (hasDocs) {
-            let chunks = await retrieveContext(question, allVectorStoreIds);
+            let chunks = await retrieveContext(question, allVectorStoreIds, maxResults);
             // Respect the "past conversation memory" toggle: drop memory-* files.
             if (!searchPastChats) {
               chunks = chunks.filter(
@@ -674,15 +716,17 @@ const perMessageGuidance = [
             ? [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }]
             : undefined;
 
+          // Effort: the plan tier sets the baseline; a safety-critical operational
+          // question always bumps to the highest effort regardless of plan.
+          const effort = isOperationalScenario(question) ? EFFORT_OPERATIONAL : tierEffort;
+
           const claudeStream = getAnthropic().messages.stream({
-            model: CHAT_MODEL,
+            model: chatModel,
             max_tokens: MAX_TOKENS,
             system,
             messages,
             thinking: { type: "adaptive" },
-            output_config: {
-              effort: isOperationalScenario(question) ? EFFORT_OPERATIONAL : EFFORT,
-            },
+            output_config: { effort },
             ...(tools ? { tools } : {}),
           });
 
@@ -696,7 +740,7 @@ const perMessageGuidance = [
           // Proof-of-provider + cost signal in the server logs (Vercel → Logs):
           // shows the exact Claude model that answered and the token usage.
           console.log(
-            `[rag] answered by ${finalMessage.model} | usage:`,
+            `[rag] plan=${planKey} tier=${modelTier} effort=${effort} chunks=${maxResults} | answered by ${finalMessage.model} | usage:`,
             finalMessage.usage
           );
 

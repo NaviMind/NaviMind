@@ -28,15 +28,22 @@ export const PLANS = {
     tokens: 1 * M, // total for the whole trial
     dailyTokens: 60_000, // per-day cap
     storageBytes: 200 * MB,
+    model: "standard", // trial shows the entry model so paid model tiers stay a reason to upgrade
+    docContext: "standard",
   },
 
   // Granular paid ladder — MONTHLY token allowance. Solves the "too cheap or
   // suddenly ×5" gap so users pick the step that matches their real usage.
-  starter: { key: "starter", name: "Starter", priceUsd: 19, tokens: 1.2 * M, storageBytes: 2 * GB },
-  plus: { key: "plus", name: "Plus", priceUsd: 39, tokens: 2.5 * M, storageBytes: 4 * GB },
-  pro: { key: "pro", name: "Pro", priceUsd: 59, tokens: 4 * M, storageBytes: 8 * GB },
-  premium: { key: "premium", name: "Premium", priceUsd: 89, tokens: 6 * M, storageBytes: 15 * GB },
-  max: { key: "max", name: "Max", priceUsd: 129, tokens: 9 * M, storageBytes: 30 * GB },
+  //
+  // Beyond volume, paid tiers differ on two honest, deliverable levers:
+  //   • model      — reasoning tier: "standard" → "advance" → "deep"
+  //   • docContext — how much document context each answer draws on:
+  //                  "standard" → "deep" → "deepest"
+  starter: { key: "starter", name: "Starter", priceUsd: 19, tokens: 1.2 * M, storageBytes: 2 * GB, model: "standard", docContext: "standard" },
+  plus: { key: "plus", name: "Plus", priceUsd: 39, tokens: 2.5 * M, storageBytes: 4 * GB, model: "advance", docContext: "standard" },
+  pro: { key: "pro", name: "Pro", priceUsd: 59, tokens: 4 * M, storageBytes: 8 * GB, model: "advance", docContext: "deep" },
+  premium: { key: "premium", name: "Premium", priceUsd: 89, tokens: 6 * M, storageBytes: 15 * GB, model: "deep", docContext: "deep" },
+  max: { key: "max", name: "Max", priceUsd: 129, tokens: 9 * M, storageBytes: 30 * GB, model: "deep", docContext: "deepest" },
 };
 
 // Paid tiers in ladder order — for the pricing page.
@@ -87,4 +94,39 @@ export function formatBytes(bytes) {
   const mb = bytes / MB;
   if (mb >= 1) return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+// ── Feature tiers (model + document context) ──────────────────────────────────
+
+export const MODEL_LABELS = {
+  standard: "Standard model",
+  advance: "Advanced model",
+  deep: "Deep reasoning",
+};
+
+export const DOC_CONTEXT_LABELS = {
+  standard: "Standard document context",
+  deep: "Deep document context",
+  deepest: "Deepest document context",
+};
+
+export function modelTierFor(plan) {
+  return planFor(plan).model || "standard";
+}
+export function docContextTierFor(plan) {
+  return planFor(plan).docContext || "standard";
+}
+export function modelLabelFor(plan) {
+  return MODEL_LABELS[modelTierFor(plan)] || MODEL_LABELS.standard;
+}
+export function docContextLabelFor(plan) {
+  return DOC_CONTEXT_LABELS[docContextTierFor(plan)] || DOC_CONTEXT_LABELS.standard;
+}
+
+// How many retrieved document chunks each answer may draw on, by tier. This is
+// the enforceable side of "document context" — higher tiers see more of the
+// user's manuals/drawings per answer. Used by the RAG route.
+export const DOC_CONTEXT_CHUNKS = { standard: 4, deep: 6, deepest: 8 };
+export function docChunksFor(plan) {
+  return DOC_CONTEXT_CHUNKS[docContextTierFor(plan)] || DOC_CONTEXT_CHUNKS.standard;
 }

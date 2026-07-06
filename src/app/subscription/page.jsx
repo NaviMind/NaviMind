@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
-import { PLANS, PAID_PLANS, formatTokens, formatBytes } from "@/lib/planLimits";
+import { PLANS, PAID_PLANS, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
 import { usePaddle, openPaddleCheckout } from "@/lib/paddleClient";
 
 // Which paid tier to highlight as the recommended one.
@@ -15,11 +15,9 @@ function planFeatures(plan) {
   return [
     `${formatTokens(plan.tokens)} AI tokens / month`,
     `${formatBytes(plan.storageBytes)} document storage`,
-    "Vessel-aware answers from your documents",
-    "Drawings & manuals search + vision",
-    plan.key === "pro" || plan.key === "premium" || plan.key === "max"
-      ? "Priority “deep reasoning” model"
-      : "Standard reasoning model",
+    modelLabelFor(plan.key),
+    docContextLabelFor(plan.key),
+    "Web search, drawing & manual analysis, voice",
   ];
 }
 
