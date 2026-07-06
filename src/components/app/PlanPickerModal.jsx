@@ -2,8 +2,12 @@
 
 // In-app plan picker — a centered overlay (ChatGPT / Claude style) that shows
 // the paid tiers on top of the app, so changing plans never opens a new browser
-// tab or leaves the product. Selecting a tier opens the Paddle checkout overlay
-// when configured; before Paddle is wired it shows a gentle notice instead.
+// tab or leaves the product.
+//
+// Interaction: tiers are selectable cards (hover highlights, click selects and
+// stays lit). A single "Continue" button acts on the selected tier and opens the
+// Paddle checkout overlay when configured. No forced "most popular" nudging — the
+// user decides.
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -11,43 +15,36 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PAID_PLANS, planFor, formatTokens, formatBytes } from "@/lib/planLimits";
 import { usePaddle, openPaddleCheckout, isPlanPurchasable } from "@/lib/paddleClient";
 
-const HIGHLIGHT = "pro";
-
 const IcCheck = () => (
-  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="mt-0.5 flex-shrink-0 text-blue-500 dark:text-blue-400">
-    <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-white">
+    <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-function planFeatures(plan) {
-  const premium = plan.key === "pro" || plan.key === "premium" || plan.key === "max";
-  return [
-    `${formatTokens(plan.tokens)} AI tokens / month`,
-    `${formatBytes(plan.storageBytes)} document storage`,
-    "Vessel-aware answers from your files",
-    premium ? "Priority “deep reasoning” model" : "Standard reasoning model",
-  ];
-}
-
-function PlanCard({ plan, highlighted, current, onChoose }) {
+function PlanCard({ plan, selected, current, onSelect }) {
   return (
-    <div
-      className={`relative flex flex-col rounded-2xl p-4 ring-1 transition
+    <button
+      type="button"
+      aria-pressed={selected}
+      disabled={current}
+      onClick={() => onSelect(plan.key)}
+      className={`group relative flex flex-col text-left rounded-2xl p-4 ring-1 transition-all duration-150 outline-none
         ${current
-          ? "bg-blue-50 dark:bg-blue-500/[0.08] ring-blue-500/40"
-          : highlighted
-            ? "bg-white dark:bg-white/[0.04] ring-2 ring-blue-500 shadow-lg"
-            : "bg-gray-50 dark:bg-white/[0.03] ring-gray-200 dark:ring-white/[0.07]"
+          ? "cursor-default bg-gray-50 dark:bg-white/[0.03] ring-gray-200 dark:ring-white/[0.07] opacity-80"
+          : selected
+            ? "cursor-pointer bg-blue-50 dark:bg-blue-500/[0.12] ring-2 ring-blue-500 shadow-lg shadow-blue-500/10 -translate-y-0.5"
+            : "cursor-pointer bg-gray-50 dark:bg-white/[0.03] ring-gray-200 dark:ring-white/[0.07] hover:ring-blue-400 dark:hover:ring-blue-400/70 hover:bg-white dark:hover:bg-white/[0.06] hover:shadow-md hover:-translate-y-0.5"
         }`}
     >
-      {highlighted && !current && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white whitespace-nowrap">
-          Most popular
+      {/* Selected check / current tag */}
+      {selected && !current && (
+        <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
+          <IcCheck />
         </span>
       )}
       {current && (
-        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-gray-800 dark:bg-white/90 px-2.5 py-0.5 text-[10px] font-semibold text-white dark:text-gray-900 whitespace-nowrap">
-          Current plan
+        <span className="absolute top-3 right-3 rounded-full bg-gray-200 dark:bg-white/10 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-300">
+          Current
         </span>
       )}
 
@@ -57,41 +54,28 @@ function PlanCard({ plan, highlighted, current, onChoose }) {
         <span className="text-[12px] text-gray-500 dark:text-gray-400">/ mo</span>
       </div>
 
-      <ul className="mt-3 flex-1 space-y-1.5 text-[12px] text-gray-600 dark:text-gray-300">
-        {planFeatures(plan).map((f, i) => (
-          <li key={i} className="flex gap-1.5">
-            <IcCheck />
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        disabled={current}
-        onClick={() => onChoose(plan.key)}
-        className={`mt-4 w-full rounded-xl px-3 py-2 text-center text-[13px] font-medium transition
-          ${current
-            ? "cursor-default bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
-            : highlighted
-              ? "bg-blue-600 text-white hover:bg-blue-700"
-              : "bg-gray-100 dark:bg-white/10 text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/[0.15]"
-          }`}
-      >
-        {current ? "Current plan" : `Choose ${plan.name}`}
-      </button>
-    </div>
+      <div className="mt-3 space-y-1 text-[12px] text-gray-600 dark:text-gray-300">
+        <div>
+          <span className="font-medium text-gray-900 dark:text-white">{formatTokens(plan.tokens)}</span> tokens / mo
+        </div>
+        <div>
+          <span className="font-medium text-gray-900 dark:text-white">{formatBytes(plan.storageBytes)}</span> storage
+        </div>
+      </div>
+    </button>
   );
 }
 
 export default function PlanPickerModal({ open, onClose, currentPlanKey, user }) {
   const paddleReady = usePaddle();
   const [mounted, setMounted] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Reset the notice whenever the modal is (re)opened.
-  useEffect(() => { if (open) setNotice(""); }, [open]);
+  // Fresh selection each time the modal opens.
+  useEffect(() => { if (open) { setSelected(null); setNotice(""); } }, [open]);
 
   // Lock background scroll + close on Escape while open.
   useEffect(() => {
@@ -108,11 +92,17 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
 
   const current = planFor(currentPlanKey || "free");
 
-  const choose = (planKey) => {
-    const opened = openPaddleCheckout({ planKey, ready: paddleReady, user });
+  const select = (planKey) => {
+    setNotice("");
+    setSelected(planKey);
+  };
+
+  const proceed = () => {
+    if (!selected) return;
+    const opened = openPaddleCheckout({ planKey: selected, ready: paddleReady, user });
     if (opened) {
       onClose(); // Paddle overlay takes over the screen.
-    } else if (!isPlanPurchasable(planKey)) {
+    } else if (!isPlanPurchasable(selected)) {
       setNotice("Online checkout isn’t enabled yet — it’s coming shortly. For now, contact support@navimind.io to change your plan.");
     } else {
       setNotice("Couldn’t open checkout. Please try again in a moment.");
@@ -120,6 +110,8 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
   };
 
   if (!mounted) return null;
+
+  const selectedPlan = selected ? planFor(selected) : null;
 
   return createPortal(
     <AnimatePresence>
@@ -135,22 +127,13 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="relative w-full max-w-5xl max-h-[90dvh] flex flex-col overflow-hidden rounded-[22px] bg-white dark:bg-[#0f1623] ring-1 ring-black/5 dark:ring-white/[0.08] shadow-2xl"
           >
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/[0.06]">
-              <div>
-                <h2 className="text-[18px] font-semibold text-gray-900 dark:text-white">
-                  {current.trial ? "Upgrade your plan" : "Change your plan"}
-                </h2>
-                <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">
-                  {current.trial
-                    ? "You’re on the free trial. Pick a monthly plan — cancel anytime."
-                    : `You’re on ${current.name}. Move up or down anytime — changes are prorated by Paddle.`}
-                </p>
-              </div>
+            {/* Header — just a title */}
+            <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100 dark:border-white/[0.06]">
+              <h2 className="text-[18px] font-semibold text-gray-900 dark:text-white">Choose your plan</h2>
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="flex-shrink-0 -mr-1 -mt-1 p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
+                className="flex-shrink-0 -mr-1 p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -158,27 +141,39 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
               </button>
             </div>
 
-            {/* Cards */}
+            {/* Selectable tiers */}
             <div className="flex-1 overflow-y-auto custom-scroll px-6 py-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {PAID_PLANS.map((plan) => (
                   <PlanCard
                     key={plan.key}
                     plan={plan}
-                    highlighted={plan.key === HIGHLIGHT}
+                    selected={selected === plan.key}
                     current={plan.key === current.key}
-                    onChoose={choose}
+                    onSelect={select}
                   />
                 ))}
               </div>
+            </div>
 
+            {/* Footer — single action + trust line */}
+            <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 dark:border-white/[0.06]">
               {notice && (
-                <p className="mt-5 text-center text-[12px] text-amber-600 dark:text-amber-400">{notice}</p>
+                <p className="mb-3 text-center text-[12px] text-amber-600 dark:text-amber-400">{notice}</p>
               )}
-
-              <p className="mt-5 text-center text-[11px] text-gray-400 dark:text-gray-500">
-                Payments are securely processed by Paddle, our Merchant of Record. Taxes are
-                calculated at checkout.{" "}
+              <button
+                onClick={proceed}
+                disabled={!selected}
+                className={`w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition
+                  ${selected
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "cursor-not-allowed bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
+                  }`}
+              >
+                {selectedPlan ? `Continue with ${selectedPlan.name} · $${selectedPlan.priceUsd}/mo` : "Select a plan"}
+              </button>
+              <p className="mt-3 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                Billed monthly through Paddle · cancel anytime.{" "}
                 <a href="/legal/refund" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-600 dark:hover:text-gray-300">
                   Refund &amp; Cancellation Policy
                 </a>
