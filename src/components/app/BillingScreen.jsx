@@ -6,6 +6,7 @@ import { getAccountStorageUsage } from "@/firebase/chatStore";
 import { getUsageStatus } from "@/firebase/userRepo";
 import { planFor, storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
 import Icon from "@/components/common/Icon";
+import PlanPickerModal from "@/components/app/PlanPickerModal";
 
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
@@ -37,6 +38,35 @@ export default function BillingScreen({ userDoc, onBack }) {
   const usedBytes = storage?.total || 0;
   const storagePct = Math.min(100, storageLimit ? (usedBytes / storageLimit) * 100 : 0);
   const tokenPct = st.pct;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [managing, setManaging] = useState(false);
+
+  // Manage/cancel → open the Paddle customer portal (hosted). Falls back to
+  // emailing support if the portal isn't available yet (Paddle not wired, or no
+  // Paddle customer linked to this account).
+  async function manageSubscription() {
+    setManaging(true);
+    try {
+      const token = await auth.currentUser?.getIdToken?.();
+      if (token) {
+        const res = await fetch("/api/paddle/portal", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.url) {
+          window.location.href = data.url;
+          return;
+        }
+      }
+    } catch {
+      /* fall through to email */
+    }
+    window.location.href =
+      "mailto:support@navimind.io?subject=Manage%20my%20NaviMind%20subscription";
+    setManaging(false);
+  }
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -112,22 +142,23 @@ export default function BillingScreen({ userDoc, onBack }) {
           </div>
         </div>
 
-        {/* Primary action */}
-        <a
-          href="/subscription"
+        {/* Primary action — opens the in-app plan picker (no new tab, stays in app) */}
+        <button
+          onClick={() => setPickerOpen(true)}
           className="block w-full rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition"
         >
           {st.isTrial ? "Upgrade your plan" : "Change plan"}
-        </a>
+        </button>
 
-        {/* Manage / cancel for paying users */}
+        {/* Manage / cancel for paying users → Paddle customer portal */}
         {!st.isTrial && (
-          <a
-            href="mailto:support@navimind.io?subject=Manage%20my%20NaviMind%20subscription"
-            className="mt-2.5 block w-full rounded-xl bg-gray-100 dark:bg-white/10 px-4 py-2.5 text-center text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/[0.15] transition"
+          <button
+            onClick={manageSubscription}
+            disabled={managing}
+            className="mt-2.5 block w-full rounded-xl bg-gray-100 dark:bg-white/10 px-4 py-2.5 text-center text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/[0.15] transition disabled:opacity-60"
           >
-            Manage or cancel subscription
-          </a>
+            {managing ? "Opening…" : "Manage or cancel subscription"}
+          </button>
         )}
 
         <p className="mt-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
@@ -137,6 +168,13 @@ export default function BillingScreen({ userDoc, onBack }) {
           </a>
         </p>
       </div>
+
+      <PlanPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        currentPlanKey={userDoc?.plan || "free"}
+        user={auth.currentUser}
+      />
     </div>
   );
 }

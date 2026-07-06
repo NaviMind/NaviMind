@@ -9,6 +9,7 @@
 import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getAuth } from "firebase-admin/auth";
 
 let _app;
 
@@ -42,4 +43,8 @@ export function adminDb() {
 
 export function adminBucket() {
   return getStorage(adminApp()).bucket();
+}
+
+export function adminAuth() {
+  return getAuth(adminApp());
 }

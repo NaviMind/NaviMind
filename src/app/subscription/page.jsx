@@ -5,52 +5,10 @@ import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { PLANS, PAID_PLANS, formatTokens, formatBytes } from "@/lib/planLimits";
+import { usePaddle, openPaddleCheckout } from "@/lib/paddleClient";
 
 // Which paid tier to highlight as the recommended one.
 const HIGHLIGHT = "pro";
-
-// Paddle config (all client-safe NEXT_PUBLIC_* env vars, inlined at build time).
-const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
-
-// plan key → Paddle price id. Set NEXT_PUBLIC_PADDLE_PRICE_IDS to a JSON string,
-// e.g. {"starter":"pri_...","plus":"pri_...","pro":"pri_...",...}
-function priceIdFor(planKey) {
-  try {
-    const map = JSON.parse(process.env.NEXT_PUBLIC_PADDLE_PRICE_IDS || "{}");
-    return map[planKey] || null;
-  } catch {
-    return null;
-  }
-}
-
-// Load Paddle.js once and initialise it. Returns whether it's ready. Does
-// nothing (stays not-ready) until a client token is configured — so before
-// Paddle is set up the page simply falls back to the sign-up flow.
-function usePaddle() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    if (!PADDLE_TOKEN || typeof window === "undefined") return;
-    if (window.Paddle) {
-      setReady(true);
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    s.async = true;
-    s.onload = () => {
-      try {
-        if (PADDLE_ENV !== "production") window.Paddle.Environment.set("sandbox");
-        window.Paddle.Initialize({ token: PADDLE_TOKEN });
-        setReady(true);
-      } catch (e) {
-        console.error("Paddle init failed:", e);
-      }
-    };
-    document.body.appendChild(s);
-  }, []);
-  return ready;
-}
 
 // A short, honest feature line-up per tier.
 function planFeatures(plan) {
@@ -122,19 +80,10 @@ export default function SubscriptionPage() {
 
   const choose = useCallback(
     (planKey) => {
-      const priceId = priceIdFor(planKey);
-      // Paddle not configured yet, or not ready → send to sign-up. Same for a
-      // signed-out visitor: we need their uid to link the subscription.
-      if (!priceId || !paddleReady || !user || typeof window === "undefined" || !window.Paddle) {
-        window.location.href = "/welcome";
-        return;
-      }
-      window.Paddle.Checkout.open({
-        items: [{ priceId, quantity: 1 }],
-        ...(user.email ? { customer: { email: user.email } } : {}),
-        customData: { userId: user.uid }, // ← the webhook links the payment to this Firebase user
-        settings: { successUrl: `${window.location.origin}/app` },
-      });
+      // Opens the Paddle overlay when configured; otherwise (or for a signed-out
+      // visitor we can't link a purchase to) fall back to the sign-up flow.
+      const opened = openPaddleCheckout({ planKey, ready: paddleReady, user });
+      if (!opened) window.location.href = "/welcome";
     },
     [paddleReady, user]
   );
