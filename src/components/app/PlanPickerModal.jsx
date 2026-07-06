@@ -156,28 +156,30 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
               </div>
             </div>
 
-            {/* Footer — single action + trust line */}
+            {/* Footer — compact action, trust line beside it */}
             <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 dark:border-white/[0.06]">
               {notice && (
                 <p className="mb-3 text-center text-[12px] text-amber-600 dark:text-amber-400">{notice}</p>
               )}
-              <button
-                onClick={proceed}
-                disabled={!selected}
-                className={`w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition
-                  ${selected
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "cursor-not-allowed bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
-                  }`}
-              >
-                {selectedPlan ? `Continue with ${selectedPlan.name} · $${selectedPlan.priceUsd}/mo` : "Select a plan"}
-              </button>
-              <p className="mt-3 text-center text-[11px] text-gray-400 dark:text-gray-500">
-                Billed monthly through Paddle · cancel anytime.{" "}
-                <a href="/legal/refund" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-600 dark:hover:text-gray-300">
-                  Refund &amp; Cancellation Policy
-                </a>
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="order-2 sm:order-1 text-[11px] text-gray-400 dark:text-gray-500 leading-snug">
+                  Billed monthly through Paddle · cancel anytime.{" "}
+                  <a href="/legal/refund" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-600 dark:hover:text-gray-300">
+                    Refund &amp; Cancellation Policy
+                  </a>
+                </p>
+                <button
+                  onClick={proceed}
+                  disabled={!selected}
+                  className={`order-1 sm:order-2 flex-shrink-0 w-full sm:w-auto rounded-xl px-6 py-2.5 text-sm font-medium transition
+                    ${selected
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "cursor-not-allowed bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-gray-500"
+                    }`}
+                >
+                  {selectedPlan ? `Continue · $${selectedPlan.priceUsd}/mo` : "Continue"}
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>
