@@ -6,7 +6,6 @@ import { getAccountStorageUsage } from "@/firebase/chatStore";
 import { getUsageStatus } from "@/firebase/userRepo";
 import { planFor, storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
 import Icon from "@/components/common/Icon";
-import PlanPickerModal from "@/components/app/PlanPickerModal";
 import { openPaddlePortal } from "@/lib/paddleClient";
 
 const IcBack = () => (
@@ -22,7 +21,7 @@ function barColor(pct) {
 // In-app billing / plan management. Reads the same metering helpers as the rest
 // of the app (getUsageStatus / storage usage) so the numbers match everywhere,
 // and routes paid actions to the /subscription pricing+checkout page.
-export default function BillingScreen({ userDoc, onBack }) {
+export default function BillingScreen({ userDoc, onBack, onChangePlan }) {
   const uid = userDoc?.uid || auth.currentUser?.uid || null;
   const plan = planFor(userDoc?.plan || "free");
   const st = getUsageStatus(userDoc);
@@ -40,7 +39,6 @@ export default function BillingScreen({ userDoc, onBack }) {
   const storagePct = Math.min(100, storageLimit ? (usedBytes / storageLimit) * 100 : 0);
   const tokenPct = st.pct;
 
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [managing, setManaging] = useState(false);
   const [manageNotice, setManageNotice] = useState("");
 
@@ -131,9 +129,9 @@ export default function BillingScreen({ userDoc, onBack }) {
           </div>
         </div>
 
-        {/* Primary action — opens the in-app plan picker (no new tab, stays in app) */}
+        {/* Primary action — replaces this Billing view with the plan picker step */}
         <button
-          onClick={() => setPickerOpen(true)}
+          onClick={onChangePlan}
           className="block w-full rounded-xl bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition"
         >
           {st.isTrial ? "Choose your plan" : "Change your plan"}
@@ -170,13 +168,6 @@ export default function BillingScreen({ userDoc, onBack }) {
           </a>
         </p>
       </div>
-
-      <PlanPickerModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        currentPlanKey={userDoc?.plan || "free"}
-        user={auth.currentUser}
-      />
     </div>
   );
 }

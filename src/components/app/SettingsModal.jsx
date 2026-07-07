@@ -12,6 +12,7 @@ import SupportScreen from "@/components/app/SupportScreen";
 import PrivacyPolicyScreen from "@/components/app/PrivacyPolicyScreen";
 import TermsScreen from "@/components/app/TermsScreen";
 import BillingScreen from "@/components/app/BillingScreen";
+import PlanPicker from "@/components/app/PlanPicker";
 import PlanChip from "@/components/common/PlanChip";
 
 // ─── Navigation icons ─────────────────────────────────────────────────────────
@@ -350,7 +351,9 @@ export default function SettingsModal() {
             animate="animate"
             exit="exit"
             transition={slideTransition}
-            className="w-full max-w-[360px] sm:max-w-lg"
+            className={`w-full transition-[max-width] duration-300 ${
+              step === "planpicker" ? "max-w-5xl" : "max-w-[360px] sm:max-w-lg"
+            }`}
           >
             <div className="relative bg-white/95 dark:bg-[#0f1623]/90 backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/[0.08] rounded-[22px] shadow-2xl flex flex-col overflow-hidden max-h-[75dvh] sm:max-h-[95dvh]">
               <AnimatePresence mode="wait">
@@ -394,7 +397,18 @@ export default function SettingsModal() {
                     ) : step === "terms" ? (
                       <TermsScreen onBack={() => setStep("main")} />
                     ) : step === "subscription" ? (
-                      <BillingScreen userDoc={userDoc} onBack={() => setStep("main")} />
+                      <BillingScreen
+                        userDoc={userDoc}
+                        onBack={() => setStep("main")}
+                        onChangePlan={() => setStep("planpicker")}
+                      />
+                    ) : step === "planpicker" ? (
+                      <PlanPicker
+                        currentPlanKey={userDoc?.plan || "free"}
+                        user={auth.currentUser}
+                        onBack={() => setStep("subscription")}
+                        onDone={() => toggleSettings(false)}
+                      />
                     ) : (
                       <SubScreen
                         title={SUB_TITLES[step] || step}
