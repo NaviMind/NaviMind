@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
-import { PLANS, PAID_PLANS, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
-import { usePaddle, openPaddleCheckout } from "@/lib/paddleClient";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import { PLANS, PAID_PLANS, planFor, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
 
 // A short, honest feature line-up per tier.
 function planFeatures(plan) {
@@ -18,9 +18,14 @@ function planFeatures(plan) {
   ];
 }
 
-function PriceCard({ plan, onChoose }) {
+function PriceCard({ plan, current, loggedIn, onAction }) {
   return (
     <div className="group relative flex flex-col rounded-2xl p-6 bg-white ring-1 ring-gray-200 shadow-sm transition-all hover:ring-blue-400 hover:shadow-md">
+      {current && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gray-900 px-3 py-0.5 text-[11px] font-semibold text-white">
+          Current plan
+        </span>
+      )}
       <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
       <div className="mt-2 flex items-baseline gap-1">
         <span className="text-3xl font-bold text-gray-900">
@@ -48,29 +53,35 @@ function PriceCard({ plan, onChoose }) {
       </ul>
 
       <button
-        onClick={() => onChoose(plan.key)}
-        className="mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition bg-gray-100 text-gray-800 group-hover:bg-blue-600 group-hover:text-white hover:bg-blue-700 hover:text-white"
+        onClick={() => onAction(plan.key)}
+        disabled={current}
+        className={`mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition ${
+          current
+            ? "cursor-default bg-gray-100 text-gray-400"
+            : "bg-gray-100 text-gray-800 group-hover:bg-blue-600 group-hover:text-white hover:bg-blue-700 hover:text-white"
+        }`}
       >
-        Choose {plan.name}
+        {current ? "Current plan" : loggedIn ? "Manage in app" : `Choose ${plan.name}`}
       </button>
     </div>
   );
 }
 
 export default function SubscriptionPage() {
-  const paddleReady = usePaddle();
   const [user, setUser] = useState(null);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
+  const { data: userDoc } = useCurrentUserDoc();
 
-  const choose = useCallback(
-    (planKey) => {
-      // Opens the Paddle overlay when configured; otherwise (or for a signed-out
-      // visitor we can't link a purchase to) fall back to the sign-up flow.
-      const opened = openPaddleCheckout({ planKey, ready: paddleReady, user });
-      if (!opened) window.location.href = "/welcome";
-    },
-    [paddleReady, user]
-  );
+  const loggedIn = !!user;
+  const currentPlanKey = userDoc?.plan || null;
+
+  // The public page never opens checkout itself: signed-out visitors sign up
+  // first, and signed-in users manage/pay INSIDE the app. A second checkout here
+  // would create a duplicate subscription (double charge) and desync from their
+  // account — so every action just routes to the right place.
+  const onAction = useCallback(() => {
+    window.location.href = loggedIn ? "/app" : "/welcome";
+  }, [loggedIn]);
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-14">
@@ -80,27 +91,43 @@ export default function SubscriptionPage() {
             Plans &amp; Pricing
           </h1>
           <p className="mt-3 text-gray-600">
-            NaviMind is a maritime AI assistant. Start free for 21 days, then pick the
-            monthly plan that matches how much you use it. Every plan is metered in AI
-            tokens — pay for what you actually need, with no jump straight to the biggest tier.
+            NaviMind is a maritime AI assistant. Every plan is metered in AI tokens —
+            pick the one that matches how much you use it and pay only for what you need.
           </p>
         </div>
 
-        {/* Free trial banner */}
-        <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 text-center ring-1 ring-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">{PLANS.free.name} — 21-day trial</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            {formatTokens(PLANS.free.tokens)} AI tokens over the trial ·{" "}
-            {formatTokens(PLANS.free.dailyTokens)} tokens/day ·{" "}
-            {formatBytes(PLANS.free.storageBytes)} storage. No card required to start.
-          </p>
-          <Link
-            href="/welcome"
-            className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
-          >
-            Start free
-          </Link>
-        </div>
+        {/* Context banner — account-aware so a signed-in user is never shown a
+            sign-up CTA (or nudged into a second checkout). */}
+        {loggedIn ? (
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 text-center ring-1 ring-gray-200 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
+              You’re signed in{currentPlanKey ? ` on ${planFor(currentPlanKey).name}` : ""}
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Manage or change your subscription inside NaviMind — this page is just a reference.
+            </p>
+            <Link
+              href="/app"
+              className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
+            >
+              Open NaviMind
+            </Link>
+          </div>
+        ) : (
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 text-center ring-1 ring-gray-200 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">New to NaviMind?</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Start free — no card required. {formatBytes(PLANS.free.storageBytes)} storage and a
+              capped token allowance to try it on your own vessel.
+            </p>
+            <Link
+              href="/welcome"
+              className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
+            >
+              Start free
+            </Link>
+          </div>
+        )}
 
         {/* Paid ladder */}
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -108,7 +135,9 @@ export default function SubscriptionPage() {
             <PriceCard
               key={plan.key}
               plan={plan}
-              onChoose={choose}
+              current={plan.key === currentPlanKey}
+              loggedIn={loggedIn}
+              onAction={onAction}
             />
           ))}
         </div>
