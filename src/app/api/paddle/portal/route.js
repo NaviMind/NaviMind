@@ -14,7 +14,8 @@
 // Until PADDLE_API_KEY is set (or before a customer is linked) this returns
 // { available: false } and the client falls back to emailing support.
 
-import { adminDb, adminAuth, hasAdminCreds } from "@/firebase/admin";
+import { adminDb, hasAdminCreds } from "@/firebase/admin";
+import { adminAuth } from "@/firebase/adminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

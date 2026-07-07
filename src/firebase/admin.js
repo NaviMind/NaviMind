@@ -9,11 +9,13 @@
 import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { getAuth } from "firebase-admin/auth";
 
 let _app;
 
-function adminApp() {
+// Exported so the token-verification helper (which lives in a separate module so
+// this file — imported by the hot /api/rag path — never pulls in firebase-admin/auth
+// and its ESM-only `jose` dependency) can reuse the same initialized app.
+export function adminApp() {
   if (_app) return _app;
   const existing = getApps();
   if (existing.length) {
@@ -43,8 +45,4 @@ export function adminDb() {
 
 export function adminBucket() {
   return getStorage(adminApp()).bucket();
-}
-
-export function adminAuth() {
-  return getAuth(adminApp());
 }
