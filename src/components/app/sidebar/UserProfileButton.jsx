@@ -4,6 +4,7 @@ import { useContext } from "react";
 import { UIContext } from "@/context/UIContext";
 import { auth } from "@/firebase/config";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
+import PlanChip from "@/components/common/PlanChip";
 export default function UserAvatar({ collapsed = false }) {
   const { toggleSettings } = useContext(UIContext);
   const { data: userDoc, loading } = useCurrentUserDoc();
@@ -66,9 +67,14 @@ export default function UserAvatar({ collapsed = false }) {
         )}
 
         {!collapsed && (
-          <span className="text-sm font-medium text-gray-900 dark:text-white truncate min-w-0">
-            {displayName}
-          </span>
+          <>
+            <span className="text-sm font-medium text-gray-900 dark:text-white truncate min-w-0">
+              {displayName}
+            </span>
+            <span className="ml-auto flex-shrink-0">
+              <PlanChip plan={userDoc?.plan || "free"} />
+            </span>
+          </>
         )}
       </button>
     </div>
