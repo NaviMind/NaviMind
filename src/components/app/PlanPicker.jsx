@@ -10,9 +10,9 @@
 // No forced "most popular" nudging — the user decides.
 
 import { useEffect, useState } from "react";
-import { PAID_PLANS, planFor, isTrialPlan, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
+import { PAID_PLANS, planFor, isTrialPlan } from "@/lib/planLimits";
 import { usePaddle, openPaddleCheckout, openPaddlePortal, isPlanPurchasable } from "@/lib/paddleClient";
-import Icon from "@/components/common/Icon";
+import PlanFeatures, { EVERY_PLAN_INCLUDES } from "@/components/common/PlanFeatures";
 
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
@@ -25,17 +25,6 @@ const IcCheck = () => (
     <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
-
-// A single "icon + feature" row inside a plan card. fill-current keeps every
-// glyph the same muted grey (overrides the lightbulb's built-in amber).
-function Feature({ icon, children }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon name={icon} size={15} className="mt-[1px] flex-shrink-0 fill-current text-gray-400 dark:text-gray-500" />
-      <span>{children}</span>
-    </div>
-  );
-}
 
 function PlanCard({ plan, selected, current, onSelect }) {
   return (
@@ -69,15 +58,8 @@ function PlanCard({ plan, selected, current, onSelect }) {
         <span className="text-[12px] text-gray-500 dark:text-gray-400">/ mo</span>
       </div>
 
-      <div className="mt-3 space-y-1.5 text-[12px] text-gray-600 dark:text-gray-300 leading-snug">
-        <Feature icon="flash">
-          <span className="font-medium text-gray-900 dark:text-white">{formatTokens(plan.tokens)}</span> tokens / mo
-        </Feature>
-        <Feature icon="storage">
-          <span className="font-medium text-gray-900 dark:text-white">{formatBytes(plan.storageBytes)}</span> storage
-        </Feature>
-        <Feature icon="lightbulb">{modelLabelFor(plan.key)}</Feature>
-        <Feature icon="library">{docContextLabelFor(plan.key)}</Feature>
+      <div className="mt-3">
+        <PlanFeatures plan={plan} />
       </div>
     </button>
   );
@@ -136,9 +118,7 @@ export default function PlanPicker({ currentPlanKey, user, onBack, onDone }) {
 
       {/* Selectable tiers */}
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
-        <p className="mb-4 text-[12px] text-gray-500 dark:text-gray-400">
-          Every plan includes web search, document &amp; drawing analysis, and voice input.
-        </p>
+        <p className="mb-4 text-[12px] text-gray-500 dark:text-gray-400">{EVERY_PLAN_INCLUDES}</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {PAID_PLANS.map((plan) => (
             <PlanCard

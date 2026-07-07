@@ -5,57 +5,33 @@ import Link from "next/link";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
-import { PLANS, PAID_PLANS, planFor, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
+import { PAID_PLANS } from "@/lib/planLimits";
+import PlanFeatures, { EVERY_PLAN_INCLUDES } from "@/components/common/PlanFeatures";
 
-// A short, honest feature line-up per tier.
-function planFeatures(plan) {
-  return [
-    `${formatTokens(plan.tokens)} AI tokens / month`,
-    `${formatBytes(plan.storageBytes)} document storage`,
-    modelLabelFor(plan.key),
-    docContextLabelFor(plan.key),
-    "Web search, drawing & manual analysis, voice",
-  ];
-}
-
+// Same card visual as the in-app plan picker (icon feature rows), just with a
+// per-card action button suited to a public page.
 function PriceCard({ plan, current, loggedIn, onAction }) {
   return (
-    <div className="group relative flex flex-col rounded-2xl p-6 bg-white ring-1 ring-gray-200 shadow-sm transition-all hover:ring-blue-400 hover:shadow-md">
+    <div className="group relative flex flex-col rounded-2xl p-5 bg-white ring-1 ring-gray-200 shadow-sm transition-all hover:ring-blue-400 hover:shadow-md">
       {current && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gray-900 px-3 py-0.5 text-[11px] font-semibold text-white">
-          Current plan
+        <span className="absolute top-3 right-3 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+          Current
         </span>
       )}
-      <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-3xl font-bold text-gray-900">
-          {plan.priceUsd === 0 ? "Free" : `$${plan.priceUsd}`}
-        </span>
-        {plan.priceUsd > 0 && <span className="text-sm text-gray-500">/ month</span>}
+      <h3 className="text-[15px] font-semibold text-gray-900">{plan.name}</h3>
+      <div className="mt-1 flex items-baseline gap-1">
+        <span className="text-2xl font-bold text-gray-900">${plan.priceUsd}</span>
+        <span className="text-[12px] text-gray-500">/ mo</span>
       </div>
-      {plan.trial ? (
-        <p className="mt-1 text-xs text-gray-500">
-          21-day trial · {formatTokens(plan.tokens)} tokens · {formatTokens(plan.dailyTokens)}/day
-        </p>
-      ) : (
-        <p className="mt-1 text-xs text-gray-500">Billed monthly · cancel anytime</p>
-      )}
 
-      <ul className="mt-5 flex-1 space-y-2.5 text-sm text-gray-600">
-        {planFeatures(plan).map((f, i) => (
-          <li key={i} className="flex gap-2">
-            <svg width="16" height="16" viewBox="0 0 16 16" className="mt-0.5 flex-shrink-0 text-blue-500" fill="none">
-              <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-3 flex-1">
+        <PlanFeatures plan={plan} />
+      </div>
 
       <button
         onClick={() => onAction(plan.key)}
         disabled={current}
-        className={`mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition ${
+        className={`mt-4 w-full rounded-xl px-4 py-2 text-center text-[13px] font-medium transition ${
           current
             ? "cursor-default bg-gray-100 text-gray-400"
             : "bg-gray-100 text-gray-800 group-hover:bg-blue-600 group-hover:text-white hover:bg-blue-700 hover:text-white"
@@ -94,43 +70,23 @@ export default function SubscriptionPage() {
             NaviMind is a maritime AI assistant. Every plan is metered in AI tokens —
             pick the one that matches how much you use it and pay only for what you need.
           </p>
+          {/* One small, neat action instead of a banner: signed-in users open the
+              app (where they manage/change the plan), guests start free. */}
+          <div className="mt-5">
+            <Link
+              href={loggedIn ? "/app" : "/welcome"}
+              className="inline-block rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+            >
+              {loggedIn ? "Open NaviMind" : "Start free"}
+            </Link>
+          </div>
         </div>
 
-        {/* Context banner — account-aware so a signed-in user is never shown a
-            sign-up CTA (or nudged into a second checkout). */}
-        {loggedIn ? (
-          <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 text-center ring-1 ring-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
-              You’re signed in{currentPlanKey ? ` on ${planFor(currentPlanKey).name}` : ""}
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Manage or change your subscription inside NaviMind — this page is just a reference.
-            </p>
-            <Link
-              href="/app"
-              className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
-            >
-              Open NaviMind
-            </Link>
-          </div>
-        ) : (
-          <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 text-center ring-1 ring-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">New to NaviMind?</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Start free — no card required. {formatBytes(PLANS.free.storageBytes)} storage and a
-              capped token allowance to try it on your own vessel.
-            </p>
-            <Link
-              href="/welcome"
-              className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition"
-            >
-              Start free
-            </Link>
-          </div>
-        )}
+        {/* Same "every plan includes" line as the in-app picker */}
+        <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-gray-500">{EVERY_PLAN_INCLUDES}</p>
 
         {/* Paid ladder */}
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {PAID_PLANS.map((plan) => (
             <PriceCard
               key={plan.key}
