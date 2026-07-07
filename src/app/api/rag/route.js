@@ -169,13 +169,23 @@ function aiConfigForModelTier(tier) {
 
 // Resolve the user's plan authoritatively on the server so the model/context tier
 // can't be spoofed from the client. Falls back to a client hint, then "free".
+// The lookup is time-boxed: a slow/cold Admin read must never hang the answer
+// before the first token — we just fall back to the default tier if it's slow.
 async function resolvePlanKey(uid, clientHint) {
   if (uid && hasAdminCreds()) {
+    let timer;
     try {
-      const snap = await adminDb().collection("users").doc(uid).get();
-      if (snap.exists) return snap.data()?.plan || "free";
+      const snap = await Promise.race([
+        adminDb().collection("users").doc(uid).get(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("plan-lookup-timeout")), 2000);
+        }),
+      ]);
+      if (snap?.exists) return snap.data()?.plan || "free";
     } catch (e) {
       console.error("[rag] plan lookup failed:", e?.message || e);
+    } finally {
+      clearTimeout(timer);
     }
   }
   return clientHint || "free";
