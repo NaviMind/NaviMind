@@ -730,22 +730,40 @@ const perMessageGuidance = [
           // question always bumps to the highest effort regardless of plan.
           const effort = isOperationalScenario(question) ? EFFORT_OPERATIONAL : tierEffort;
 
-          const claudeStream = getAnthropic().messages.stream({
-            model: chatModel,
-            max_tokens: MAX_TOKENS,
-            system,
-            messages,
-            thinking: { type: "adaptive" },
-            output_config: { effort },
-            ...(tools ? { tools } : {}),
-          });
+          // Watchdog: a stalled generation (Anthropic overload / rate-limit
+          // retries, a hung connection) must never leave the client on an endless
+          // spinner. If it doesn't finish in time we abort, so finalMessage()
+          // rejects and the catch below surfaces a real error the user can see.
+          console.log(`[rag] starting generation | model=${chatModel} effort=${effort} web=${useWebSearch} docs=${hasDocs}`);
+
+          const genAbort = new AbortController();
+          const GEN_TIMEOUT_MS = Number(process.env.ANTHROPIC_TIMEOUT_MS) || 75000;
+          const watchdog = setTimeout(() => genAbort.abort(), GEN_TIMEOUT_MS);
+
+          const claudeStream = getAnthropic().messages.stream(
+            {
+              model: chatModel,
+              max_tokens: MAX_TOKENS,
+              system,
+              messages,
+              thinking: { type: "adaptive" },
+              output_config: { effort },
+              ...(tools ? { tools } : {}),
+            },
+            { signal: genAbort.signal }
+          );
 
           // Stream text deltas out as `token` events (thinking stays server-side).
           claudeStream.on("text", (delta) => {
             controller.enqueue(encoder.encode(sse("token", delta)));
           });
 
-          const finalMessage = await claudeStream.finalMessage();
+          let finalMessage;
+          try {
+            finalMessage = await claudeStream.finalMessage();
+          } finally {
+            clearTimeout(watchdog);
+          }
 
           // Proof-of-provider + cost signal in the server logs (Vercel → Logs):
           // shows the exact Claude model that answered and the token usage.
