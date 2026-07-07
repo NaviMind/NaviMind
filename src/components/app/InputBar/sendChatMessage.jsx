@@ -301,6 +301,12 @@ export async function sendChatMessage({
         window.dispatchEvent(
           new CustomEvent("navimind-toast", { detail: { message: msg, type: "error" } })
         );
+        // Trial ENDED is the hard paywall → open the plan picker straight away.
+        // (Daily-limit / token-exhausted are covered by the toast + the right-side
+        // TrialNudge banner, so we don't force the full window on those.)
+        if (status.trial?.ended) {
+          window.dispatchEvent(new CustomEvent("navimind-open-plans"));
+        }
         return;
       }
     } catch {

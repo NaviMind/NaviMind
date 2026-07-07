@@ -330,6 +330,17 @@ export default function SettingsModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isSettingsOpen, step, toggleSettings]);
 
+  // Let other parts of the app (upgrade nudges, quota blocks) open the plan
+  // picker directly: window.dispatchEvent(new CustomEvent("navimind-open-plans")).
+  useEffect(() => {
+    const openPlans = () => {
+      toggleSettings(true);
+      setStep("planpicker");
+    };
+    window.addEventListener("navimind-open-plans", openPlans);
+    return () => window.removeEventListener("navimind-open-plans", openPlans);
+  }, [toggleSettings]);
+
   const handleBackdrop = (e) => {
     if (e.target === backdropRef.current) toggleSettings(false);
   };

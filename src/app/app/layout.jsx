@@ -9,6 +9,7 @@ import MobileSidebarOverlay from "@/components/app/MobileSidebarOverlay";
 import InputBar from "@/components/app/InputBar/InputBar";
 import TopicSuggestionBanner from "@/components/app/TopicSuggestionBanner";
 import Toast from "@/components/app/Toast";
+import TrialNudge from "@/components/app/TrialNudge";
 import WelcomeModal from "@/components/app/Welcome/WelcomeModal";
 import AdvancedReminderBubble from "@/components/common/AdvancedReminderBubble";
 import InstallPrompt from "@/components/common/InstallPrompt";
@@ -179,6 +180,7 @@ function AppShell({ children }) {
       <MobileSidebarOverlay />
       <Toast />
       <WelcomeModal />
+      <TrialNudge />
       <DrawingRegisterPanel />
     </>
   );
