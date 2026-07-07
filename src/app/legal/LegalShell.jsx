@@ -8,8 +8,8 @@ export default function LegalShell({ title, updated, children }) {
   return (
     <main className="min-h-screen bg-white px-4 py-12 text-gray-800">
       <div className="mx-auto max-w-3xl">
-        <Link href="/subscription" className="text-sm text-blue-600 hover:underline">
-          ← Plans &amp; Pricing
+        <Link href="/" className="text-sm font-semibold text-gray-900 hover:text-blue-600">
+          NaviMind
         </Link>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">{title}</h1>
         {updated && <p className="mt-1 text-sm text-gray-500">Last updated: {updated}</p>}
@@ -17,6 +17,7 @@ export default function LegalShell({ title, updated, children }) {
           {children}
         </div>
         <footer className="mt-12 flex flex-wrap gap-x-4 gap-y-1 border-t border-gray-100 pt-6 text-xs text-gray-500">
+          <Link href="/subscription" className="underline hover:text-gray-700">Plans &amp; Pricing</Link>
           <Link href="/legal/terms" className="underline hover:text-gray-700">Terms</Link>
           <Link href="/legal/privacy" className="underline hover:text-gray-700">Privacy</Link>
           <Link href="/legal/refund" className="underline hover:text-gray-700">Refund &amp; Cancellation</Link>
