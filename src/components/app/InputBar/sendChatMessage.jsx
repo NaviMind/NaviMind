@@ -836,6 +836,14 @@ if (res.body && contentType.includes("text/event-stream")) {
     // Persisted final text — drop the live overlay (Firestore now drives it).
     clearStreamingMessage?.(aiMessageId);
   }
+} else {
+  // Not an event-stream → the API errored before it could stream (e.g. a 500).
+  // Surface it (with status + body) instead of leaving an endless "Preparing an
+  // answer" spinner — this is exactly the case where the title still generated
+  // but the answer never did.
+  let detail = "";
+  try { detail = (await res.text())?.slice(0, 300); } catch { /* ignore */ }
+  throw new Error(`AI request failed (${res.status})${detail ? `: ${detail}` : ""}`);
 }
 
   // ───────── AI TITLE (new chats only, fire & forget) ─────────

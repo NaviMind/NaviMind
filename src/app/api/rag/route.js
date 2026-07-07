@@ -838,7 +838,11 @@ controller.close();
       },
     });
   } catch (error) {
-    return new Response(sse("error", "Bad request"), {
+    // Log the real cause (Vercel → Logs) and surface it to the client instead of
+    // a generic "Bad request", so a failing request shows a real error rather
+    // than an endless spinner.
+    console.error("[rag] request error:", error?.message || error, error?.stack || "");
+    return new Response(sse("error", `Server error: ${error?.message || "bad request"}`), {
       status: 400,
       headers: { "Content-Type": "text/event-stream; charset=utf-8" },
     });
