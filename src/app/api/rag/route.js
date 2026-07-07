@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { adminDb, hasAdminCreds } from "@/firebase/admin";
+import { hasAdminCreds } from "@/firebase/admin";
 import { recordTokenUsageAdmin } from "@/firebase/adminUsage";
 import { modelTierFor, docChunksFor } from "@/lib/planLimits";
 
@@ -167,27 +167,15 @@ function aiConfigForModelTier(tier) {
   return { model: CHAT_MODEL, effort: EFFORT };
 }
 
-// Resolve the user's plan authoritatively on the server so the model/context tier
-// can't be spoofed from the client. Falls back to a client hint, then "free".
-// The lookup is time-boxed: a slow/cold Admin read must never hang the answer
-// before the first token — we just fall back to the default tier if it's slow.
-async function resolvePlanKey(uid, clientHint) {
-  if (uid && hasAdminCreds()) {
-    let timer;
-    try {
-      const snap = await Promise.race([
-        adminDb().collection("users").doc(uid).get(),
-        new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new Error("plan-lookup-timeout")), 2000);
-        }),
-      ]);
-      if (snap?.exists) return snap.data()?.plan || "free";
-    } catch (e) {
-      console.error("[rag] plan lookup failed:", e?.message || e);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
+// Plan tier for model/context selection comes from a CLIENT hint (default free).
+// We deliberately do NOT read it via the Admin SDK on the answer's critical path:
+// that Firestore/gRPC call runs in a native layer that a JS try/catch can't guard,
+// and a stall or hard crash there would kill the serverless function before a
+// single token streamed (a 500 with no answer). Billing/metering stays
+// authoritative server-side — but it runs AFTER the answer, so it can never block
+// generation. A spoofed tier only affects answer depth for that user, who is
+// still metered correctly.
+function resolvePlanKey(clientHint) {
   return clientHint || "free";
 }
 
@@ -642,7 +630,7 @@ const perMessageGuidance = [
           // Drives which reasoning model/effort the answer runs at and how many
           // document chunks it may draw on. Read from the user doc so it can't be
           // spoofed by the client.
-          const planKey = await resolvePlanKey(uid, clientPlan);
+          const planKey = resolvePlanKey(clientPlan);
           const modelTier = modelTierFor(planKey);
           const { model: chatModel, effort: tierEffort } = aiConfigForModelTier(modelTier);
           const maxResults = docChunksFor(planKey);
@@ -772,26 +760,13 @@ const perMessageGuidance = [
             finalMessage.usage
           );
 
-          // Metering: billed = uncached input + output (Anthropic's input_tokens
-          // already excludes the cached prefix, so caching isn't charged to the
-          // user). Record it SERVER-SIDE (tamper-proof) when Admin creds + uid are
-          // available; otherwise fall back to the client recording it.
+          // Billed = uncached input + output (Anthropic's input_tokens already
+          // excludes the cached prefix). We record it server-side (tamper-proof)
+          // via the Admin SDK when possible — but AFTER the stream is closed, so a
+          // slow/failed Admin write can never delay or block the answer.
           const u = finalMessage.usage || {};
           const billed = (u.input_tokens || 0) + (u.output_tokens || 0);
-          let serverRecorded = false;
-          if (billed > 0 && uid && hasAdminCreds()) {
-            try {
-              await recordTokenUsageAdmin(uid, billed);
-              serverRecorded = true;
-            } catch (e) {
-              console.error("[rag] server metering failed:", e?.message || e);
-            }
-          }
-          if (billed > 0) {
-            controller.enqueue(
-              encoder.encode(sse("usage", JSON.stringify({ billed, serverRecorded })))
-            );
-          }
+          const willRecordServerSide = billed > 0 && uid && hasAdminCreds();
 
           // Collect trusted web-search sources for the clickable source pills.
           const collectedSources = [];
@@ -812,14 +787,30 @@ const perMessageGuidance = [
             }
           }
 
+          // Send everything and CLOSE the stream first → the client finalizes the
+          // answer immediately, independent of metering.
+          if (billed > 0) {
+            controller.enqueue(
+              encoder.encode(sse("usage", JSON.stringify({ billed, serverRecorded: willRecordServerSide })))
+            );
+          }
           if (collectedSources.length > 0) {
             controller.enqueue(
               encoder.encode(sse("sources", JSON.stringify(collectedSources)))
             );
           }
+          controller.enqueue(encoder.encode(sse("status", "done")));
+          controller.close();
 
-controller.enqueue(encoder.encode(sse("status", "done")));
-controller.close();
+          // Metering runs AFTER the stream is closed — best-effort, never on the
+          // answer's critical path (the Admin/gRPC write can be slow or fail).
+          if (willRecordServerSide) {
+            try {
+              await recordTokenUsageAdmin(uid, billed);
+            } catch (e) {
+              console.error("[rag] server metering failed:", e?.message || e);
+            }
+          }
 
         } catch (e) {
           controller.enqueue(
