@@ -12,8 +12,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { PAID_PLANS, planFor, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
-import { usePaddle, openPaddleCheckout, isPlanPurchasable } from "@/lib/paddleClient";
+import { PAID_PLANS, planFor, isTrialPlan, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
+import { usePaddle, openPaddleCheckout, openPaddlePortal, isPlanPurchasable } from "@/lib/paddleClient";
 import Icon from "@/components/common/Icon";
 
 const IcCheck = () => (
@@ -111,8 +111,20 @@ export default function PlanPickerModal({ open, onClose, currentPlanKey, user })
     setSelected(planKey);
   };
 
-  const proceed = () => {
+  const proceed = async () => {
     if (!selected) return;
+
+    // Existing paid subscriber → change the plan through the Paddle portal, which
+    // prorates/swaps the CURRENT subscription. NEVER open a fresh checkout for
+    // them: that would create a second subscription and double-charge.
+    if (currentPlanKey && !isTrialPlan(currentPlanKey)) {
+      const opened = await openPaddlePortal();
+      if (opened) { onClose(); return; }
+      setNotice("Couldn’t open the subscription portal. Please try again, or email support@navimind.io to change your plan.");
+      return;
+    }
+
+    // First-time purchase (free / trial user) → checkout overlay.
     const opened = openPaddleCheckout({ planKey: selected, ready: paddleReady, user });
     if (opened) {
       onClose(); // Paddle overlay takes over the screen.

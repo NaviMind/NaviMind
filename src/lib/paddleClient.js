@@ -8,6 +8,7 @@
 // `openPaddleCheckout` returns false, so callers can fall back gracefully.
 
 import { useEffect, useState } from "react";
+import { auth } from "@/firebase/config";
 
 export const PADDLE_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
 export const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox";
@@ -71,4 +72,29 @@ export function openPaddleCheckout({ planKey, ready, user }) {
     settings: { successUrl: `${window.location.origin}/app` },
   });
   return true;
+}
+
+// Open the Paddle customer portal for the signed-in user — the ONLY safe way to
+// change or cancel an EXISTING subscription (Paddle handles the proration/swap
+// on its own subscription). Never open a fresh checkout for an existing
+// subscriber: that would create a second subscription and double-charge them.
+// Returns true if it navigated to the portal, false if unavailable (caller
+// should fall back, e.g. email support).
+export async function openPaddlePortal() {
+  try {
+    const token = await auth.currentUser?.getIdToken?.();
+    if (!token) return false;
+    const res = await fetch("/api/paddle/portal", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data?.url) {
+      window.location.href = data.url;
+      return true;
+    }
+  } catch {
+    /* fall through → caller decides */
+  }
+  return false;
 }

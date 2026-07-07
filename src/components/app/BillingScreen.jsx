@@ -7,6 +7,7 @@ import { getUsageStatus } from "@/firebase/userRepo";
 import { planFor, storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
 import Icon from "@/components/common/Icon";
 import PlanPickerModal from "@/components/app/PlanPickerModal";
+import { openPaddlePortal } from "@/lib/paddleClient";
 
 const IcBack = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
@@ -41,30 +42,18 @@ export default function BillingScreen({ userDoc, onBack }) {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [manageNotice, setManageNotice] = useState("");
 
-  // Manage/cancel → open the Paddle customer portal (hosted). Falls back to
-  // emailing support if the portal isn't available yet (Paddle not wired, or no
-  // Paddle customer linked to this account).
+  // Manage/cancel → open the Paddle customer portal (hosted; handles cancel and
+  // proration). If it isn't available yet (Paddle not wired / no linked
+  // customer), show a visible message with a support email — instead of silently
+  // firing a mailto that does nothing on devices without a mail client.
   async function manageSubscription() {
     setManaging(true);
-    try {
-      const token = await auth.currentUser?.getIdToken?.();
-      if (token) {
-        const res = await fetch("/api/paddle/portal", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data?.url) {
-          window.location.href = data.url;
-          return;
-        }
-      }
-    } catch {
-      /* fall through to email */
-    }
-    window.location.href =
-      "mailto:support@navimind.io?subject=Manage%20my%20NaviMind%20subscription";
+    setManageNotice("");
+    const opened = await openPaddlePortal();
+    if (opened) return; // navigated to the Paddle portal
+    setManageNotice("Online subscription management isn’t available yet. To cancel or change now, email");
     setManaging(false);
   }
 
@@ -150,15 +139,28 @@ export default function BillingScreen({ userDoc, onBack }) {
           {st.isTrial ? "Choose your plan" : "Change your plan"}
         </button>
 
-        {/* Manage / cancel for paying users → Paddle customer portal */}
+        {/* Manage / cancel — a quiet secondary link, not a second big button */}
         {!st.isTrial && (
-          <button
-            onClick={manageSubscription}
-            disabled={managing}
-            className="mt-2.5 block w-full rounded-xl bg-gray-100 dark:bg-white/10 px-4 py-2.5 text-center text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-white/[0.15] transition disabled:opacity-60"
-          >
-            {managing ? "Opening…" : "Manage or cancel subscription"}
-          </button>
+          <div className="mt-3 text-center">
+            <button
+              onClick={manageSubscription}
+              disabled={managing}
+              className="text-[12px] text-gray-500 dark:text-gray-400 underline hover:text-gray-700 dark:hover:text-gray-200 transition disabled:opacity-60"
+            >
+              {managing ? "Opening…" : "Manage or cancel subscription"}
+            </button>
+            {manageNotice && (
+              <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                {manageNotice}{" "}
+                <a
+                  href="mailto:support@navimind.io?subject=Manage%20my%20NaviMind%20subscription"
+                  className="underline hover:text-gray-700 dark:hover:text-gray-200"
+                >
+                  support@navimind.io
+                </a>
+              </p>
+            )}
+          </div>
         )}
 
         <p className="mt-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
