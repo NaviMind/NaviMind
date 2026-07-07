@@ -7,9 +7,6 @@ import { auth } from "@/firebase/config";
 import { PLANS, PAID_PLANS, formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
 import { usePaddle, openPaddleCheckout } from "@/lib/paddleClient";
 
-// Which paid tier to highlight as the recommended one.
-const HIGHLIGHT = "pro";
-
 // A short, honest feature line-up per tier.
 function planFeatures(plan) {
   return [
@@ -21,18 +18,9 @@ function planFeatures(plan) {
   ];
 }
 
-function PriceCard({ plan, highlighted, onChoose }) {
+function PriceCard({ plan, onChoose }) {
   return (
-    <div
-      className={`relative flex flex-col rounded-2xl p-6 bg-white ring-1 transition-shadow ${
-        highlighted ? "ring-2 ring-blue-500 shadow-xl" : "ring-gray-200 shadow-sm hover:shadow-md"
-      }`}
-    >
-      {highlighted && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-0.5 text-[11px] font-semibold text-white">
-          Most popular
-        </span>
-      )}
+    <div className="group relative flex flex-col rounded-2xl p-6 bg-white ring-1 ring-gray-200 shadow-sm transition-all hover:ring-blue-400 hover:shadow-md">
       <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
       <div className="mt-2 flex items-baseline gap-1">
         <span className="text-3xl font-bold text-gray-900">
@@ -61,9 +49,7 @@ function PriceCard({ plan, highlighted, onChoose }) {
 
       <button
         onClick={() => onChoose(plan.key)}
-        className={`mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition ${
-          highlighted ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-        }`}
+        className="mt-6 w-full rounded-xl px-4 py-2.5 text-center text-sm font-medium transition bg-gray-100 text-gray-800 group-hover:bg-blue-600 group-hover:text-white hover:bg-blue-700 hover:text-white"
       >
         Choose {plan.name}
       </button>
@@ -122,7 +108,6 @@ export default function SubscriptionPage() {
             <PriceCard
               key={plan.key}
               plan={plan}
-              highlighted={plan.key === HIGHLIGHT}
               onChoose={choose}
             />
           ))}
