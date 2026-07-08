@@ -29,28 +29,33 @@ export async function POST(req) {
     }
 
     const transcript = messages
-      .slice(-20)
-      .map((m) => `${m.role}: ${String(m.content || "").slice(0, 800)}`)
+      .slice(-24)
+      .map((m) => `${m.role}: ${String(m.content || "").slice(0, 1000)}`)
       .join("\n");
 
     const prompt = `You decide whether a maritime assistant chat has become a single, sustained TOPIC worth graduating into a dedicated Topic folder (which keeps documents and memory scoped to that theme).
 
-Suggest graduating ONLY when ALL of these hold:
-- The conversation is clearly centred on ONE coherent subject (e.g. a specific vessel issue, a port call, an inspection, a project) — not scattered, one-off, or general Q&A.
-- It is substantial / ongoing (the user keeps building on the same theme).
-- A dedicated folder would genuinely help (accumulating docs, returning later).
+Read the WHOLE conversation below and identify its DOMINANT theme — the subject the user keeps coming back to across multiple exchanges. Base your decision and the names on that dominant theme only.
 
-Do NOT suggest for: short chats, mixed/unrelated questions, quick lookups, or vague small talk.
+Suggest graduating ONLY when ALL of these hold:
+- There is ONE clearly dominant subject that spans MULTIPLE exchanges (a specific vessel issue, a port call, an inspection, a piece of equipment, an ongoing project) — not scattered or one-off Q&A.
+- The user has actively built on that subject (follow-up questions, uploaded files, back-and-forth), not just mentioned it.
+- A dedicated folder would genuinely help them accumulate documents and return later.
+
+CRITICAL — avoid false themes:
+- Do NOT base a name on a term that appears only ONCE or in passing (e.g. a regulation, a place, or a keyword mentioned a single time). The name must reflect what the user has REPEATEDLY engaged with.
+- If the chat is short, mixed, or still a general lookup, return suggest=false. It is far better to wait than to propose a wrong or premature topic.
+- Names must be concrete and grounded in the actual content — never generic ("Maritime Questions", "Chat", "General").
 
 Conversation memory:
 ${summary || "(none)"}
 
-Recent messages:
+Full recent conversation:
 ${transcript}
 
 Respond with STRICT JSON only:
 {"suggest": boolean, "confidence": number (0-1), "names": ["2-3 distinct topic name options, each <=6 words"], "description": "1-2 sentence description of the topic's scope"}
-Set suggest=true only if confidence >= 0.7. Provide 2-3 varied, natural name options the user can choose from.`;
+Set suggest=true only if you are confident (confidence >= 0.75) that the dominant theme is real and sustained. Provide 2-3 varied, natural name options grounded in that theme.`;
 
     const completion = await openai.chat.completions.create({
       model: MODEL,
@@ -71,7 +76,7 @@ Set suggest=true only if confidence >= 0.7. Provide 2-3 varied, natural name opt
     const names = Array.isArray(parsed.names)
       ? parsed.names.map((n) => String(n || "").slice(0, 60)).filter(Boolean).slice(0, 3)
       : [];
-    const suggest = parsed.suggest === true && Number(parsed.confidence) >= 0.7 && names.length > 0;
+    const suggest = parsed.suggest === true && Number(parsed.confidence) >= 0.75 && names.length > 0;
     return Response.json({
       suggest,
       confidence: Number(parsed.confidence) || 0,

@@ -25,8 +25,12 @@ export default function TopicSuggestionBanner() {
   const { theme } = useContext(UIContext);
 
   const [selected, setSelected] = useState(null);
+  const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const router = useRouter();
+
+  // The name to create with: a typed custom name wins over a picked chip.
+  const effectiveName = (custom.trim() || selected || "").trim();
 
   if (activeProject || !activeChatId) return null;
 
@@ -49,13 +53,13 @@ export default function TopicSuggestionBanner() {
   };
 
   const onCreate = async () => {
-    if (!uid || busy || !selected) return;
+    if (!uid || busy || !effectiveName) return;
     setBusy(true);
     try {
       const { topicId } = await migrateChatToTopic({
         uid,
         chatId: activeChatId,
-        name: selected,
+        name: effectiveName,
         description,
       });
       setIsLoadingMessages?.(true);
@@ -87,19 +91,22 @@ export default function TopicSuggestionBanner() {
             <Sparkles size={17} />
           </span>
           <p className="text-[13px] sm:text-sm font-medium leading-snug">
-            Looks like one focused topic — pick a name to move it to a Topic:
+            Looks like one focused topic — pick a name (or write your own) to move it to a Topic:
           </p>
         </div>
 
         {/* Name options */}
         <div className="flex flex-wrap gap-1.5">
           {names.map((name) => {
-            const active = selected === name;
+            const active = !custom.trim() && selected === name;
             return (
               <button
                 key={name}
                 type="button"
-                onClick={() => setSelected(name)}
+                onClick={() => {
+                  setSelected(name);
+                  setCustom("");
+                }}
                 disabled={busy}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium active:scale-[0.97] transition-all duration-150 disabled:opacity-60
                   ${active
@@ -113,6 +120,27 @@ export default function TopicSuggestionBanner() {
             );
           })}
         </div>
+
+        {/* Or name it yourself */}
+        <input
+          type="text"
+          value={custom}
+          onChange={(e) => {
+            setCustom(e.target.value);
+            if (e.target.value.trim()) setSelected(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && effectiveName && !busy) onCreate();
+          }}
+          disabled={busy}
+          maxLength={60}
+          placeholder="…or name it yourself"
+          className={`w-full px-3 py-[7px] rounded-lg text-xs sm:text-sm outline-none transition-all duration-150 disabled:opacity-60
+            focus:ring-2 focus:ring-blue-500/40
+            ${theme === "dark"
+              ? "bg-white/5 border border-white/15 text-white placeholder:text-white/40 focus:border-blue-400/50"
+              : "bg-white/80 border border-blue-200 text-gray-800 placeholder:text-gray-400 focus:border-blue-400"}`}
+        />
 
         {/* Actions — right aligned (house style) */}
         <div className="flex items-center justify-end gap-2">
@@ -130,7 +158,7 @@ export default function TopicSuggestionBanner() {
           <button
             type="button"
             onClick={onCreate}
-            disabled={busy || !selected}
+            disabled={busy || !effectiveName}
             className="flex items-center gap-1.5 px-3.5 py-[5px] text-xs sm:text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-default text-white active:scale-[0.97] transition-all duration-200"
           >
             {busy && (

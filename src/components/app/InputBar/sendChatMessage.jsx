@@ -227,7 +227,11 @@ async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
 // ── Topic suggestion (graduate a long focused chat into a Topic) ──
 // Gated hard: only for regular chats past a size threshold, checked at most once
 // per growth window, and cached on the chat doc so the LLM check runs rarely.
-const SUGGEST_MIN_MESSAGES = 10;
+// Threshold counts ALL message docs (user + assistant), so 14 ≈ 7 exchanges —
+// enough substance for a real, sustained theme to emerge before we suggest.
+// Suggesting too early is the main failure mode (a passing mention becomes a
+// wrong topic), so we wait for a clear signal.
+const SUGGEST_MIN_MESSAGES = 14;
 const SUGGEST_RECHECK_GROWTH = 10;
 
 async function maybeSuggestTopic({ uid, chatId, summary, messages }) {
