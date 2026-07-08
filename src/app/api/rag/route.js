@@ -683,9 +683,53 @@ const perMessageGuidance = [
 
           // Anthropic messages: user/assistant only (system is top-level), and
           // the first message must be `user` — drop any leading assistant turns.
+          //
+          // Carry forward image attachments from EARLIER user turns so the model
+          // can still see a form/photo it discussed a few messages ago. Without
+          // this, history is text-only and the visual is lost after its turn —
+          // the model ends up asking the user to "re-send the form". We re-attach
+          // by URL, newest-first, capped so cost/latency stay bounded. (Text
+          // screenshots were OCR'd into the store, so we only re-attach genuine
+          // images; documents stay retrievable via File Search regardless.)
+          const IMAGE_MIME = /^image\//i;
+          const MAX_HISTORY_IMAGES = 6;
+          const carryUrls = new Set();
+          {
+            let budget = MAX_HISTORY_IMAGES;
+            for (let i = chatHistory.length - 1; i >= 0 && budget > 0; i--) {
+              const m = chatHistory[i];
+              if (m?.role !== "user" || !Array.isArray(m.attachments)) continue;
+              for (const a of m.attachments) {
+                if (budget <= 0) break;
+                if (a?.url && IMAGE_MIME.test(a.type || "")) {
+                  carryUrls.add(a.url);
+                  budget--;
+                }
+              }
+            }
+          }
+
           const historyMsgs = chatHistory
             .filter((m) => m && (m.role === "user" || m.role === "assistant"))
-            .map((m) => ({ role: m.role, content: String(m.content) }));
+            .map((m) => {
+              const text = String(m.content ?? "");
+              const imgs =
+                m.role === "user" && Array.isArray(m.attachments)
+                  ? m.attachments
+                      .filter((a) => a?.url && carryUrls.has(a.url))
+                      .map((a) => toImageBlock(a.url))
+                      .filter(Boolean)
+                  : [];
+              if (imgs.length) {
+                // Skip an empty text block (attachment-only turn) — Anthropic
+                // rejects empty text content.
+                const blocks = text.trim()
+                  ? [{ type: "text", text }, ...imgs]
+                  : [...imgs];
+                return { role: m.role, content: blocks };
+              }
+              return { role: m.role, content: text };
+            });
           while (historyMsgs[0]?.role === "assistant") historyMsgs.shift();
 
           const messages = [
@@ -702,11 +746,18 @@ const perMessageGuidance = [
 
           // Cache the conversation prefix too: mark the last PRIOR turn so
           // Claude re-reads all earlier history at ~10% instead of full price.
+          // The turn's content may be a plain string OR an array of blocks (when
+          // it carried image attachments) — mark the LAST block either way.
           if (historyMsgs.length > 0) {
             const last = messages[historyMsgs.length - 1];
-            last.content = [
-              { type: "text", text: String(last.content), cache_control: { type: "ephemeral" } },
-            ];
+            const blocks = Array.isArray(last.content)
+              ? [...last.content]
+              : [{ type: "text", text: String(last.content) }];
+            blocks[blocks.length - 1] = {
+              ...blocks[blocks.length - 1],
+              cache_control: { type: "ephemeral" },
+            };
+            last.content = blocks;
           }
 
           const useWebSearch = needsWebSearch(question, vesselProfile);

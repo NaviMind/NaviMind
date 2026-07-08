@@ -211,7 +211,17 @@ async function fetchLastMessages({ uid, chatId, topicId, limitCount = 10 }) {
   );
 
   const snap = await getDocs(q);
-  return snap.docs.reverse().map(d => d.data()).map(({ role, content }) => ({ role, content }));
+  // Keep `attachments` on each turn: the RAG route re-attaches earlier image
+  // attachments (forms, photos) so the model can still SEE a file discussed a
+  // few messages ago — otherwise history is text-only and the visual is lost.
+  return snap.docs
+    .reverse()
+    .map((d) => d.data())
+    .map(({ role, content, attachments }) => ({
+      role,
+      content,
+      attachments: Array.isArray(attachments) ? attachments : [],
+    }));
 }
 
 // ── Topic suggestion (graduate a long focused chat into a Topic) ──
