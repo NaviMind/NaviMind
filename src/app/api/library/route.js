@@ -15,8 +15,11 @@ const openai = new OpenAI({
 // so this keeps working regardless of the exact minor version installed.
 const vectorStores = openai.vectorStores || openai.beta?.vectorStores;
 
-// Vision-capable model used to OCR scanned/image-only PDFs.
-const OCR_MODEL = process.env.OPENAI_OCR_MODEL || process.env.OPENAI_MODEL || "gpt-5.5";
+// Vision-capable model used to OCR scanned/image-only PDFs. Defaults to gpt-4o
+// (a proven vision model already used elsewhere in this app) — NOT a speculative
+// name, which would make every scanned-PDF OCR silently fail. Override with a
+// newer/cheaper vision model via OPENAI_OCR_MODEL.
+const OCR_MODEL = process.env.OPENAI_OCR_MODEL || process.env.OPENAI_MODEL || "gpt-4o";
 
 // File Search can ingest text-like documents (PDF, Word, plain text, etc.) but
 // NOT spreadsheets or images. We screen here so unsupported types fail fast with
@@ -340,35 +343,51 @@ export async function POST(req) {
         // Scanned PDFs have no text layer → File Search would index nothing.
         // Detect that case and OCR the pages with a vision model, then index the
         // recognised TEXT under the original filename (so citations still match).
+        //
+        // CRITICAL: a scanned PDF is ONLY searchable if OCR succeeds. If OCR is
+        // ineligible, throws, or returns nothing, we must NOT silently upload the
+        // image-only bytes and report "indexed" — File Search extracts zero text
+        // from them, so the file looks ready but is invisible to search (the exact
+        // "file not indexed" symptom). Fail loudly instead, with a reason.
         let uploadable;
         let ocrUsed = false;
         if (isPdf(file)) {
           const { perPage, numpages } = await pdfTextDensity(buffer);
           const looksScanned = perPage < 50;
-          const ocrEligible =
-            looksScanned &&
-            buffer.length < 25 * 1024 * 1024 &&
-            (numpages === 0 || numpages <= 80);
-          if (ocrEligible) {
-            try {
-              const ocrText = await ocrPdfToText(buffer, file.name);
-              if (ocrText && ocrText.length > 20) {
-                // Index OCR text as .txt — a ".pdf" name would make OpenAI try
-                // to parse the plain text as a PDF binary and fail.
-                uploadable = await toFile(
-                  Buffer.from(ocrText, "utf8"),
-                  `${file.name}.txt`,
-                  { type: "text/plain" }
-                );
-                ocrUsed = true;
-              }
-            } catch (e) {
-              console.warn("library: OCR failed", file?.name, e?.message);
+          if (looksScanned) {
+            const ocrEligible =
+              buffer.length < 25 * 1024 * 1024 &&
+              (numpages === 0 || numpages <= 80);
+            if (!ocrEligible) {
+              console.error("library: scan too large to OCR", file?.name, buffer.length, numpages);
+              results.push({ ...base, openaiFileId: null, status: "failed", reason: "scan-too-large" });
+              continue;
             }
+            let ocrText = "";
+            try {
+              ocrText = await ocrPdfToText(buffer, file.name);
+            } catch (e) {
+              console.error("library: OCR call failed", file?.name, e?.message);
+              results.push({ ...base, openaiFileId: null, status: "failed", reason: "ocr-error" });
+              continue;
+            }
+            if (!ocrText || ocrText.length <= 20) {
+              console.error("library: OCR returned no text", file?.name);
+              results.push({ ...base, openaiFileId: null, status: "failed", reason: "ocr-empty" });
+              continue;
+            }
+            // Index OCR text as .txt — a ".pdf" name would make OpenAI try to
+            // parse the plain text as a PDF binary and fail.
+            uploadable = await toFile(
+              Buffer.from(ocrText, "utf8"),
+              `${file.name}.txt`,
+              { type: "text/plain" }
+            );
+            ocrUsed = true;
           }
         }
 
-        // Non-scanned files (and OCR fallbacks) index the original bytes.
+        // Native text PDFs and all other supported docs index the original bytes.
         if (!uploadable) {
           uploadable = await toFile(buffer, file.name, { type: file.type });
         }
@@ -380,9 +399,23 @@ export async function POST(req) {
 
         // Add to the store and wait until it is fully indexed, so the very next
         // chat request can already search it.
-        await vectorStores.files.createAndPoll(vectorStoreId, {
+        const vsFile = await vectorStores.files.createAndPoll(vectorStoreId, {
           file_id: uploaded.id,
         });
+
+        // Verify it actually indexed. createAndPoll resolves even when the file
+        // ends in a "failed" state — reporting that as "indexed" is exactly how a
+        // file silently becomes unsearchable. Surface it instead.
+        if (vsFile?.status && vsFile.status !== "completed") {
+          console.error("library: vector index not completed", file?.name, vsFile.status, vsFile.last_error);
+          results.push({
+            ...base,
+            openaiFileId: uploaded.id,
+            status: "failed",
+            reason: `index-${vsFile.status}`,
+          });
+          continue;
+        }
 
         results.push({
           ...base,
