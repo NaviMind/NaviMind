@@ -196,6 +196,14 @@ function aiConfigForModelTier(tier) {
   return { model: MODEL_STANDARD, effort: EFFORT };
 }
 
+// Adaptive thinking + effort (output_config) are 4.6+ features — Sonnet 5/4.6,
+// Opus 4.6/4.7/4.8, Fable/Mythos 5. Haiku 4.5 (our standard/free tier) does NOT
+// support them and returns 400 "adaptive thinking is not supported on this model".
+// Gate those params on the model so the cheap tier just answers without thinking.
+function supportsAdaptiveThinking(model) {
+  return /(sonnet-5|sonnet-4-6|opus-4-(6|7|8)|fable-5|mythos-5)/i.test(model || "");
+}
+
 // Plan tier for model/context selection comes from a CLIENT hint (default free).
 // We deliberately do NOT read it via the Admin SDK on the answer's critical path:
 // that Firestore/gRPC call runs in a native layer that a JS try/catch can't guard,
@@ -882,7 +890,9 @@ const perMessageGuidance = [
           // retries, a hung connection) must never leave the client on an endless
           // spinner. If it doesn't finish in time we abort, so finalMessage()
           // rejects and the catch below surfaces a real error the user can see.
-          console.log(`[rag] starting generation | model=${chatModel} effort=${effort} web=${useWebSearch} docs=${hasDocs}`);
+          // Only send thinking/effort to models that support them (Haiku 4.5 400s).
+          const canThink = supportsAdaptiveThinking(chatModel);
+          console.log(`[rag] starting generation | model=${chatModel} effort=${effort} thinking=${canThink} web=${useWebSearch} docs=${hasDocs}`);
 
           const genAbort = new AbortController();
           const GEN_TIMEOUT_MS = Number(process.env.ANTHROPIC_TIMEOUT_MS) || 75000;
@@ -894,8 +904,7 @@ const perMessageGuidance = [
               max_tokens: MAX_TOKENS,
               system,
               messages,
-              thinking: { type: "adaptive" },
-              output_config: { effort },
+              ...(canThink ? { thinking: { type: "adaptive" }, output_config: { effort } } : {}),
               ...(tools ? { tools } : {}),
             },
             { signal: genAbort.signal }
