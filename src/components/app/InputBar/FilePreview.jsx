@@ -30,15 +30,6 @@ function RemoveBtn({ onClick, className = "" }) {
   );
 }
 
-// Tiny spinner shown while a file is being indexed (no measurable progress).
-function Spinner({ className = "" }) {
-  return (
-    <span
-      className={`inline-block rounded-full border-2 border-white/30 border-t-white animate-spin ${className}`}
-    />
-  );
-}
-
 // Circular progress ring with a percentage label — real byte-level upload %.
 function CircularProgress({ percent = 0, size = 30, tone = "dark" }) {
   const stroke = 3;
@@ -70,28 +61,31 @@ function CircularProgress({ percent = 0, size = 30, tone = "dark" }) {
   );
 }
 
-// Overlay content: real % while uploading, indeterminate spinner while indexing.
+// ONE unified progress for the whole job (upload + processing): a single ring
+// with a percentage — no stage labels, no second spinner. Upload maps to 0–90%;
+// processing has no real progress signal, so the ring creeps 90→97 to stay alive
+// until the file is ready. The percentage only ever moves forward.
 function ProcessingIndicator({ status, progress, tone = "dark" }) {
-  if (status === "uploading") {
-    return <CircularProgress percent={progress || 0} tone={tone} />;
-  }
-  return (
-    <Spinner
-      className={tone === "light" ? "w-5 h-5" : "w-5 h-5 !border-blue-500/30 !border-t-blue-500"}
-    />
-  );
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    if (status === "uploading") {
+      setPct((p) => Math.max(p, Math.min(90, Math.round((progress || 0) * 0.9))));
+      return;
+    }
+    if (status === "indexing") {
+      setPct((p) => Math.max(p, 90));
+      const id = setInterval(() => setPct((p) => (p < 97 ? p + 1 : p)), 500);
+      return () => clearInterval(id);
+    }
+  }, [status, progress]);
+  return <CircularProgress percent={pct} tone={tone} />;
 }
 
-// Status line under a document pill: indexing / ready / failed / not searchable.
+// Status line under a document pill. In-progress states show NOTHING (the single
+// ring on the icon already conveys progress) — only terminal problems the user
+// must act on are surfaced: failed / not searchable.
 function DocStatus({ status, onRetry }) {
-  if (status === "uploading" || status === "indexing") {
-    return (
-      <span className="flex items-center gap-1 text-[10px] text-gray-400">
-        <Spinner className="w-2.5 h-2.5 !border-gray-400/40 !border-t-gray-500" />
-        {status === "uploading" ? "Uploading…" : "Indexing…"}
-      </span>
-    );
-  }
+  if (status === "uploading" || status === "indexing") return null;
   if (status === "unsupported") {
     return <span className="text-[10px] text-amber-500">Not searchable</span>;
   }
