@@ -1,6 +1,32 @@
 import React, { useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import MaskIcon from "@/components/common/MaskIcon";
+
+// Custom drag type so a file already in the chat can be dragged BACK into the
+// input bar and re-used without re-uploading. The InputBar drop handler reads it.
+const REUSE_MIME = "application/x-navimind-reuse";
+
+// Everything the input bar needs to re-attach a file WITHOUT re-uploading or
+// re-OCR'ing it: the Storage URL plus the already-computed index metadata.
+function reusePayload(file) {
+  return {
+    name: file.name,
+    type: file.type,
+    url: file.url || file.downloadURL || "",
+    path: file.path || "",
+    openaiFileId: file.openaiFileId,
+    vectorStoreId: file.vectorStoreId,
+    visualRequired: file.visualRequired,
+    hash: file.hash,
+  };
+}
+
+// Click → re-attach this file into the input bar (no re-upload).
+function reuseAttachment(file) {
+  const payload = reusePayload(file);
+  if (!payload.url) return;
+  window.dispatchEvent(new CustomEvent("navimind-reuse-attachment", { detail: payload }));
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,6 +64,9 @@ function onAttachmentDragStart(e, file) {
   if (!u) return;
   const mime = file.type || "application/octet-stream";
   try {
+    // In-app: let this file be dropped back into the input bar and re-used.
+    e.dataTransfer.setData(REUSE_MIME, JSON.stringify(reusePayload(file)));
+    // Desktop: drag-out to save the file to disk / another app.
     if (u.startsWith("blob:") || u.startsWith("data:")) {
       e.dataTransfer.setData("DownloadURL", `${mime}:${file.name}:${u}`);
     } else {
@@ -163,6 +192,16 @@ function DocPill({ file, onClick }) {
         </div>
       </button>
 
+      {/* Re-use — re-attach this file into the input bar (no re-upload) */}
+      <button
+        onClick={(e) => { e.stopPropagation(); reuseAttachment(file); }}
+        aria-label="Use this file again"
+        className="group/dl relative shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      >
+        <Plus size={15} />
+        <Tip>Use again</Tip>
+      </button>
+
       {/* Download — appears on hover */}
       <button
         onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
@@ -248,6 +287,15 @@ function ImageTile({ file, sizeClass, onClick }) {
       className={`group relative flex items-center justify-center ${sizeClass} rounded-xl overflow-hidden cursor-pointer hover:scale-[1.03] transition-transform shadow-sm`}
     >
       <img src={previewUrl} alt={file.name} className="object-cover w-full h-full" draggable={false} />
+      {/* Re-use — re-attach this image into the input bar (no re-upload) */}
+      <button
+        onClick={(e) => { e.stopPropagation(); reuseAttachment(file); }}
+        aria-label="Use this image again"
+        className="group/dl absolute top-1.5 left-1.5 w-7 h-7 flex items-center justify-center rounded-lg bg-black/55 text-white hover:bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      >
+        <Plus size={14} />
+        <Tip down>Use again</Tip>
+      </button>
       {/* Download — appears on hover */}
       <button
         onClick={(e) => { e.stopPropagation(); downloadFile(file); }}

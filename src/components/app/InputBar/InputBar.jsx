@@ -29,6 +29,9 @@ import Icon from "@/components/common/Icon";
 import { Maximize2, Minimize2, Mic, Check, X, Upload } from "lucide-react";
 
 const FILES_LIMIT = 5;
+// Custom drag type: a file already in the chat can be dragged BACK into the input
+// bar to re-use it without re-uploading. Must match MessageAttachments.jsx.
+const REUSE_MIME = "application/x-navimind-reuse";
 // Pasting more than this many characters turns the text into a .txt attachment
 // instead of dumping a wall of text into the input (useful for long threads).
 const PASTE_TO_FILE_THRESHOLD = 1500;
@@ -286,6 +289,9 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   const filesRef = useRef([]);
   const storeIdRef = useRef("");
   const indexChainRef = useRef(Promise.resolve());
+  // Latest reuse handler, so the mount-once event/drop listeners never call a
+  // stale closure (they capture fresh currentUser / topicId through this).
+  const reuseRef = useRef(null);
   const inputRef = useRef(null);
   const expandedInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -383,18 +389,22 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   useEffect(() => {
     const hasFiles = (e) =>
       Array.from(e.dataTransfer?.types || []).includes("Files");
+    // A file already in the chat, dragged back in to be re-used.
+    const hasReuse = (e) =>
+      Array.from(e.dataTransfer?.types || []).includes(REUSE_MIME);
+    const isDrag = (e) => hasFiles(e) || hasReuse(e);
 
     const onDragEnter = (e) => {
-      if (!hasFiles(e)) return;
+      if (!isDrag(e)) return;
       e.preventDefault();
       dragDepthRef.current += 1;
       setIsDragging(true);
     };
     const onDragOver = (e) => {
-      if (hasFiles(e)) e.preventDefault(); // allow drop
+      if (isDrag(e)) e.preventDefault(); // allow drop
     };
     const onDragLeave = (e) => {
-      if (!hasFiles(e)) return;
+      if (!isDrag(e)) return;
       dragDepthRef.current -= 1;
       if (dragDepthRef.current <= 0) {
         dragDepthRef.current = 0;
@@ -402,10 +412,16 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
       }
     };
     const onDrop = (e) => {
-      if (!hasFiles(e)) return;
+      if (!isDrag(e)) return;
       e.preventDefault();
       dragDepthRef.current = 0;
       setIsDragging(false);
+      // Re-used in-chat file (no re-upload) takes priority over a raw file drop.
+      const reuseRaw = e.dataTransfer?.getData(REUSE_MIME);
+      if (reuseRaw) {
+        try { reuseRef.current?.(JSON.parse(reuseRaw)); } catch { /* ignore */ }
+        return;
+      }
       const dropped = Array.from(e.dataTransfer?.files || []);
       if (dropped.length) addFiles(dropped);
     };
@@ -848,6 +864,67 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   // Shared validation/add used by both the file picker and drag-and-drop.
   // Valid files are wrapped in status-tracking entries and immediately start
   // uploading + indexing in the background (processed on attach).
+  // Re-attach a file that's ALREADY in the chat (dropped/clicked back from a
+  // message) — reusing its Storage upload and its OpenAI index, so there is no
+  // re-upload and no re-OCR. It goes straight to "ready".
+  const reuseAttachment = async (meta) => {
+    if (!meta?.url) return;
+    if (filesRef.current.length + 1 > FILES_LIMIT) {
+      fireErrorToast(`You can attach up to ${FILES_LIMIT} files`);
+      return;
+    }
+    // Don't add the same file twice if it's already pending in the bar.
+    if (filesRef.current.some((e) => e.url && e.url === meta.url)) return;
+
+    const isImage = (meta.type || "").startsWith("image/");
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const entry = {
+      id,
+      file: null,
+      name: meta.name,
+      type: meta.type,
+      isImage,
+      status: "ready",
+      progress: 100,
+      url: meta.url,
+      path: meta.path || "",
+      openaiFileId: meta.openaiFileId || null,
+      vectorStoreId: meta.vectorStoreId || "",
+      visualRequired: meta.visualRequired,
+      hash: meta.hash || "",
+      reused: true,
+    };
+    commitFiles([...filesRef.current, entry]);
+
+    // Older messages saved before we persisted the index id: recover it from the
+    // library records by URL so a re-used DOCUMENT stays searchable without re-OCR.
+    if (!entry.openaiFileId && !isImage) {
+      try {
+        const prior = await getLibraryFiles({ uid: currentUser?.uid, topicId });
+        const rec =
+          prior.find((f) => f.url && f.url === meta.url) ||
+          prior.find((f) => f.name === meta.name);
+        if (rec?.openaiFileId) {
+          patchEntry(id, {
+            openaiFileId: rec.openaiFileId,
+            vectorStoreId: rec.vectorStoreId || "",
+            visualRequired: rec.visualRequired,
+            hash: rec.hash || entry.hash,
+          });
+        }
+      } catch { /* still attached & openable, just not re-searchable */ }
+    }
+  };
+
+  reuseRef.current = reuseAttachment;
+
+  // "Use again" from a message attachment (click) dispatches this event.
+  useEffect(() => {
+    const onReuse = (e) => reuseRef.current?.(e.detail);
+    window.addEventListener("navimind-reuse-attachment", onReuse);
+    return () => window.removeEventListener("navimind-reuse-attachment", onReuse);
+  }, []);
+
   const addFiles = (files) => {
     if (!files?.length) return;
 
@@ -909,9 +986,11 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
   const removeFile = (id) => {
     const entry = filesRef.current.find((e) => e.id === id);
     commitFiles(filesRef.current.filter((e) => e.id !== id));
-    // If it was already indexed, detach + delete it from OpenAI so removing a
-    // file before sending doesn't leave an orphan in the store.
-    if (entry?.openaiFileId) {
+    // If THIS bar indexed it, detach + delete it from OpenAI so removing a file
+    // before sending doesn't leave an orphan. But NEVER expire a re-used/deduped
+    // entry: its index is shared with an earlier message, and deleting it would
+    // break that message's file search.
+    if (entry?.openaiFileId && !entry.reused) {
       expireIndexedFile({
         vectorStoreId: entry.vectorStoreId,
         openaiFileId: entry.openaiFileId,

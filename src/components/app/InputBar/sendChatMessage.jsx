@@ -583,12 +583,19 @@ sendLocks.add(sendKey);
   const vectorStoreIds = [...new Set([vectorStoreId, drawingsStoreId].filter(Boolean))];
 
   // Everything attached is shown & openable in the message (regardless of how
-  // it's consumed: vision, File Search, or both).
+  // it's consumed: vision, File Search, or both). We also persist the index
+  // metadata (openaiFileId / vectorStoreId / visualRequired / hash) so the user
+  // can later RE-USE this exact file from the chat — dropping/clicking it back
+  // into the input bar — without any re-upload or re-OCR.
   const uploadedAttachments = usableAttachments.map((a) => ({
     name: a.name,
     type: a.type,
     url: a.url,
     path: a.path,
+    ...(a.openaiFileId ? { openaiFileId: a.openaiFileId } : {}),
+    ...(a.vectorStoreId ? { vectorStoreId: a.vectorStoreId } : {}),
+    ...(a.visualRequired !== undefined ? { visualRequired: a.visualRequired } : {}),
+    ...(a.hash ? { hash: a.hash } : {}),
   }));
 
 const userMessagePayload = {
