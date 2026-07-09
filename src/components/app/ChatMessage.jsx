@@ -247,13 +247,8 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
       <div className="w-full flex justify-start mt-6">
         <div className="flex items-center gap-3 select-none">
           <img src="/compass.png" alt="NaviMind analyzing" className="w-10 h-10 compass-sway flex-shrink-0" />
-          <span className="text-[14px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+          <span className="text-[14px] text-gray-400 dark:text-gray-500">
             Preparing an answer
-            <span className="flex items-end gap-[3px] ml-0.5 pb-[1px]">
-              <span className="inline-block w-[4px] h-[4px] rounded-full bg-gray-400 dark:bg-gray-500 dot-1" />
-              <span className="inline-block w-[4px] h-[4px] rounded-full bg-gray-400 dark:bg-gray-500 dot-2" />
-              <span className="inline-block w-[4px] h-[4px] rounded-full bg-gray-400 dark:bg-gray-500 dot-3" />
-            </span>
           </span>
         </div>
       </div>

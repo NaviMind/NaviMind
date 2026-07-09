@@ -16,12 +16,26 @@ export default function ChatArea({ messages, children }) {
   const baseMessages = Array.isArray(messages) ? messages : [];
 
   // Optimistic outgoing message: show the user's text + file previews and a
-  // "thinking" bubble instantly while attachments upload, unless the real
-  // message has already been persisted (then Firestore drives it).
+  // "thinking" bubble instantly while attachments upload.
+  //
+  // Hand off to the persisted messages ONLY once the real assistant bubble is
+  // actually present (user turn + an assistant turn as the last two messages).
+  // The user message and the assistant placeholder often arrive in SEPARATE
+  // Firestore snapshots — hiding the optimistic bubble as soon as just the user
+  // message lands leaves a one-frame gap with no assistant bubble, so the compass
+  // vanishes and then reappears ("starts thinking again"). Waiting for both
+  // removes that flicker.
+  const n = baseMessages.length;
+  const realPairReady =
+    n >= 2 &&
+    baseMessages[n - 1]?.role === "assistant" &&
+    baseMessages[n - 2]?.role === "user" &&
+    baseMessages[n - 2]?.content === pendingSend?.message;
+
   const showOptimistic =
     pendingSend &&
     pendingSend.chatId === activeChatId &&
-    !baseMessages.some((m) => m.role === "user" && m.content === pendingSend.message);
+    !realPairReady;
 
   const displayMessages = showOptimistic
     ? [

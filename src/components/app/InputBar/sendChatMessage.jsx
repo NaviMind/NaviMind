@@ -621,8 +621,11 @@ if (inTopic) {
     )?.messageId;
   }
 
-  // Real user message + placeholder are now persisted — drop the optimistic one.
-  setPendingSend?.(null);
+  // NOTE: we do NOT drop the optimistic bubble here. Persisting to Firestore is
+  // not the same as it arriving in the on-screen message list, and the user turn
+  // and assistant placeholder can land in separate snapshots — clearing now would
+  // flash the compass off then on. ChatArea hides the optimistic bubble the frame
+  // the real user+assistant pair is present; we clear pendingSend in `finally`.
 
   // ───────── RECORD LIBRARY FILES ─────────
   // Indexing happened on attach; here we just persist a record of each indexed
@@ -1058,6 +1061,9 @@ if (!summaryLocks.has(summaryKey)) {
       }
     }
   } finally {
+    // Clear the optimistic bubble only now — the persisted user+assistant pair is
+    // on screen by this point, so the hand-off is seamless (no compass flicker).
+    setPendingSend?.(null);
     endGeneration?.();
     sendLocks.delete(sendKey);
   }
