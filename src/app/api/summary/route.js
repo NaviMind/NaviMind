@@ -75,11 +75,16 @@ If the general topic has not changed, keep the memory mostly the same.
       ],
     });
 
-    const raw = completion.choices?.[0]?.message?.content || "{}";
+    // The summary is PLAIN TEXT (the prompt forbids JSON). An empty model
+    // response must NOT overwrite good memory: the old `|| "{}"` fallback
+    // persisted a literal "{}" as the summary, corrupting future context. Keep
+    // the previous memory instead when nothing usable came back.
+    const raw = completion.choices?.[0]?.message?.content?.trim();
+    if (!raw) {
+      return new Response(JSON.stringify({ summary: previousSummary || null }), { status: 200 });
+    }
 
-    const summary = raw;
-
-    return new Response(JSON.stringify({ summary }), { status: 200 });
+    return new Response(JSON.stringify({ summary: raw }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ summary: null }), { status: 500 });
   }

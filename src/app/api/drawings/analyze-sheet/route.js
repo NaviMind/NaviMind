@@ -155,8 +155,15 @@ export async function POST(req) {
               },
             },
           });
-          let parsed = { summary: "", items: [] };
-          try { parsed = JSON.parse(resp.output_text || "{}"); } catch { /* keep default */ }
+          let parsed = null;
+          try { parsed = JSON.parse(resp.output_text || ""); } catch { /* unparseable */ }
+          if (!parsed || typeof parsed !== "object") {
+            // Empty/unparseable model output is a tile FAILURE, not an empty
+            // region — record it so it counts toward the failure accounting below
+            // instead of masquerading as a clean empty tile.
+            results[my] = { pos, col: c, row: r, text: "", items: [], b64: null, error: "unparseable-output" };
+            continue;
+          }
           const summary = /^empty$/i.test((parsed.summary || "").trim()) ? "" : (parsed.summary || "");
           // Convert each item's tile-local box → full-sheet normalized coords.
           const items = (Array.isArray(parsed.items) ? parsed.items : [])
@@ -180,6 +187,20 @@ export async function POST(req) {
       }
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, crops.length) }, worker));
+
+    // If every tile errored (nothing readable AND we have failures), this is a
+    // real failure — an API outage, bad model, or quota — NOT a blank drawing.
+    // Reporting ok:true with an empty index is how a drawing silently becomes
+    // "read but empty". Surface it so the client doesn't save a dead index.
+    const failedTiles = results.filter((t) => t && t.error).length;
+    const readableTiles = results.filter((t) => t && t.text).length;
+    if (readableTiles === 0 && failedTiles > 0) {
+      console.error("analyze-sheet: all tiles failed", name, failedTiles, results.find((t) => t?.error)?.error);
+      return Response.json(
+        { ok: false, error: "drawing could not be read", failedTiles, tiles: results.length },
+        { status: 502 }
+      );
+    }
 
     const sections = results.filter((t) => t && t.text).map((t) => `### Region: ${t.pos}\n${t.text}`);
     const spatialText =
@@ -210,6 +231,7 @@ export async function POST(req) {
       grid: { cols, rows },
       tiles: results.length,
       readable: sections.length,
+      failedTiles,
       spatialText,
       tileList,
       items,

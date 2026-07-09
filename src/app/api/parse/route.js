@@ -40,14 +40,27 @@ export async function POST(req) {
     //    time limit because each poll is its own short request). ──
     if (body.jobId) {
       const jobRes = await fetch(`${BASE}/job/${body.jobId}`, { headers: authHeaders });
-      if (!jobRes.ok) return Response.json({ ok: true, status: "PENDING" });
+      if (!jobRes.ok) {
+        // Only a transient (rate-limit / server) error is worth polling again.
+        // A hard error (bad key, job not found) would otherwise be masked as an
+        // endless "PENDING", so surface it so the client stops and falls back.
+        const retryable = jobRes.status === 429 || jobRes.status >= 500;
+        if (retryable) return Response.json({ ok: true, status: "PENDING" });
+        return Response.json({ ok: false, status: "ERROR", reason: `job-status-${jobRes.status}` });
+      }
       const job = await jobRes.json();
       const status = job?.status || "PENDING";
       if (status === "SUCCESS" || status === "COMPLETED") {
         const r = await fetch(`${BASE}/job/${body.jobId}/result/markdown`, { headers: authHeaders });
         if (!r.ok) return Response.json({ ok: false, error: "could not fetch result" }, { status: 502 });
         const result = await r.json();
-        return Response.json({ ok: true, status: "SUCCESS", markdown: (result?.markdown || "").trim() });
+        const markdown = (result?.markdown || "").trim();
+        // A parsed-but-empty result is NOT a success — it would index nothing.
+        // Report it as a failure so the caller can fall back or surface it.
+        if (!markdown) {
+          return Response.json({ ok: false, status: "ERROR", reason: "empty-result" });
+        }
+        return Response.json({ ok: true, status: "SUCCESS", markdown });
       }
       if (status === "ERROR" || status === "FAILED") {
         return Response.json({ ok: false, status: "ERROR" });

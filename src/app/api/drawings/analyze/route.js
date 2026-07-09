@@ -51,9 +51,9 @@ export async function POST(req) {
     // MAX_PAGES is a per-call safety bound; the client batches well below it.
     let pageList;
     if (Array.isArray(body.pages) && body.pages.length) {
-      pageList = body.pages.slice(0, MAX_PAGES).map((p) =>
+      pageList = body.pages.slice(0, MAX_PAGES).map((p, i) =>
         typeof p === "string"
-          ? { url: p, pageNum: body.pages.indexOf(p) + 1 }
+          ? { url: p, pageNum: i + 1 } // map index, not indexOf (dup URLs)
           : p
       );
     } else if (Array.isArray(body.pageUrls) && body.pageUrls.length) {
@@ -118,9 +118,16 @@ export async function POST(req) {
         })
         .then((resp) => {
           const out = (resp.output_text || "").trim();
-          // Drop blank/unreadable pages so they don't pollute the search index.
+          // Empty output = the model read NOTHING (a failure), which is different
+          // from an intentional "BLANK PAGE". Flag the failure so the client can
+          // retry instead of silently indexing an empty page as if analyzed.
+          if (!out) return { pageNum, url: pageList[i].url, description: "", failed: true };
           const description = /^blank page$/i.test(out) ? "" : out;
           return { pageNum, url: pageList[i].url, description };
+        })
+        .catch((e) => {
+          console.error("drawings/analyze: page failed", pageNum, e?.message);
+          return { pageNum, url: pageList[i].url, description: "", failed: true };
         })
     );
 
@@ -135,7 +142,12 @@ export async function POST(req) {
       drawingType = DRAWING_TYPES.includes(rawType) ? rawType : "Other";
     }
 
-    return NextResponse.json({ pages: analyzedPages, drawingType });
+    // Signal if some pages were dropped by the per-call safety cap, so the
+    // caller knows the analysis isn't complete (the client batches below MAX_PAGES,
+    // but this makes any silent truncation visible).
+    const inputLen = body.pages?.length || body.pageUrls?.length || 0;
+    const truncated = inputLen > MAX_PAGES;
+    return NextResponse.json({ pages: analyzedPages, drawingType, truncated });
   } catch (e) {
     console.error("drawings/analyze error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });

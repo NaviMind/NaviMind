@@ -15,11 +15,28 @@ const openai = new OpenAI({
 // so this keeps working regardless of the exact minor version installed.
 const vectorStores = openai.vectorStores || openai.beta?.vectorStores;
 
+// Upload text/bytes, add to the store, and CONFIRM indexing finished. createAndPoll
+// resolves even when the file ends in a "failed" terminal state — treating that as
+// success is exactly how a file silently becomes unsearchable. Returns the file id
+// and the real terminal status so every caller can gate its "indexed" report.
+async function indexFile(vectorStoreId, uploadable, filename) {
+  const uploaded = await openai.files.create({ file: uploadable, purpose: "assistants" });
+  const vsFile = await vectorStores.files.createAndPoll(vectorStoreId, { file_id: uploaded.id });
+  const status = vsFile?.status || "completed";
+  if (status !== "completed") {
+    console.error("library: vector index not completed", filename, status, vsFile?.last_error);
+  }
+  return { openaiFileId: uploaded.id, ok: status === "completed", status };
+}
+
 // Vision-capable model used to OCR scanned/image-only PDFs. Defaults to gpt-4o
 // (a proven vision model already used elsewhere in this app) — NOT a speculative
 // name, which would make every scanned-PDF OCR silently fail. Override with a
 // newer/cheaper vision model via OPENAI_OCR_MODEL.
-const OCR_MODEL = process.env.OPENAI_OCR_MODEL || process.env.OPENAI_MODEL || "gpt-4o";
+// NOTE: no OPENAI_MODEL fallback — that's the dead generation-era env var (answer
+// generation moved to Claude). A stale OPENAI_MODEL (e.g. a Claude name) leaking
+// in here would break all OCR silently.
+const OCR_MODEL = process.env.OPENAI_OCR_MODEL || "gpt-4o";
 
 // File Search can ingest text-like documents (PDF, Word, plain text, etc.) but
 // NOT spreadsheets or images. We screen here so unsupported types fail fast with
@@ -260,17 +277,12 @@ export async function POST(req) {
               `${file.name}.txt`,
               { type: "text/plain" }
             );
-            const uploaded = await openai.files.create({
-              file: uploadable,
-              purpose: "assistants",
-            });
-            await vectorStores.files.createAndPoll(vectorStoreId, {
-              file_id: uploaded.id,
-            });
+            const { openaiFileId, ok, status } = await indexFile(vectorStoreId, uploadable, file.name);
             results.push({
               ...base,
-              openaiFileId: uploaded.id,
-              status: "indexed",
+              openaiFileId,
+              status: ok ? "indexed" : "failed",
+              ...(ok ? {} : { reason: `index-${status}` }),
               ocr: true,
               visualRequired,
             });
@@ -311,14 +323,13 @@ export async function POST(req) {
               `${file.name}.txt`,
               { type: "text/plain" }
             );
-            const uploaded = await openai.files.create({
-              file: uploadable,
-              purpose: "assistants",
+            const { openaiFileId, ok, status } = await indexFile(vectorStoreId, uploadable, file.name);
+            results.push({
+              ...base,
+              openaiFileId,
+              status: ok ? "indexed" : "failed",
+              ...(ok ? {} : { reason: `index-${status}` }),
             });
-            await vectorStores.files.createAndPoll(vectorStoreId, {
-              file_id: uploaded.id,
-            });
-            results.push({ ...base, openaiFileId: uploaded.id, status: "indexed" });
           } else {
             results.push({ ...base, openaiFileId: null, status: "skipped:empty" });
           }
@@ -392,35 +403,15 @@ export async function POST(req) {
           uploadable = await toFile(buffer, file.name, { type: file.type });
         }
 
-        const uploaded = await openai.files.create({
-          file: uploadable,
-          purpose: "assistants",
-        });
-
-        // Add to the store and wait until it is fully indexed, so the very next
-        // chat request can already search it.
-        const vsFile = await vectorStores.files.createAndPoll(vectorStoreId, {
-          file_id: uploaded.id,
-        });
-
-        // Verify it actually indexed. createAndPoll resolves even when the file
-        // ends in a "failed" state — reporting that as "indexed" is exactly how a
-        // file silently becomes unsearchable. Surface it instead.
-        if (vsFile?.status && vsFile.status !== "completed") {
-          console.error("library: vector index not completed", file?.name, vsFile.status, vsFile.last_error);
-          results.push({
-            ...base,
-            openaiFileId: uploaded.id,
-            status: "failed",
-            reason: `index-${vsFile.status}`,
-          });
-          continue;
-        }
-
+        // Add to the store and confirm it fully indexed, so the very next chat
+        // request can already search it — and so a failed index surfaces instead
+        // of masquerading as "indexed" but unsearchable.
+        const { openaiFileId, ok, status } = await indexFile(vectorStoreId, uploadable, file.name);
         results.push({
           ...base,
-          openaiFileId: uploaded.id,
-          status: "indexed",
+          openaiFileId,
+          status: ok ? "indexed" : "failed",
+          ...(ok ? {} : { reason: `index-${status}` }),
           ocr: ocrUsed,
         });
       } catch (e) {
@@ -444,14 +435,13 @@ export async function POST(req) {
           name.endsWith(".txt") ? name : `${name}.txt`,
           { type: "text/plain" }
         );
-        const uploaded = await openai.files.create({
-          file: uploadable,
-          purpose: "assistants",
+        const { openaiFileId, ok, status } = await indexFile(vectorStoreId, uploadable, name);
+        textResults.push({
+          name,
+          openaiFileId,
+          status: ok ? "indexed" : "failed",
+          ...(ok ? {} : { reason: `index-${status}` }),
         });
-        await vectorStores.files.createAndPoll(vectorStoreId, {
-          file_id: uploaded.id,
-        });
-        textResults.push({ name, openaiFileId: uploaded.id, status: "indexed" });
       } catch (e) {
         console.error("library: failed to index text", name, e?.message);
         textResults.push({ name, openaiFileId: null, status: "failed" });

@@ -29,10 +29,16 @@ export async function POST(req) {
       temperature: 0.7,
     });
 
-    const raw = completion.choices?.[0]?.message?.content?.trim() || "[]";
-    const questions = JSON.parse(raw);
+    // Parse defensively: gpt-4.1-mini often wraps the array in ```json fences or
+    // a lead-in sentence, which makes a bare JSON.parse throw → the catch below
+    // would silently return zero suggestions. Extract the array substring first.
+    const raw = completion.choices?.[0]?.message?.content?.trim() || "";
+    const match = raw.match(/\[[\s\S]*\]/);
+    const questions = JSON.parse(match ? match[0] : raw);
     if (!Array.isArray(questions)) throw new Error("Not an array");
-    return Response.json({ questions: questions.slice(0, 3) });
+    return Response.json({
+      questions: questions.map((q) => String(q)).filter(Boolean).slice(0, 3),
+    });
   } catch {
     return Response.json({ questions: [] }, { status: 200 });
   }

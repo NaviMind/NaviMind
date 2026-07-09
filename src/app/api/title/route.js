@@ -16,7 +16,7 @@ export async function POST(req) {
           content: `Generate a concise chat title (4–6 words, no quotes, no punctuation at the end) for a conversation that starts with this message: "${message.slice(0, 300)}"`,
         },
       ],
-      max_tokens: 20,
+      max_completion_tokens: 20,
     });
 
     const title = completion.choices?.[0]?.message?.content?.trim() || null;
