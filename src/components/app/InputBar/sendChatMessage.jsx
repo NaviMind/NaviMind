@@ -289,11 +289,11 @@ function extractDocBlock(text) {
 // Build the .docx from the extracted markdown, upload it, and patch the message
 // with a download card. Runs AFTER the answer is on screen, so it never delays
 // the reply; if anything fails, the answer still stands (just no file).
-async function generateAndAttachDoc({ uid, docMarkdown, docTitle, format, inTopic, topicId, chatId, aiMessageId }) {
+async function generateAndAttachDoc({ uid, docMarkdown, docTitle, format, meta, inTopic, topicId, chatId, aiMessageId }) {
   const res = await fetch("/api/generate-doc", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: docTitle, markdown: docMarkdown, format }),
+    body: JSON.stringify({ title: docTitle, markdown: docMarkdown, format, meta }),
   });
   if (!res.ok) return;
   const data = await res.json();
@@ -301,9 +301,9 @@ async function generateAndAttachDoc({ uid, docMarkdown, docTitle, format, inTopi
 
   const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
   const file = new File([bytes], data.filename, { type: data.mime });
-  const meta = await uploadFileToStorage({ uid, file });
+  const stored = await uploadFileToStorage({ uid, file });
 
-  const generatedFile = { name: data.filename, type: data.mime, url: meta.url, path: meta.path };
+  const generatedFile = { name: data.filename, type: data.mime, url: stored.url, path: stored.path };
   if (inTopic) await updateTopicChatMessage(topicId, chatId, aiMessageId, { generatedFile });
   else await updateGlobalChatMessage(chatId, aiMessageId, { generatedFile });
 }
@@ -916,8 +916,15 @@ if (res.body && contentType.includes("text/event-stream")) {
     // Format follows the user's request — PDF if they asked for it, else Word.
     if (docMarkdown && !aborted) {
       const format = /\bpdf\b|пдф/i.test(ragQuestion) ? "pdf" : "docx";
+      // Brand the document with the active vessel (subtitle) + rank (prepared-for).
+      const vp = vesselProfile || {};
+      const meta = {
+        vessel: [vp.vesselType, vp.flag ? `${vp.flag} flag` : null, vp.classification]
+          .filter(Boolean).join(" · "),
+        preparedFor: vp.rank || "",
+      };
       generateAndAttachDoc({
-        uid: currentUser.uid, docMarkdown, docTitle, format,
+        uid: currentUser.uid, docMarkdown, docTitle, format, meta,
         inTopic, topicId, chatId, aiMessageId,
       }).catch((e) => console.error("doc generation failed:", e?.message || e));
     }

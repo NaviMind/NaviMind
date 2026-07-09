@@ -278,6 +278,37 @@ function buildRetrievedBlock(chunks) {
   ].join("\n");
 }
 
+// Extract the FULL plain text of an attached text-document, so the model can
+// edit a whole document faithfully instead of working from retrieved snippets.
+// Heavy parsers are imported dynamically so they never load on the hot path
+// unless a document edit actually needs them. Scanned/image PDFs yield little.
+async function extractDocText(file) {
+  try {
+    const url = file?.url;
+    if (!url) return "";
+    const name = (file.name || "").toLowerCase();
+    const type = file.type || "";
+    const buf = Buffer.from(await (await fetch(url)).arrayBuffer());
+    if (name.endsWith(".docx") || type.includes("word")) {
+      const mammoth = (await import("mammoth")).default;
+      const { value } = await mammoth.extractRawText({ buffer: buf });
+      return value || "";
+    }
+    if (name.endsWith(".pdf") || type === "application/pdf") {
+      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+      const parsed = await pdfParse(buf);
+      return parsed?.text || "";
+    }
+    if (/\.(txt|md|markdown|csv|json|rtf|html?)$/.test(name) || type.startsWith("text/")) {
+      return buf.toString("utf8");
+    }
+    return "";
+  } catch (e) {
+    console.error("[rag] doc text extract failed:", file?.name, e?.message || e);
+    return "";
+  }
+}
+
 // Build a Claude image content block from a URL or a data: URL.
 function toImageBlock(url) {
   if (typeof url !== "string") return null;
@@ -684,6 +715,31 @@ const perMessageGuidance = [
             ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
+          // Faithful whole-document editing: when the request is a document task
+          // and a text-document is attached, give the model the FULL text (not
+          // just retrieved chunks) so it can rewrite the entire document. Bounded
+          // to a couple of files / a char cap to keep cost sane.
+          let originalDocsBlock = null;
+          if (needsDocGeneration(question) && documentFiles.length) {
+            const CAP = Number(process.env.DOC_EDIT_TEXT_CAP) || 40000;
+            const parts = [];
+            for (const f of documentFiles.slice(0, 2)) {
+              const t = (await extractDocText(f)).trim();
+              if (t) parts.push(`FILE: ${f.name}\n${t.slice(0, CAP)}`);
+            }
+            if (parts.length) {
+              originalDocsBlock = [
+                "═══════════════════════════════════════════",
+                "ORIGINAL DOCUMENT(S) — FULL TEXT (SOURCE OF TRUTH FOR EDITING)",
+                "═══════════════════════════════════════════",
+                "The user may ask you to edit the document(s) below. Treat this FULL text as the source of truth — not just retrieved snippets. When editing, apply exactly the requested changes, keep the rest intact, and output the COMPLETE edited document in the download block.",
+                "",
+                parts.join("\n\n---\n\n"),
+                "═══════════════════════════════════════════",
+              ].join("\n");
+            }
+          }
+
           // Volatile system content (memory that changes each turn + per-message
           // guidance + running summary + retrieved chunks) goes AFTER the cached
           // prefix so it never breaks the cache.
@@ -693,6 +749,7 @@ const perMessageGuidance = [
             perMessageGuidance,
             summaryBlock,
             retrievedBlock,
+            originalDocsBlock,
           ]
             .filter(Boolean)
             .join("\n\n---\n\n");
