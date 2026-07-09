@@ -715,15 +715,37 @@ const perMessageGuidance = [
             ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
-          // Faithful whole-document editing: when the request is a document task
-          // and a text-document is attached, give the model the FULL text (not
-          // just retrieved chunks) so it can rewrite the entire document. Bounded
-          // to a couple of files / a char cap to keep cost sane.
+          // Faithful whole-document editing: when the request is a document task,
+          // give the model the FULL text (not just retrieved chunks) of the doc it
+          // should edit. The target is the text-document attached now OR, if none,
+          // the most recent one from earlier in the chat ("edit the file I sent
+          // before" works). Bounded to a couple of files / a char cap.
           let originalDocsBlock = null;
-          if (needsDocGeneration(question) && documentFiles.length) {
+          if (needsDocGeneration(question)) {
             const CAP = Number(process.env.DOC_EDIT_TEXT_CAP) || 40000;
+            const isDocAttachment = (a) =>
+              a?.url &&
+              !(a.type || "").startsWith("image/") &&
+              /\.(docx?|pdf|txt|md|markdown|csv|json|rtf|html?)$/i.test(a.name || "");
+
+            // Candidate edit targets: this message's docs first, then the most
+            // recent document attachments from history (newest-first), deduped.
+            const seen = new Set();
+            const candidates = [];
+            const add = (a) => {
+              if (a?.url && !seen.has(a.url) && isDocAttachment(a)) {
+                seen.add(a.url);
+                candidates.push({ name: a.name, type: a.type, url: a.url });
+              }
+            };
+            documentFiles.forEach(add);
+            for (let i = chatHistory.length - 1; i >= 0 && candidates.length < 2; i--) {
+              const m = chatHistory[i];
+              if (m?.role === "user" && Array.isArray(m.attachments)) m.attachments.forEach(add);
+            }
+
             const parts = [];
-            for (const f of documentFiles.slice(0, 2)) {
+            for (const f of candidates.slice(0, 2)) {
               const t = (await extractDocText(f)).trim();
               if (t) parts.push(`FILE: ${f.name}\n${t.slice(0, CAP)}`);
             }
