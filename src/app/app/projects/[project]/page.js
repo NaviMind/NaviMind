@@ -10,6 +10,7 @@ import Icon from "@/components/common/Icon";
 import { renameChatInFirestore, deleteChatFromFirestore, togglePinChat, updateTopicDescription } from "@/firebase/chatStore";
 import { auth } from "@/firebase/config";
 import { sendChatMessage } from "@/components/app/InputBar/sendChatMessage";
+import { useCurrentUserDoc } from "@/hooks/useCurrentUserDoc";
 import TopicLibraryModal from "@/components/app/sidebar/TopicLibraryModal";
 import TopicInstructionsModal from "@/components/app/sidebar/TopicInstructionsModal";
 
@@ -52,6 +53,8 @@ export default function DynamicProjectPage() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [instrText, setInstrText] = useState("");
   const [savingInstr, setSavingInstr] = useState(false);
+
+  const { data: userDoc } = useCurrentUserDoc();
 
   const saveInstructions = async () => {
     const user = auth.currentUser;
@@ -254,6 +257,7 @@ export default function DynamicProjectPage() {
       setActiveChatId,
       setIsLoadingMessages,
       vesselProfile: vesselProfileData || null,
+      plan: userDoc?.plan || "free",
     });
   };
 

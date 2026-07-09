@@ -140,8 +140,14 @@ function getAnthropic() {
   return (_anthropic ||= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
 }
 
-// Main chat model. Defaults to Claude Sonnet 5; override via ANTHROPIC_MODEL.
-const CHAT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+// Model per plan tier — the core cost lever. Cheaper model on the entry tier,
+// smarter models as a paid upgrade. All env-overridable so the dial stays here.
+//   • standard (free, Starter) → Haiku 4.5  — cheapest, still strong for entry
+//   • advance  (Plus, Pro)      → Sonnet 5   — the balanced workhorse
+//   • deep     (Premium, Max)   → Opus 4.8   — top reasoning
+const MODEL_STANDARD = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
+const MODEL_ADVANCE = process.env.ANTHROPIC_MODEL_ADVANCE || "claude-sonnet-5";
+const MODEL_DEEP = process.env.ANTHROPIC_MODEL_DEEP || "claude-opus-4-8";
 
 // Adaptive-thinking effort ("low" | "medium" | "high" | "xhigh" | "max").
 // Cost-aware: everyday chat runs "low" (cheap, snappy — adaptive thinking still
@@ -159,12 +165,12 @@ const EFFORT_DEEP = process.env.ANTHROPIC_EFFORT_DEEP || "high";
 
 function aiConfigForModelTier(tier) {
   if (tier === "deep") {
-    return { model: process.env.ANTHROPIC_MODEL_DEEP || CHAT_MODEL, effort: EFFORT_DEEP };
+    return { model: MODEL_DEEP, effort: EFFORT_DEEP };
   }
   if (tier === "advance") {
-    return { model: process.env.ANTHROPIC_MODEL_ADVANCE || CHAT_MODEL, effort: EFFORT_ADVANCE };
+    return { model: MODEL_ADVANCE, effort: EFFORT_ADVANCE };
   }
-  return { model: CHAT_MODEL, effort: EFFORT };
+  return { model: MODEL_STANDARD, effort: EFFORT };
 }
 
 // Plan tier for model/context selection comes from a CLIENT hint (default free).

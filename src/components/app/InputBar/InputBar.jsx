@@ -772,6 +772,7 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
       vesselProfile: vesselProfileData || null,
       memorySettings: userDoc?.memorySettings ?? {},
       globalChatMemory: userDoc?.globalChatMemory ?? "",
+      plan: userDoc?.plan || "free",
     });
   };
 

@@ -67,8 +67,8 @@ export default function SubscriptionPage() {
             Plans &amp; Pricing
           </h1>
           <p className="mt-3 text-gray-600">
-            NaviMind is a maritime AI assistant. Every plan is metered in AI tokens —
-            pick the one that matches how much you use it and pay only for what you need.
+            NaviMind is a maritime AI assistant. Higher plans unlock a smarter model
+            and deeper document analysis — pick the one that matches how you work.
           </p>
           {/* One small, neat action instead of a banner: signed-in users open the
               app (where they manage/change the plan), guests start free. */}

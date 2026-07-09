@@ -289,6 +289,10 @@ export async function sendChatMessage({
   vesselProfile = null,
   memorySettings = {},
   globalChatMemory = "",
+  // Plan hint → selects the answer's model tier + document depth. Only a HINT:
+  // metering stays authoritative server-side, so a spoofed value would only
+  // change that user's own answer quality, never their billing.
+  plan = "free",
 }) {
   if (!currentUser?.uid) return;
 
@@ -311,7 +315,7 @@ export async function sendChatMessage({
           ? "Your free trial has ended. Upgrade to a plan to keep using NaviMind."
           : status.daily?.over
           ? "You've hit today's free limit. It resets tomorrow — or upgrade for more."
-          : "You've used all your AI tokens. Upgrade your plan to keep chatting.";
+          : "You've reached your plan's usage limit. Upgrade your plan to keep chatting.";
         window.dispatchEvent(
           new CustomEvent("navimind-toast", { detail: { message: msg, type: "error" } })
         );
@@ -641,6 +645,7 @@ if (inTopic) {
     },
     body: JSON.stringify({
       uid: currentUser.uid,
+      plan,
       question: ragQuestion,
       chatHistory,
       summary,

@@ -9,8 +9,17 @@
 //                    in one session and the user forms a daily-return habit.
 //   • storageBytes — one account-wide storage ceiling.
 //
-// NOTE: token amounts and prices are DIRECTIONAL PLACEHOLDERS from the pricing
-// discussion — tune the whole ladder by editing this one file.
+// TOKENS ARE AN INTERNAL METER — never shown to users (no counts, no slider).
+// Plans are sold on VALUE (model tier, document depth, a qualitative usage
+// label), not on raw token numbers. `usageLabel` is the human-facing volume cue.
+//
+// The token allowances below are COSTED to keep a healthy gross margin
+// (AI cost ≈ 30–35% of price) given the per-tier model:
+//   • standard = Haiku 4.5  (~$7 / 1M our-tokens)
+//   • advance  = Sonnet 5   (~$18 / 1M)
+//   • deep     = Opus 4.8   (~$30 / 1M)
+// Because volume is hidden and higher tiers buy a smarter model (not just more
+// tokens), the raw token counts intentionally don't rise monotonically.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MB = 1024 ** 2;
@@ -18,32 +27,32 @@ const GB = 1024 ** 3;
 const M = 1_000_000; // one million tokens
 
 export const PLANS = {
-  // Free = 21-day trial. `tokens` is the TOTAL trial budget; `dailyTokens` caps
-  // each day. ~$4–7 max cost per trial user — acceptable acquisition cost.
+  // Free = 21-day trial on the entry model (Haiku). Small, capped budget so a
+  // tire-kicker costs us ~$1, not a full paid month. `tokens` is the TOTAL trial
+  // budget; `dailyTokens` caps each day (forms a daily-return habit).
   free: {
     key: "free",
     name: "Free",
     trial: true,
     priceUsd: 0,
-    tokens: 1 * M, // total for the whole trial
-    dailyTokens: 60_000, // per-day cap
+    tokens: 150_000, // total for the whole trial (~$1 cost on Haiku)
+    dailyTokens: 10_000, // per-day cap
     storageBytes: 200 * MB,
-    model: "standard", // trial shows the entry model so paid model tiers stay a reason to upgrade
+    model: "standard", // entry model — paid tiers unlock the smarter models
     docContext: "standard",
+    usageLabel: "Trial access",
   },
 
-  // Granular paid ladder — MONTHLY token allowance. Solves the "too cheap or
-  // suddenly ×5" gap so users pick the step that matches their real usage.
-  //
-  // Beyond volume, paid tiers differ on two honest, deliverable levers:
-  //   • model      — reasoning tier: "standard" → "advance" → "deep"
-  //   • docContext — how much document context each answer draws on:
-  //                  "standard" → "deep" → "deepest"
-  starter: { key: "starter", name: "Starter", priceUsd: 19, tokens: 1.2 * M, storageBytes: 2 * GB, model: "standard", docContext: "standard" },
-  plus: { key: "plus", name: "Plus", priceUsd: 39, tokens: 2.5 * M, storageBytes: 4 * GB, model: "advance", docContext: "standard" },
-  pro: { key: "pro", name: "Pro", priceUsd: 59, tokens: 4 * M, storageBytes: 8 * GB, model: "advance", docContext: "deep" },
-  premium: { key: "premium", name: "Premium", priceUsd: 89, tokens: 6 * M, storageBytes: 15 * GB, model: "deep", docContext: "deep" },
-  max: { key: "max", name: "Max", priceUsd: 129, tokens: 9 * M, storageBytes: 30 * GB, model: "deep", docContext: "deepest" },
+  // Granular paid ladder — MONTHLY token allowance, costed for ~65% gross margin.
+  // Paid tiers differ on three honest, deliverable levers:
+  //   • model      — reasoning tier: "standard"(Haiku) → "advance"(Sonnet) → "deep"(Opus)
+  //   • docContext — document depth per answer: "standard" → "deep" → "deepest"
+  //   • usage      — monthly volume (shown to users as a qualitative label only)
+  starter: { key: "starter", name: "Starter", priceUsd: 19, tokens: 900_000, storageBytes: 2 * GB, model: "standard", docContext: "standard", usageLabel: "Everyday usage" },
+  plus: { key: "plus", name: "Plus", priceUsd: 39, tokens: 800_000, storageBytes: 4 * GB, model: "advance", docContext: "standard", usageLabel: "High usage" },
+  pro: { key: "pro", name: "Pro", priceUsd: 59, tokens: 1.2 * M, storageBytes: 8 * GB, model: "advance", docContext: "deep", usageLabel: "Heavy usage" },
+  premium: { key: "premium", name: "Premium", priceUsd: 89, tokens: 1 * M, storageBytes: 15 * GB, model: "deep", docContext: "deep", usageLabel: "Pro-grade usage" },
+  max: { key: "max", name: "Max", priceUsd: 129, tokens: 1.5 * M, storageBytes: 30 * GB, model: "deep", docContext: "deepest", usageLabel: "Maximum usage" },
 };
 
 // Paid tiers in ladder order — for the pricing page.
@@ -121,6 +130,12 @@ export function modelLabelFor(plan) {
 }
 export function docContextLabelFor(plan) {
   return DOC_CONTEXT_LABELS[docContextTierFor(plan)] || DOC_CONTEXT_LABELS.standard;
+}
+
+// Human-facing volume cue — we sell on value, not raw token counts, so plan
+// cards show this instead of a number.
+export function usageLabelFor(plan) {
+  return planFor(plan).usageLabel || "Everyday usage";
 }
 
 // How many retrieved document chunks each answer may draw on, by tier. This is

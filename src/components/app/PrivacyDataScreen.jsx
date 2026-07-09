@@ -6,7 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import { loadUserTopics, updateTopicMemory, getAccountStorageUsage } from "@/firebase/chatStore";
 import { updateUserProfile } from "@/firebase/userRepo";
 import { clearAllConversations, downloadUserDataExport, purgeOrphanMemoryFiles } from "@/firebase/privacyData";
-import { storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
+import { storageLimitFor, formatBytes, modelLabelFor, usageLabelFor } from "@/lib/planLimits";
 import { getUsageStatus } from "@/firebase/userRepo";
 import Icon from "@/components/common/Icon";
 import MaskIcon from "@/components/common/MaskIcon";
@@ -255,10 +255,10 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
   const usedPct = Math.min(100, (usedBytes / storageLimit) * 100);
   const usageBarColor = usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-blue-500";
 
-  // AI usage vs the plan budget (trial-total + daily for free, monthly for paid).
+  // AI usage state (for trial/renewal copy). Tokens are an internal meter — we
+  // never show counts or a slider; we surface the model + qualitative usage tier.
   const st = getUsageStatus(userDoc);
-  const tokenPct = st.pct;
-  const tokenBarColor = tokenPct >= 100 ? "bg-red-500" : tokenPct >= 80 ? "bg-amber-500" : "bg-blue-500";
+  const planKey = userDoc?.plan || "free";
 
   const onPurgeOrphans = async () => {
     if (!uid || purging) return;
@@ -324,32 +324,24 @@ export default function PrivacyDataScreen({ userDoc, onBack }) {
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scroll px-5 py-5">
-        {/* Monthly AI usage (tokens) — the primary metered resource */}
+        {/* AI plan — model + qualitative usage tier. No token counts or slider. */}
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
           <div className="flex items-center justify-between mb-1.5 text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
               <Icon name="flash" size={14} className="text-gray-400 dark:text-gray-500" />
-              AI usage · {st.plan.name}
+              AI plan · {st.plan.name}
             </span>
-            <span className="text-gray-500 dark:text-gray-400">
-              {formatTokens(st.used)} of {formatTokens(st.limit)} tokens
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-            <div
-              className={`h-full rounded-full ${tokenBarColor} transition-all duration-300`}
-              style={{ width: `${tokenPct}%` }}
-            />
+            <span className="text-gray-500 dark:text-gray-400">{modelLabelFor(planKey)}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between gap-2">
             <span className="text-[11px] text-gray-500 dark:text-gray-400">
+              {usageLabelFor(planKey)}
+              {" · "}
               {st.isTrial
                 ? st.trial.ended
-                  ? "Free trial ended."
-                  : `Free trial · ${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left · ${formatTokens(st.daily.limit)}/day`
-                : st.topUp > 0
-                  ? `Resets monthly · +${formatTokens(st.topUp)} top-up`
-                  : "Resets monthly."}
+                  ? "free trial ended"
+                  : `${st.trial.daysLeft} day${st.trial.daysLeft === 1 ? "" : "s"} left in trial`
+                : "renews monthly"}
             </span>
             <a
               href="/subscription"

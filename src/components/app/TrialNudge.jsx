@@ -89,7 +89,7 @@ export default function TrialNudge() {
   const title = variant === "daily" ? "Daily limit reached" : "Your trial is ending";
   const body =
     variant === "daily"
-      ? "You’ve used today’s free tokens. Upgrade for more, or come back tomorrow."
+      ? "You’ve reached today’s free usage. Upgrade for more, or come back tomorrow."
       : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your free trial. Upgrade any time to keep going without limits.`;
 
   return (

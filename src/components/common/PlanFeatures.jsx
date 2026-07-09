@@ -3,7 +3,7 @@
 // glyph the same muted grey (overrides the lightbulb's built-in amber).
 
 import Icon from "@/components/common/Icon";
-import { formatTokens, formatBytes, modelLabelFor, docContextLabelFor } from "@/lib/planLimits";
+import { formatBytes, modelLabelFor, docContextLabelFor, usageLabelFor } from "@/lib/planLimits";
 
 // One line shown once above the grid — the capabilities every tier shares.
 export const EVERY_PLAN_INCLUDES =
@@ -22,7 +22,7 @@ export default function PlanFeatures({ plan }) {
   return (
     <div className="space-y-1.5 text-[12px] text-gray-600 dark:text-gray-300 leading-snug">
       <Feature icon="flash">
-        <span className="font-medium text-gray-900 dark:text-white">{formatTokens(plan.tokens)}</span> tokens / mo
+        <span className="font-medium text-gray-900 dark:text-white">{usageLabelFor(plan.key)}</span>
       </Feature>
       <Feature icon="storage">
         <span className="font-medium text-gray-900 dark:text-white">{formatBytes(plan.storageBytes)}</span> storage

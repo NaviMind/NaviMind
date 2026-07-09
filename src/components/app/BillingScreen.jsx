@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { auth } from "@/firebase/config";
 import { getAccountStorageUsage } from "@/firebase/chatStore";
 import { getUsageStatus } from "@/firebase/userRepo";
-import { planFor, storageLimitFor, formatBytes, formatTokens } from "@/lib/planLimits";
+import { planFor, storageLimitFor, formatBytes, modelLabelFor, usageLabelFor } from "@/lib/planLimits";
 import Icon from "@/components/common/Icon";
 import { openPaddlePortal } from "@/lib/paddleClient";
 
@@ -34,10 +34,10 @@ export default function BillingScreen({ userDoc, onBack, onChangePlan }) {
     return () => { alive = false; };
   }, [uid]);
 
-  const storageLimit = storageLimitFor(userDoc?.plan || "free");
+  const planKey = userDoc?.plan || "free";
+  const storageLimit = storageLimitFor(planKey);
   const usedBytes = storage?.total || 0;
   const storagePct = Math.min(100, storageLimit ? (usedBytes / storageLimit) * 100 : 0);
-  const tokenPct = st.pct;
 
   const [managing, setManaging] = useState(false);
   const [manageNotice, setManageNotice] = useState("");
@@ -88,28 +88,24 @@ export default function BillingScreen({ userDoc, onBack, onChangePlan }) {
           </p>
         </div>
 
-        {/* AI usage (tokens) */}
+        {/* AI capability — tokens are an internal meter, never shown. We surface
+            the value the user actually cares about: which model + usage tier. */}
         <div className="mb-4 rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] px-4 py-3.5">
-          <div className="flex items-center justify-between mb-1.5 text-xs">
+          <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
               <Icon name="flash" size={14} className="text-gray-400 dark:text-gray-500" />
-              AI usage
+              AI model
             </span>
-            <span className="text-gray-500 dark:text-gray-400">
-              {formatTokens(st.used)} of {formatTokens(st.limit)} tokens
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-            <div className={`h-full rounded-full ${barColor(tokenPct)} transition-all duration-300`} style={{ width: `${tokenPct}%` }} />
+            <span className="text-gray-500 dark:text-gray-400">{modelLabelFor(planKey)}</span>
           </div>
           <p className="mt-2.5 text-[11px] text-gray-500 dark:text-gray-400">
+            {usageLabelFor(planKey)}
+            {" · "}
             {st.isTrial
               ? st.trial.ended
-                ? "Free trial ended."
-                : `Free trial · ${formatTokens(st.daily.limit)}/day`
-              : st.topUp > 0
-                ? `Resets monthly · +${formatTokens(st.topUp)} top-up remaining`
-                : "Resets monthly."}
+                ? "free trial ended"
+                : "usage resets daily during your trial"
+              : "renews monthly"}
           </p>
         </div>
 
