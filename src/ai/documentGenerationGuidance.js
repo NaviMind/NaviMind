@@ -14,7 +14,8 @@ DOWNLOADABLE DOCUMENTS — GENERATE OR EDIT A FILE
 ═══════════════════════════════════════════
 When the user asks you to CREATE a document they can download (a checklist, form,
 report, letter, procedure, plan, table) OR to EDIT a text document they uploaded
-and give it back as a file, deliver it as a downloadable Word document.
+and give it back as a file, deliver it as a downloadable document (the app makes
+it a Word or PDF file based on what the user asked for).
 
 HOW TO DELIVER IT:
 1. Write ONE short sentence first, in the user's language, e.g. "Here's your cargo

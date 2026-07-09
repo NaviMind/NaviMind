@@ -8,7 +8,9 @@ const nextConfig = {
   // mupdf + sharp are native/WASM server packages — don't bundle them, require at runtime.
   // firebase-admin must be external too: bundling it makes a serverless function
   // require() the ESM-only `jose` (via firebase-admin/auth) and crash at load.
-  serverExternalPackages: ["mupdf", "sharp", "firebase-admin"],
+  // pdfmake (→ pdfkit) reads its own font/binary data via fs and doesn't bundle
+  // cleanly through webpack — keep it external so it's required at runtime.
+  serverExternalPackages: ["mupdf", "sharp", "firebase-admin", "pdfmake"],
   // Short public URLs for the legal pages. Google's OAuth brand review and Paddle's
   // domain review are configured with /terms and /privacy; map them to the real pages.
   async redirects() {

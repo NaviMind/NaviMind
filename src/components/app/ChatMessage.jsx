@@ -244,7 +244,7 @@ function GeneratedDocCard({ file, onOpen }) {
         <span className="min-w-0">
           <span className="block text-[13px] font-medium text-gray-800 dark:text-white/90 truncate">{file.name}</span>
           <span className="block text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
-            Word · ready to download
+            {/(\.pdf$)|(application\/pdf)/i.test(file.name + " " + (file.type || "")) ? "PDF" : "Word"} · ready to download
           </span>
         </span>
       </button>

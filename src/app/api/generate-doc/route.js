@@ -11,6 +11,7 @@ import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle,
 } from "docx";
+import { markdownToPdf } from "@/lib/markdownToPdf";
 
 export const runtime = "nodejs";
 
@@ -130,51 +131,54 @@ function blocksToDocx(tokens) {
   return out;
 }
 
-function safeFilename(title) {
+function safeFilename(title, ext) {
   const base = String(title || "document")
     .replace(/[^\p{L}\p{N}\s._-]/gu, "")
     .trim()
     .replace(/\s+/g, "_")
     .slice(0, 60) || "document";
-  return base.toLowerCase().endsWith(".docx") ? base : `${base}.docx`;
+  return `${base}.${ext}`;
 }
+
+async function buildDocx(markdown, title) {
+  const tokens = marked.lexer(String(markdown));
+  const body = blocksToDocx(tokens);
+  const children = [];
+  if (title && tokens[0]?.type !== "heading") {
+    children.push(new Paragraph({
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.LEFT,
+      spacing: { after: 200 },
+      children: [new TextRun({ text: String(title) })],
+    }));
+  }
+  children.push(...body);
+  const doc = new Document({
+    styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
+    sections: [{ properties: {}, children }],
+  });
+  return Packer.toBuffer(doc);
+}
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const PDF_MIME = "application/pdf";
 
 export async function POST(req) {
   try {
-    const { title = "", markdown = "" } = await req.json();
+    const { title = "", markdown = "", format = "docx" } = await req.json();
     if (!markdown || !String(markdown).trim()) {
       return Response.json({ ok: false, error: "markdown required" }, { status: 400 });
     }
 
-    const tokens = marked.lexer(String(markdown));
-    const body = blocksToDocx(tokens);
+    const isPdf = String(format).toLowerCase() === "pdf";
+    const buffer = isPdf
+      ? await markdownToPdf(markdown, title)
+      : await buildDocx(markdown, title);
 
-    // A title paragraph up top (if provided and not already the first heading).
-    const children = [];
-    if (title && tokens[0]?.type !== "heading") {
-      children.push(new Paragraph({
-        heading: HeadingLevel.TITLE,
-        alignment: AlignmentType.LEFT,
-        spacing: { after: 200 },
-        children: [new TextRun({ text: String(title) })],
-      }));
-    }
-    children.push(...body);
-
-    const doc = new Document({
-      styles: {
-        default: {
-          document: { run: { font: "Calibri", size: 22 } },
-        },
-      },
-      sections: [{ properties: {}, children }],
-    });
-
-    const buffer = await Packer.toBuffer(doc);
     return Response.json({
       ok: true,
-      filename: safeFilename(title),
-      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      filename: safeFilename(title, isPdf ? "pdf" : "docx"),
+      mime: isPdf ? PDF_MIME : DOCX_MIME,
       base64: Buffer.from(buffer).toString("base64"),
     });
   } catch (e) {

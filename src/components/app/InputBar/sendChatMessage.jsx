@@ -289,11 +289,11 @@ function extractDocBlock(text) {
 // Build the .docx from the extracted markdown, upload it, and patch the message
 // with a download card. Runs AFTER the answer is on screen, so it never delays
 // the reply; if anything fails, the answer still stands (just no file).
-async function generateAndAttachDoc({ uid, docMarkdown, docTitle, inTopic, topicId, chatId, aiMessageId }) {
+async function generateAndAttachDoc({ uid, docMarkdown, docTitle, format, inTopic, topicId, chatId, aiMessageId }) {
   const res = await fetch("/api/generate-doc", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: docTitle, markdown: docMarkdown }),
+    body: JSON.stringify({ title: docTitle, markdown: docMarkdown, format }),
   });
   if (!res.ok) return;
   const data = await res.json();
@@ -912,10 +912,12 @@ if (res.body && contentType.includes("text/event-stream")) {
     // Persisted final text — drop the live overlay (Firestore now drives it).
     clearStreamingMessage?.(aiMessageId);
 
-    // Build + attach the Word file AFTER the answer is on screen (best-effort).
+    // Build + attach the file AFTER the answer is on screen (best-effort).
+    // Format follows the user's request — PDF if they asked for it, else Word.
     if (docMarkdown && !aborted) {
+      const format = /\bpdf\b|пдф/i.test(ragQuestion) ? "pdf" : "docx";
       generateAndAttachDoc({
-        uid: currentUser.uid, docMarkdown, docTitle,
+        uid: currentUser.uid, docMarkdown, docTitle, format,
         inTopic, topicId, chatId, aiMessageId,
       }).catch((e) => console.error("doc generation failed:", e?.message || e));
     }
