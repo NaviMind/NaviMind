@@ -18,7 +18,7 @@ import {
   countChatMessages,
   setChatTopicSuggestion,
 } from "@/firebase/chatStore";
-import { indexTextSnippet } from "./attachmentProcessing";
+import { indexTextSnippet, uploadFileToStorage } from "./attachmentProcessing";
 import { updateUserProfile, recordTokenUsage, getUsageStatus } from "@/firebase/userRepo";
 import { fetchChatSummary } from "@/ai/chatSummary";
 import { fetchChatTitle } from "@/ai/chatTitle";
@@ -269,6 +269,44 @@ async function maybeSuggestTopic({ uid, chatId, summary, messages }) {
 
 const summaryLocks = new Set();
 const sendLocks = new Set();
+
+// ── Downloadable documents ───────────────────────────────────────────────────
+// The assistant wraps a document it should turn into a file in a ```navimind-doc
+// block. Pull it out (with a title from the first "# heading"), and return the
+// answer text with the block removed — the block becomes a download card instead.
+const DOC_BLOCK_RE = /```navimind-doc\s*\n?([\s\S]*?)```/;
+function extractDocBlock(text) {
+  const src = String(text || "");
+  const m = src.match(DOC_BLOCK_RE);
+  if (!m) return { docMarkdown: null, docTitle: "", cleaned: src };
+  const docMarkdown = m[1].trim();
+  const titleMatch = docMarkdown.match(/^#\s+(.+)$/m);
+  const docTitle = (titleMatch ? titleMatch[1] : "Document").trim();
+  const cleaned = src.replace(DOC_BLOCK_RE, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { docMarkdown, docTitle, cleaned };
+}
+
+// Build the .docx from the extracted markdown, upload it, and patch the message
+// with a download card. Runs AFTER the answer is on screen, so it never delays
+// the reply; if anything fails, the answer still stands (just no file).
+async function generateAndAttachDoc({ uid, docMarkdown, docTitle, inTopic, topicId, chatId, aiMessageId }) {
+  const res = await fetch("/api/generate-doc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: docTitle, markdown: docMarkdown }),
+  });
+  if (!res.ok) return;
+  const data = await res.json();
+  if (!data?.ok || !data.base64) return;
+
+  const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
+  const file = new File([bytes], data.filename, { type: data.mime });
+  const meta = await uploadFileToStorage({ uid, file });
+
+  const generatedFile = { name: data.filename, type: data.mime, url: meta.url, path: meta.path };
+  if (inTopic) await updateTopicChatMessage(topicId, chatId, aiMessageId, { generatedFile });
+  else await updateGlobalChatMessage(chatId, aiMessageId, { generatedFile });
+}
 
 export async function sendChatMessage({
   message,
@@ -696,9 +734,14 @@ if (res.body && contentType.includes("text/event-stream")) {
     if (!setStreamingMessage || !aiMessageId) return;
     // Hide citation markers while streaming (they resolve to pills only once the
     // final message is saved): drop complete markers and any partial at the end.
+    // Also hide the raw ```navimind-doc block — it becomes a download card at the
+    // end; while it streams show a small "preparing document" line instead of the
+    // raw markdown.
     const live = finalText
       .replace(/\[\[\s*cite:[^\]]*\]\]/gi, "")
-      .replace(/\[\[\s*cite:[^\]]*$/i, "");
+      .replace(/\[\[\s*cite:[^\]]*$/i, "")
+      .replace(/```navimind-doc[\s\S]*?```/g, "\n\n📄 _Preparing your document…_\n\n")
+      .replace(/```navimind-doc[\s\S]*$/g, "\n\n📄 _Preparing your document…_\n\n");
     setStreamingMessage(aiMessageId, live);
   };
   const scheduleLive = () => {
@@ -848,10 +891,14 @@ if (res.body && contentType.includes("text/event-stream")) {
     )
     .slice(0, 3);
 
+  // If the assistant produced a downloadable-document block, pull it out so the
+  // saved answer shows the intro + a download card — never the raw markdown block.
+  const { docMarkdown, docTitle, cleaned: cleanedText } = extractDocBlock(finalText);
+
   // финальный апдейт ОДИН РАЗ
   if (aiMessageId) {
    const payload = {
-  content: finalText || (aborted ? "Stopped." : " "),
+  content: cleanedText || (aborted ? "Stopped." : " "),
   sources: streamedSources,
   fileSources,
   referencedDrawings,
@@ -864,6 +911,14 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
     // Persisted final text — drop the live overlay (Firestore now drives it).
     clearStreamingMessage?.(aiMessageId);
+
+    // Build + attach the Word file AFTER the answer is on screen (best-effort).
+    if (docMarkdown && !aborted) {
+      generateAndAttachDoc({
+        uid: currentUser.uid, docMarkdown, docTitle,
+        inTopic, topicId, chatId, aiMessageId,
+      }).catch((e) => console.error("doc generation failed:", e?.message || e));
+    }
   }
 } else {
   // Not an event-stream → the API errored before it could stream (e.g. a 500).

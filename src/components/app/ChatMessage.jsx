@@ -232,8 +232,36 @@ function splitHighlight(text) {
   return { main: lines.slice(0, -1).join("\n\n"), highlight: lastLine };
 }
 
+// Download card for a document the assistant generated/edited (a Word file).
+function GeneratedDocCard({ file, onOpen }) {
+  const href = `/api/drawings/download?url=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`;
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-gray-800/60 max-w-[340px] shadow-sm">
+      <button onClick={onOpen} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+        <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 shrink-0">
+          <FileTypeIcon name={file.name} type={file.type} size={20} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-gray-800 dark:text-white/90 truncate">{file.name}</span>
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-blue-500 dark:text-blue-400">
+            Word · ready to download
+          </span>
+        </span>
+      </button>
+      <a
+        href={href}
+        download={file.name}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0 inline-flex items-center rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-1.5 transition"
+      >
+        Download
+      </a>
+    </div>
+  );
+}
+
 // Assistant message — Copy + Share appear only after the answer is complete
-function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null }) {
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null, downloadSlot = null }) {
   const text = String(content ?? "");
 
   const isSyncing =
@@ -273,6 +301,9 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
             </div>
           </div>
         )}
+
+        {/* A generated/edited document to download — right under the answer. */}
+        {downloadSlot}
 
         {/* Visual sources (plan regions / drawing) — right under the answer, BEFORE
             the actions and follow-up suggestions, so they read as part of the answer. */}
@@ -352,7 +383,7 @@ function PlanRegions({ tiles = [], onZoom }) {
 }
 
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [] } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [], generatedFile = null } = message;
   const { setPendingPrompt } = useContext(UIContext);
   const { streamingMessages } = useContext(ChatContext);
 
@@ -497,6 +528,17 @@ export default function ChatMessage({ message, isLast = false }) {
           onCite={handleCite}
           isWaiting={isWaiting}
           sourcesSlot={sourcesSlot}
+          downloadSlot={
+            generatedFile?.url ? (
+              <GeneratedDocCard
+                file={generatedFile}
+                onOpen={() => {
+                  const src = getViewerSrc(generatedFile);
+                  if (src) setActiveDoc({ src, url: getFileUrl(generatedFile), name: generatedFile.name });
+                }}
+              />
+            ) : null
+          }
         />
         {zoomTile && (
           <div

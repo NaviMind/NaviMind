@@ -15,6 +15,29 @@ import { regulatoryEvidenceGuidance } from "@/ai/regulatoryEvidenceGuidance";
 import { assistantRoleAndValue } from "@/ai/assistantRoleAndValue";
 import { operationalReasoningPolicy } from "@/ai/operationalReasoningPolicy";
 import { webAutonomyPolicy } from "@/ai/webAutonomyPolicy";
+import { documentGenerationGuidance } from "@/ai/documentGenerationGuidance";
+
+// True when the user is asking for a downloadable file — generate a document
+// (checklist/report/form/letter/procedure) or edit an uploaded one. Gates whether
+// the document-generation guidance is loaded into the prompt.
+function needsDocGeneration(question) {
+  if (!question) return false;
+  const q = question.toLowerCase();
+  const wantsFile =
+    /\b(download|\.docx?|word file|as a (word|doc|document)|pdf)\b/.test(q) ||
+    /(скачать|ворд|в ворде|документ|файл|бланк|шаблон|word)/.test(q);
+  const docNoun =
+    /\b(checklist|check-list|form|report|letter|procedure|template|memo|plan|table|document|protocol)\b/.test(q) ||
+    /(чек-?лист|форм|отчёт|отчет|письмо|процедур|шаблон|бланк|документ|таблиц|протокол|акт)/.test(q);
+  const createVerb =
+    /\b(generate|create|make|draft|write up|build|prepare|produce|fill (in|out))\b/.test(q) ||
+    /(сгенерируй|создай|сделай|состав|подготов|напиши|заполни|оформи)/.test(q);
+  const editVerb =
+    /\b(edit|update|revise|modify|change|amend|correct|rewrite)\b/.test(q) ||
+    /(отредактир|поправ|исправ|измени|перепиши|дополни)/.test(q);
+  // Create a document, OR (edit/produce something) that clearly targets a file.
+  return (createVerb && docNoun) || ((editVerb || createVerb) && wantsFile) || (docNoun && wantsFile);
+}
 
 function isOperationalScenario(question) {
   if (!question) return false;
@@ -603,6 +626,7 @@ const perMessageGuidance = [
   fileCitationBlock,
   isOperationalScenario(question) ? operationalReasoningPolicy : null,
   needsWebSearch(question, vesselProfile) ? webAutonomyPolicy : null,
+  needsDocGeneration(question) ? documentGenerationGuidance : null,
 ].filter(Boolean).join("\n\n---\n\n");
 
     if (!process.env.ANTHROPIC_API_KEY) {
