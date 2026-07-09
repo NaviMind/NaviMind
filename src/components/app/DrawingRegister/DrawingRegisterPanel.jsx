@@ -1154,19 +1154,15 @@ export default function DrawingRegisterPanel() {
                             }`}>
                               {p.status === "failed"
                                 ? <AlertCircle size={18} />
-                                : <Loader2 size={18} className="animate-spin" />}
+                                : <PipelineRing status={p.status} progress={p.progress} />}
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-gray-800 dark:text-white/90 truncate">{p.name}</p>
-                              <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
-                                {p.status === "uploading" && `Uploading… ${p.progress}%`}
-                                {p.status === "rendering" && "Converting pages…"}
-                                {p.status === "reading" && "Reading document…"}
-                                {p.status === "indexing" && "Processing for AI…"}
-                                {p.status === "failed" && (
-                                  <span className="text-red-500 dark:text-red-400">{p.error}</span>
-                                )}
-                              </p>
+                              {/* No stage labels — the single ring conveys progress. Only a
+                                  terminal failure (which the user must act on) is spelled out. */}
+                              {p.status === "failed" && (
+                                <p className="text-[11px] font-medium text-red-500 dark:text-red-400">{p.error}</p>
+                              )}
                             </div>
                             {p.status === "failed" && (
                               <button
@@ -1371,6 +1367,45 @@ export default function DrawingRegisterPanel() {
     </AnimatePresence>
     </>,
     portalTarget
+  );
+}
+
+// ONE unified progress ring for the whole drawing/manual pipeline — upload,
+// convert, read, index — shown as a single percentage. No stage labels: the user
+// doesn't need to know which internal step is running. Upload maps to 0–80%; the
+// indeterminate steps (rendering/reading/indexing) each set a floor and creep
+// toward 98%, and the percentage only ever moves forward.
+function PipelineRing({ status, progress }) {
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    if (status === "uploading") {
+      setPct((p) => Math.max(p, Math.min(80, Math.round((progress || 0) * 0.8))));
+      return;
+    }
+    const floor = { rendering: 82, reading: 89, indexing: 94 }[status];
+    if (floor != null) {
+      setPct((p) => Math.max(p, floor));
+      const id = setInterval(() => setPct((p) => (p < 98 ? p + 1 : p)), 500);
+      return () => clearInterval(id);
+    }
+  }, [status, progress]);
+
+  const size = 34, stroke = 3;
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r;
+  const shown = Math.min(100, Math.max(0, Math.round(pct)));
+  const offset = circ - (shown / 100) * circ;
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="currentColor" strokeWidth={stroke} fill="none" className="text-blue-500/20" />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} stroke="currentColor" strokeWidth={stroke} fill="none"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          className="text-blue-500 transition-[stroke-dashoffset] duration-300"
+        />
+      </svg>
+      <span className="absolute text-[8px] font-semibold text-blue-500 dark:text-blue-400">{shown}%</span>
+    </div>
   );
 }
 
