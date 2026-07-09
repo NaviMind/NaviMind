@@ -351,6 +351,7 @@ export async function POST(req) {
       imageUrls = [],
       documentFiles = [],
       vectorStoreIds = [],
+      docStoreId = "",
       vesselProfile = null,
       topicInstruction = "",
       topicMemory = "",
@@ -707,9 +708,10 @@ const perMessageGuidance = [
           // ── Retrieval step (OpenAI vector DB) ──
           // Pull the most relevant chunks from the user's documents ourselves,
           // then hand them to Claude as context (retrieve-then-generate).
+          let chunks = [];
           let retrievedBlock = null;
           if (hasDocs) {
-            let chunks = await retrieveContext(question, allVectorStoreIds, maxResults);
+            chunks = await retrieveContext(question, allVectorStoreIds, maxResults);
             // Respect the "past conversation memory" toggle: drop memory-* files.
             if (!searchPastChats) {
               chunks = chunks.filter(
@@ -723,21 +725,75 @@ const perMessageGuidance = [
             ? `IMPORTANT CONTEXT FROM EARLIER IN THIS CHAT.\nThis information MUST be considered when answering the user.\n${summary}`
             : null;
 
-          // Faithful whole-document editing: when the request is a document task,
-          // give the model the FULL text (not just retrieved chunks) of the doc it
-          // should edit. The target is the text-document attached now OR, if none,
-          // the most recent one from earlier in the chat ("edit the file I sent
-          // before" works). Bounded to a couple of files / a char cap.
-          let originalDocsBlock = null;
-          if (needsDocGeneration(question)) {
-            const CAP = Number(process.env.DOC_EDIT_TEXT_CAP) || 40000;
-            const isDocAttachment = (a) =>
-              a?.url &&
-              !(a.type || "").startsWith("image/") &&
-              /\.(docx?|pdf|txt|md|markdown|csv|json|rtf|html?)$/i.test(a.name || "");
+          const CAP = Number(process.env.DOC_EDIT_TEXT_CAP) || 40000;
+          const isDocAttachment = (a) =>
+            a?.url &&
+            !(a.type || "").startsWith("image/") &&
+            /\.(docx?|pdf|txt|md|markdown|csv|json|rtf|html?)$/i.test(a.name || "");
 
-            // Candidate edit targets: this message's docs first, then the most
-            // recent document attachments from history (newest-first), deduped.
+          // Documents attached in THIS message are the SUBJECT of the question.
+          const currentDocs = documentFiles.filter(isDocAttachment);
+
+          let originalDocsBlock = null;
+
+          if (currentDocs.length) {
+            // GROUND STRICTLY ON THE ATTACHED FILE(S). A question about "this file"
+            // must never be answered from a different library/drawing document
+            // (the bug: an attached charter party was described as an unrelated
+            // Officer Matrix). Prefer full text; else the file's OWN indexed chunks
+            // (retrieved scoped to the document store, not the merged pool); and
+            // drop every non-attached chunk so nothing else can contaminate.
+            const attachedNames = currentDocs.map((d) => String(d.name || "").toLowerCase());
+            const stripTxt = (n) => String(n || "").toLowerCase().replace(/\.txt$/, "");
+            const isFromAttached = (cn) => {
+              const c = stripTxt(cn);
+              return attachedNames.some((n) => c === n || c.endsWith(n) || n.endsWith(c));
+            };
+
+            // Dedicated retrieval scoped to the document store, so the attached
+            // file's own chunks surface even if drawings outrank them in the pool.
+            let attachedChunks = [];
+            if (docStoreId) {
+              const scoped = await retrieveContext(question, [docStoreId], Math.max(maxResults, 8));
+              attachedChunks = scoped.filter((c) => isFromAttached(c.filename));
+            }
+            if (!attachedChunks.length) attachedChunks = chunks.filter((c) => isFromAttached(c.filename));
+
+            const fullTexts = [];
+            for (const f of currentDocs.slice(0, 2)) {
+              const t = (await extractDocText(f)).trim();
+              if (t) fullTexts.push(`FILE: ${f.name}\n${t.slice(0, CAP)}`);
+            }
+
+            // Only the attached file's own content may inform an answer about it.
+            retrievedBlock = attachedChunks.length ? buildRetrievedBlock(attachedChunks) : null;
+
+            const names = currentDocs.map((d) => d.name).join(", ");
+            if (fullTexts.length || attachedChunks.length) {
+              originalDocsBlock = [
+                "═══════════════════════════════════════════",
+                "ATTACHED FILE(S) — THE SUBJECT OF THIS MESSAGE",
+                "═══════════════════════════════════════════",
+                `The user attached the following in THIS message and is asking about it: ${names}.`,
+                "Ground your answer ONLY in the content of this/these file(s) — the full text and/or retrieved passages below. NEVER describe a different document from the library or drawings as if it were this attachment. If asked to edit, output the COMPLETE edited document in the download block.",
+                ...(fullTexts.length ? ["", fullTexts.join("\n\n---\n\n")] : []),
+                "═══════════════════════════════════════════",
+              ].join("\n");
+            } else {
+              // Attached, but no readable content (scan not OCR'd yet / needs
+              // re-upload). Do NOT fall back to other files — say so honestly.
+              retrievedBlock = null;
+              originalDocsBlock = [
+                "═══════════════════════════════════════════",
+                "ATTACHED FILE — NOT READABLE YET",
+                "═══════════════════════════════════════════",
+                `The user attached "${names}" but its text is not available yet — it may be a scan still being processed, or one that needs re-uploading. Tell the user this plainly and ask them to try again in a moment or re-upload. You do NOT have this file's content, so do NOT answer from any other document.`,
+                "═══════════════════════════════════════════",
+              ].join("\n");
+            }
+          } else if (needsDocGeneration(question)) {
+            // No document attached now, but a document task → let the user edit the
+            // most recent document from earlier in the chat.
             const seen = new Set();
             const candidates = [];
             const add = (a) => {
@@ -746,12 +802,10 @@ const perMessageGuidance = [
                 candidates.push({ name: a.name, type: a.type, url: a.url });
               }
             };
-            documentFiles.forEach(add);
             for (let i = chatHistory.length - 1; i >= 0 && candidates.length < 2; i--) {
               const m = chatHistory[i];
               if (m?.role === "user" && Array.isArray(m.attachments)) m.attachments.forEach(add);
             }
-
             const parts = [];
             for (const f of candidates.slice(0, 2)) {
               const t = (await extractDocText(f)).trim();

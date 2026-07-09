@@ -551,12 +551,13 @@ sendLocks.add(sendKey);
       reused: !!a.reused,
     }));
 
-  // Document names are sent so the model knows which files it may cite.
-  const documentPayloads = searchableDocs.map((d) => ({
-    name: d.name,
-    type: d.type,
-    url: d.url,
-  }));
+  // ALL non-image document attachments in this message (indexed or not) — so the
+  // server always knows a document is the subject of the question and grounds the
+  // answer on it (or says it can't read it), instead of answering from the
+  // account-wide drawings library.
+  const documentPayloads = usableAttachments
+    .filter((a) => !a.isImage && a.url)
+    .map((a) => ({ name: a.name, type: a.type, url: a.url }));
 
   // Resolve the vector store to search. New docs already carry their store id;
   // otherwise fall back to the scope's persistent store so earlier uploads stay
@@ -700,6 +701,10 @@ if (inTopic) {
       imageUrls: uploadedImages.map((a) => a.url),
       documentFiles: documentPayloads,
       vectorStoreIds,
+      // The store the attached DOCUMENTS live in (not the account-wide drawings
+      // store) — lets the server ground a question about an attached file on THAT
+      // file's own content instead of the whole merged library.
+      docStoreId: vectorStoreId || "",
       vesselProfile,
       topicInstruction,
       topicMemory: memorySettings.searchPastChats === false ? "" : (inTopic ? topicMemory : globalChatMemory),
