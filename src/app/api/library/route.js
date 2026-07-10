@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import * as XLSX from "xlsx";
 import sharp from "sharp";
+import { hasLlamaKey, llamaParseToMarkdown } from "@/lib/llamaParse";
 
 export const runtime = "nodejs";
 // OCR of scanned PDFs (vision) can take a while for multi-page docs — allow a
@@ -374,13 +375,24 @@ export async function POST(req) {
               results.push({ ...base, openaiFileId: null, status: "failed", reason: "scan-too-large" });
               continue;
             }
+            // PRIMARY: LlamaParse — parses page by page, robust on multi-page
+            // scans and tables (a whole-file vision call truncates big scans).
+            // FALLBACK: the OpenAI-vision OCR, so nothing breaks if LlamaParse is
+            // unconfigured or fails.
             let ocrText = "";
-            try {
-              ocrText = await ocrPdfToText(buffer, file.name);
-            } catch (e) {
-              console.error("library: OCR call failed", file?.name, e?.message);
-              results.push({ ...base, openaiFileId: null, status: "failed", reason: "ocr-error" });
-              continue;
+            if (hasLlamaKey()) {
+              ocrText = await llamaParseToMarkdown(buffer, file.name, {
+                contentType: file.type || "application/pdf",
+              });
+            }
+            if (!ocrText) {
+              try {
+                ocrText = await ocrPdfToText(buffer, file.name);
+              } catch (e) {
+                console.error("library: OCR call failed", file?.name, e?.message);
+                results.push({ ...base, openaiFileId: null, status: "failed", reason: "ocr-error" });
+                continue;
+              }
             }
             if (!ocrText || ocrText.length <= 20) {
               console.error("library: OCR returned no text", file?.name);
