@@ -947,6 +947,13 @@ const perMessageGuidance = [
             }
           }
 
+          // Anthropic REJECTS any message with empty content ("messages.N: user
+          // messages must have non-empty content"). A stored turn is empty when the
+          // user attached a DOCUMENT without typing text: it's indexed to the vector
+          // store (so not carried here as an image) and the persisted text is "".
+          // Backfill those with a placeholder rather than sending an empty string,
+          // or the whole follow-up request 400s and the answer just hangs.
+          const EMPTY_TURN_PLACEHOLDER = "(no text — the user attached a file)";
           const historyMsgs = chatHistory
             .filter((m) => m && (m.role === "user" || m.role === "assistant"))
             .map((m) => {
@@ -966,16 +973,25 @@ const perMessageGuidance = [
                   : [...imgs];
                 return { role: m.role, content: blocks };
               }
-              return { role: m.role, content: text };
+              // No carried images → plain text turn; backfill empty text so the
+              // message never goes out with empty content.
+              return { role: m.role, content: text.trim() || EMPTY_TURN_PLACEHOLDER };
             });
           while (historyMsgs[0]?.role === "assistant") historyMsgs.shift();
+
+          // The current turn always needs at least a non-empty text block; fall
+          // back to a default instruction when the user typed nothing but attached
+          // files (images/drawings alone don't count as text content for Claude).
+          const questionText =
+            String(question ?? "").trim() ||
+            "Please review the attached file(s) and answer based on them.";
 
           const messages = [
             ...historyMsgs,
             {
               role: "user",
               content: [
-                { type: "text", text: String(question) },
+                { type: "text", text: questionText },
                 ...drawingImageUrls.map(toImageBlock).filter(Boolean),
                 ...imageUrls.map(toImageBlock).filter(Boolean),
               ],
