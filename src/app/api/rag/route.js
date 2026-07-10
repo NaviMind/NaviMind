@@ -247,7 +247,9 @@ async function retrieveContext(question, storeIds, maxResults = FILE_SEARCH_MAX_
           rewrite_query: true,
           ranking_options: { ranker: "auto", score_threshold: FILE_SEARCH_SCORE_THRESHOLD },
         })
-        .then((r) => r.data || [])
+        // Tag each chunk with the store it came from, so we can label its
+        // provenance (documents vs drawings vs past-chat memory) downstream.
+        .then((r) => (r.data || []).map((c) => ({ ...c, _storeId: id })))
         .catch((e) => {
           console.error("Vector store search failed:", id, e?.message || e);
           return [];
@@ -260,28 +262,47 @@ async function retrieveContext(question, storeIds, maxResults = FILE_SEARCH_MAX_
     .slice(0, maxResults);
 }
 
-// Turn retrieved chunks into a system-prompt block. Each chunk is labelled with
-// its source filename so the model can cite it inline via [[cite:FILENAME]].
-function buildRetrievedBlock(chunks) {
-  if (!chunks.length) return null;
-  const parts = chunks.map((c) => {
-    let text = (c.content || [])
-      .map((p) => p?.text)
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-    if (text.length > FILE_SEARCH_CHUNK_CHARS) {
-      text = text.slice(0, FILE_SEARCH_CHUNK_CHARS) + "…";
-    }
-    return `SOURCE FILE: ${c.filename || "unknown"}\n${text}`;
-  });
+function chunkText(c) {
+  let text = (c.content || []).map((p) => p?.text).filter(Boolean).join("\n").trim();
+  if (text.length > FILE_SEARCH_CHUNK_CHARS) text = text.slice(0, FILE_SEARCH_CHUNK_CHARS) + "…";
+  return text;
+}
+
+// THE SEARCH CONTRACT — group retrieved chunks by PROVENANCE so the model knows
+// where each passage came from and how to weight it. This is what stops search
+// from "going to the wrong place": a past-chat memory snippet can no longer be
+// mistaken for document content, and drawings vs uploaded documents are distinct.
+function buildRetrievedBlock(chunks, { drawingsStoreId = "" } = {}) {
+  if (!chunks?.length) return null;
+  const isMemory = (c) => String(c.filename || "").startsWith("memory-");
+  const isDrawing = (c) => drawingsStoreId && c._storeId === drawingsStoreId;
+
+  const docs = [], draws = [], mems = [];
+  for (const c of chunks) {
+    if (isMemory(c)) mems.push(c);
+    else if (isDrawing(c)) draws.push(c);
+    else docs.push(c);
+  }
+
+  const section = (title, note, list) =>
+    list.length
+      ? [`── ${title} ──`, note, "", list.map((c) => `SOURCE FILE: ${c.filename || "unknown"}\n${chunkText(c)}`).join("\n\n---\n\n")].join("\n")
+      : null;
+
+  const parts = [
+    section("YOUR DOCUMENTS", "Files the user uploaded. Cite each fact used from here inline via [[cite:EXACT_FILENAME]].", docs),
+    section("VESSEL DRAWINGS & MANUALS", "The user's vessel drawings/manuals. Cite via [[cite:EXACT_FILENAME]] when used.", draws),
+    section("PAST-CONVERSATION MEMORY", "Background continuity from earlier chats — NOT a source. Use only for context; NEVER cite these files.", mems),
+  ].filter(Boolean);
+  if (!parts.length) return null;
+
   return [
     "═══════════════════════════════════════════",
-    "RETRIEVED LIBRARY CONTEXT (from the user's documents)",
+    "RETRIEVED CONTEXT — GROUPED BY SOURCE",
     "═══════════════════════════════════════════",
-    "The passages below were retrieved from the user's uploaded documents as most relevant to this question. Prefer these facts over generic knowledge, and cite the SOURCE FILE inline via [[cite:EXACT_FILENAME]] when a claim comes from one. If they don't answer the question, say so — do not invent a source.",
+    "Prefer these facts over generic knowledge. WEIGHTING: an attached file (if any) is the primary source; then YOUR DOCUMENTS and VESSEL DRAWINGS as cited sources; PAST-CONVERSATION MEMORY is background only. Never present a passage from one file as if it came from another. If nothing here answers the question, say so — do not invent a source.",
     "",
-    parts.join("\n\n---\n\n"),
+    parts.join("\n\n"),
     "═══════════════════════════════════════════",
   ].join("\n");
 }
@@ -352,6 +373,7 @@ export async function POST(req) {
       documentFiles = [],
       vectorStoreIds = [],
       docStoreId = "",
+      drawingsStoreId = "",
       vesselProfile = null,
       topicInstruction = "",
       topicMemory = "",
@@ -742,7 +764,7 @@ const perMessageGuidance = [
                 (c) => !String(c.filename || "").startsWith("memory-")
               );
             }
-            retrievedBlock = buildRetrievedBlock(chunks);
+            retrievedBlock = buildRetrievedBlock(chunks, { drawingsStoreId });
           }
 
           const summaryBlock = summary
@@ -807,7 +829,7 @@ const perMessageGuidance = [
             // Isolate to the attached file's own content — UNLESS comparing, where
             // the full retrieval (other files' chunks) must stay available.
             if (!wantsCrossFile) {
-              retrievedBlock = attachedChunks.length ? buildRetrievedBlock(attachedChunks) : null;
+              retrievedBlock = attachedChunks.length ? buildRetrievedBlock(attachedChunks, { drawingsStoreId }) : null;
             }
 
             const names = currentDocs.map((d) => d.name).join(", ");

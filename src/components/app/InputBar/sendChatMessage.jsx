@@ -718,6 +718,9 @@ if (inTopic) {
       // store) — lets the server ground a question about an attached file on THAT
       // file's own content instead of the whole merged library.
       docStoreId: vectorStoreId || "",
+      // The drawings store — so the server can label retrieved chunks by source
+      // (your documents vs vessel drawings) and weight them correctly.
+      drawingsStoreId: drawingsStoreId || "",
       vesselProfile,
       topicInstruction,
       topicMemory: memorySettings.searchPastChats === false ? "" : (inTopic ? topicMemory : globalChatMemory),
