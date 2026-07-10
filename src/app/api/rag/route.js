@@ -366,6 +366,10 @@ export async function POST(req) {
       // uploaded. Their content is searchable via File Search; this list makes the
       // model AWARE of what exists so it searches instead of answering generically.
       vesselLibrary = [],
+      // The user's DOCUMENT library (chat-uploaded files: forms, reports, charter
+      // parties, etc.) — the "file registry". Lets the model know what documents
+      // exist so it can reference and COMPARE them by name.
+      documentLibrary = [],
     } = body;
 
     // Documents are no longer parsed inline — their content reaches the model
@@ -642,6 +646,25 @@ const vesselLibraryBlock = (Array.isArray(vesselLibrary) && vesselLibrary.length
     ].join("\n")
   : null;
 
+// FILE REGISTRY — the user's uploaded DOCUMENTS (not drawings): forms, reports,
+// charter parties, certificates, etc. Making the model aware of what exists lets
+// it reference a file by name and COMPARE two files when asked, instead of living
+// "moment to moment" with no link between files.
+const documentLibraryBlock = (Array.isArray(documentLibrary) && documentLibrary.length)
+  ? [
+      "═══════════════════════════════════════════",
+      "DOCUMENT LIBRARY — THE USER'S UPLOADED FILES (SEARCHABLE)",
+      "═══════════════════════════════════════════",
+      "These documents the user has uploaded are available to you via File Search:",
+      ...documentLibrary.slice(0, 60).map((d) => `- ${d.name}${d.kind ? ` [${d.kind}]` : ""}`),
+      "",
+      "RULES:",
+      "- When the user names one of these files, or asks to COMPARE / cross-check two of them, retrieve from the relevant file(s) and answer from their actual content — cite each fact to its source file inline ([[cite:EXACT_FILENAME]]).",
+      "- NEVER present content from one file as if it came from another. If you cannot find the named file's content, say so instead of substituting a different file.",
+      "═══════════════════════════════════════════",
+    ].join("\n")
+  : null;
+
 // Split the system prompt by volatility so we can PROMPT-CACHE the stable part.
 // The stable prefix (base instructions + vessel profile + library + topic
 // context) is identical across messages in a session, so Claude caches it and
@@ -652,6 +675,7 @@ const stableSystemText = [
   basePrompt,
   vesselBlock,
   vesselLibraryBlock,
+  documentLibraryBlock,
   topicInstructionBlock,
 ].filter(Boolean).join("\n\n---\n\n");
 
@@ -750,6 +774,21 @@ const perMessageGuidance = [
               return attachedNames.some((n) => c === n || c.endsWith(n) || n.endsWith(c));
             };
 
+            // Cross-file mode: the user wants to COMPARE the attached file with
+            // another one (by intent word, or by naming another library file). In
+            // that case we must NOT isolate — the other file's content has to stay
+            // available. Otherwise (the default) we isolate to prevent the
+            // wrong-file bug.
+            const qLower = String(question).toLowerCase();
+            const wantsCrossFile =
+              /\b(compare|versus|vs\.?|difference|differ|contrast|cross-?check|both files|other file|against the)\b/i.test(question) ||
+              /(сравн|сверь|сопостав|разниц|отлич|в отличие|оба файла|другой файл|друг с другом|со втор)/i.test(question) ||
+              (Array.isArray(documentLibrary) &&
+                documentLibrary.some((d) => {
+                  const n = String(d.name || "").toLowerCase().replace(/\.[a-z0-9]+$/, "");
+                  return n.length >= 4 && qLower.includes(n) && !attachedNames.some((a) => a.includes(n));
+                }));
+
             // Dedicated retrieval scoped to the document store, so the attached
             // file's own chunks surface even if drawings outrank them in the pool.
             let attachedChunks = [];
@@ -765,8 +804,11 @@ const perMessageGuidance = [
               if (t) fullTexts.push(`FILE: ${f.name}\n${t.slice(0, CAP)}`);
             }
 
-            // Only the attached file's own content may inform an answer about it.
-            retrievedBlock = attachedChunks.length ? buildRetrievedBlock(attachedChunks) : null;
+            // Isolate to the attached file's own content — UNLESS comparing, where
+            // the full retrieval (other files' chunks) must stay available.
+            if (!wantsCrossFile) {
+              retrievedBlock = attachedChunks.length ? buildRetrievedBlock(attachedChunks) : null;
+            }
 
             const names = currentDocs.map((d) => d.name).join(", ");
             if (fullTexts.length || attachedChunks.length) {
@@ -775,14 +817,17 @@ const perMessageGuidance = [
                 "ATTACHED FILE(S) — THE SUBJECT OF THIS MESSAGE",
                 "═══════════════════════════════════════════",
                 `The user attached the following in THIS message and is asking about it: ${names}.`,
-                "Ground your answer ONLY in the content of this/these file(s) — the full text and/or retrieved passages below. NEVER describe a different document from the library or drawings as if it were this attachment. If asked to edit, output the COMPLETE edited document in the download block.",
+                wantsCrossFile
+                  ? "This is the PRIMARY file — its full text and/or passages are below. The user is comparing it with another file; you MAY also use the other named file's retrieved content, but cite each fact to its source file ([[cite:EXACT_FILENAME]]) and never mix them up."
+                  : "Ground your answer ONLY in the content of this/these file(s) — the full text and/or retrieved passages below. NEVER describe a different document from the library or drawings as if it were this attachment. If asked to edit, output the COMPLETE edited document in the download block.",
                 ...(fullTexts.length ? ["", fullTexts.join("\n\n---\n\n")] : []),
                 "═══════════════════════════════════════════",
               ].join("\n");
             } else {
               // Attached, but no readable content (scan not OCR'd yet / needs
-              // re-upload). Do NOT fall back to other files — say so honestly.
-              retrievedBlock = null;
+              // re-upload). Do NOT fall back to other files — say so honestly
+              // (unless comparing, where the other file's content is still valid).
+              if (!wantsCrossFile) retrievedBlock = null;
               originalDocsBlock = [
                 "═══════════════════════════════════════════",
                 "ATTACHED FILE — NOT READABLE YET",

@@ -680,6 +680,19 @@ if (inTopic) {
     }).catch(() => {});
   }
 
+  // ───────── FILE REGISTRY ─────────
+  // The user's uploaded documents (forms, reports, charter parties…) so the model
+  // knows what files exist and can reference / compare them by name. Excludes
+  // internal conversation-memory files.
+  let documentLibrary = [];
+  try {
+    const libFiles = await getLibraryFiles({ uid: currentUser.uid, topicId: inTopic ? topicId : null });
+    documentLibrary = libFiles
+      .filter((f) => f.name && !String(f.name).startsWith("memory-"))
+      .slice(0, 60)
+      .map((f) => ({ name: f.name }));
+  } catch { /* silent — registry is an enhancement */ }
+
   // ───────── AI REQUEST ─────────
   // AbortController lets the user stop generation; signal is passed to fetch.
   genAbortController = new AbortController();
@@ -713,6 +726,7 @@ if (inTopic) {
       crossTopicStoreIds,
       vesselDrawings,
       vesselLibrary,
+      documentLibrary,
     }),
     signal: genAbortController.signal,
   });
