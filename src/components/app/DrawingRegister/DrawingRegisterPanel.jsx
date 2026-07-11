@@ -1218,22 +1218,9 @@ export default function DrawingRegisterPanel() {
                                       {" · "}{formatBytes(file.size)}
                                     </span>
                                   ) : null}
-                                  {isAnalyzing && (
-                                    <span className="ml-2 inline-flex items-center gap-1 text-amber-500 dark:text-amber-400 font-normal normal-case tracking-normal">
-                                      <Loader2 size={10} className="animate-spin" />
-                                      Analyzing…
-                                    </span>
-                                  )}
-                                  {isIndexed && !isAnalyzing && (
-                                    <span className="ml-2 text-emerald-500 dark:text-emerald-400 font-normal normal-case tracking-normal">
-                                      ✓ Indexed
-                                    </span>
-                                  )}
-                                  {needsAnalysis && (
-                                    <span className="ml-2 text-amber-500 dark:text-amber-400 font-normal normal-case tracking-normal">
-                                      Not analyzed
-                                    </span>
-                                  )}
+                                  {/* Per-file processing status (Analyzing / Indexed /
+                                      Not analyzed) intentionally hidden — users don't
+                                      need the document-pipeline internals surfaced. */}
                                 </p>
                               </div>
                               {needsAnalysis && (
