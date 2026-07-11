@@ -743,6 +743,14 @@ const perMessageGuidance = [
         try {
           controller.enqueue(encoder.encode(sse("status", "start")));
 
+          // Progress trace: emit a `step` for each real phase of the work so the
+          // client can show a ChatGPT/Claude-style trace of what NaviMind did.
+          let _stepId = 0;
+          const emitStep = (label) =>
+            controller.enqueue(
+              encoder.encode(sse("step", JSON.stringify({ id: ++_stepId, label })))
+            );
+
           // ── Plan tier (authoritative, server-side) ──
           // Drives which reasoning model/effort the answer runs at and how many
           // document chunks it may draw on. Read from the user doc so it can't be
@@ -758,12 +766,27 @@ const perMessageGuidance = [
           let chunks = [];
           let retrievedBlock = null;
           if (hasDocs) {
+            emitStep("Searching your library");
             chunks = await retrieveContext(question, allVectorStoreIds, maxResults);
             // Respect the "past conversation memory" toggle: drop memory-* files.
             if (!searchPastChats) {
               chunks = chunks.filter(
                 (c) => !String(c.filename || "").startsWith("memory-")
               );
+            }
+            // Name the documents the answer is actually being read from.
+            const readNames = [
+              ...new Set(
+                chunks
+                  .map((c) => String(c.filename || ""))
+                  .filter((n) => n && !n.startsWith("memory-"))
+                  .map((n) => n.replace(/\.txt$/i, ""))
+              ),
+            ];
+            if (readNames.length) {
+              const shown = readNames.slice(0, 2).join(", ");
+              const more = readNames.length > 2 ? ` +${readNames.length - 2} more` : "";
+              emitStep(`Reading ${shown}${more}`);
             }
             retrievedBlock = buildRetrievedBlock(chunks, { drawingsStoreId });
           }
@@ -1032,6 +1055,11 @@ const perMessageGuidance = [
           const canThink = supportsAdaptiveThinking(chatModel);
           console.log(`[rag] starting generation | model=${chatModel} effort=${effort} thinking=${canThink} web=${useWebSearch} docs=${hasDocs}`);
 
+          if (hasDrawings) {
+            const n = vesselDrawings.length;
+            emitStep(`Analyzing ${n} vessel drawing${n === 1 ? "" : "s"}`);
+          }
+
           const genAbort = new AbortController();
           const GEN_TIMEOUT_MS = Number(process.env.ANTHROPIC_TIMEOUT_MS) || 75000;
           const watchdog = setTimeout(() => genAbort.abort(), GEN_TIMEOUT_MS);
@@ -1048,8 +1076,29 @@ const perMessageGuidance = [
             { signal: genAbort.signal }
           );
 
+          // Web search: emit a step the first time the model actually invokes the
+          // web_search server tool, so the trace only shows it when it happened.
+          let webStepSent = false;
+          claudeStream.on("streamEvent", (event) => {
+            if (webStepSent) return;
+            const cb = event?.content_block;
+            if (
+              event?.type === "content_block_start" &&
+              (cb?.type === "server_tool_use" || cb?.type === "web_search_tool_result")
+            ) {
+              webStepSent = true;
+              emitStep("Searching trusted maritime sources");
+            }
+          });
+
           // Stream text deltas out as `token` events (thinking stays server-side).
+          // The first delta marks the transition to writing the answer.
+          let writingStepSent = false;
           claudeStream.on("text", (delta) => {
+            if (!writingStepSent) {
+              writingStepSent = true;
+              emitStep("Writing the answer");
+            }
             controller.enqueue(encoder.encode(sse("token", delta)));
           });
 

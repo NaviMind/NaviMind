@@ -321,6 +321,8 @@ export async function sendChatMessage({
   setIsLoadingMessages,
   setStreamingMessage,
   clearStreamingMessage,
+  setStreamingSteps,
+  clearStreamingSteps,
   setPendingSend,
   beginGeneration,
   endGeneration,
@@ -738,6 +740,7 @@ if (inTopic) {
   let finalText = "";
   let sources = [];
   let streamedSources = [];
+  let streamedSteps = [];
   let billedTokens = 0;
   let usageServerRecorded = false;
 
@@ -816,6 +819,18 @@ if (res.body && contentType.includes("text/event-stream")) {
     console.error("Failed to parse sources:", data);
   }
 }
+
+      if (event === "step") {
+        try {
+          const s = JSON.parse(data);
+          if (s && s.label) {
+            streamedSteps.push(s);
+            if (setStreamingSteps && aiMessageId) {
+              setStreamingSteps(aiMessageId, [...streamedSteps]);
+            }
+          }
+        } catch { /* ignore malformed step */ }
+      }
 
       if (event === "usage") {
         try {
@@ -922,6 +937,7 @@ if (res.body && contentType.includes("text/event-stream")) {
    const payload = {
   content: cleanedText || (aborted ? "Stopped." : " "),
   sources: streamedSources,
+  steps: streamedSteps,
   fileSources,
   referencedDrawings,
   referencedTiles,
@@ -933,6 +949,7 @@ if (res.body && contentType.includes("text/event-stream")) {
     }
     // Persisted final text — drop the live overlay (Firestore now drives it).
     clearStreamingMessage?.(aiMessageId);
+    clearStreamingSteps?.(aiMessageId);
 
     // Build + attach the file AFTER the answer is on screen (best-effort).
     // Format follows the user's request — PDF if they asked for it, else Word.
@@ -1128,7 +1145,7 @@ if (!summaryLocks.has(summaryKey)) {
     setPendingSend?.(null);
     // Stop pressed before any answer streamed → don't show an error, just tidy up.
     if (genAbortController?.signal.aborted) {
-      if (aiMessageId) clearStreamingMessage?.(aiMessageId);
+      if (aiMessageId) { clearStreamingMessage?.(aiMessageId); clearStreamingSteps?.(aiMessageId); }
       if (aiMessageId && chatId) {
         try {
           const stopPayload = { content: "Stopped." };
@@ -1142,7 +1159,7 @@ if (!summaryLocks.has(summaryKey)) {
     } else {
       console.error("❌ sendChatMessage error:", err);
       // Clear live overlay so the UI falls back to persisted state.
-      if (aiMessageId) clearStreamingMessage?.(aiMessageId);
+      if (aiMessageId) { clearStreamingMessage?.(aiMessageId); clearStreamingSteps?.(aiMessageId); }
       // Replace the stuck placeholder so the user isn't left with an infinite spinner
       if (aiMessageId && chatId) {
         try {

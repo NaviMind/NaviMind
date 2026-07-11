@@ -6,6 +6,7 @@ import { ChatContext } from "@/context/ChatContext";
 import { Check, Copy, Share2 } from "lucide-react";
 import MessageAttachments, { getViewerSrc, getFileUrl, DocViewerModal, FileTypeIcon } from "./MessageAttachments";
 import MarkdownRenderer from "@/components/app/chat/MarkdownRenderer";
+import ProgressTrace from "@/components/app/ProgressTrace";
 
 const USER_MESSAGE_WIDTH = "max-w-[70%]";
 
@@ -261,7 +262,7 @@ function GeneratedDocCard({ file, onOpen }) {
 }
 
 // Assistant message — Copy + Share appear only after the answer is complete
-function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null, downloadSlot = null }) {
+function AssistantMessage({ content, copied, onCopy, onShare, showActions, followups = [], onFollowup, showFollowups, citations = [], onCite, isWaiting = false, sourcesSlot = null, downloadSlot = null, traceSlot = null }) {
   const text = String(content ?? "");
 
   const isSyncing =
@@ -273,11 +274,14 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
   if (isWaiting || isSyncing) {
     return (
       <div className="w-full flex justify-start mt-6">
-        <div className="flex items-center gap-3 select-none">
-          <img src="/compass.png" alt="NaviMind analyzing" className="w-10 h-10 compass-sway flex-shrink-0" />
-          <span className="text-[14px] text-gray-400 dark:text-gray-500">
-            Preparing an answer
-          </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3 select-none">
+            <img src="/compass.png" alt="NaviMind analyzing" className="w-10 h-10 compass-sway flex-shrink-0" />
+            <span className="text-[14px] text-gray-400 dark:text-gray-500">
+              Preparing an answer
+            </span>
+          </div>
+          {traceSlot}
         </div>
       </div>
     );
@@ -289,6 +293,7 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
     <div className="w-full flex justify-start mt-6">
       <div className="max-w-full space-y-4">
         <div className="max-w-[72ch]" />
+        {traceSlot}
         <div className="text-[17px] sm:text-base font-normal leading-relaxed break-words text-gray-800 dark:text-gray-200">
           <MarkdownRenderer content={main} citations={citations} onCite={onCite} />
         </div>
@@ -383,9 +388,9 @@ function PlanRegions({ tiles = [], onZoom }) {
 }
 
 export default function ChatMessage({ message, isLast = false }) {
-  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [], generatedFile = null } = message;
+  const { role, content, attachments = [], sources = [], fileSources = [], referencedDrawings = [], referencedTiles = [], steps = [], generatedFile = null } = message;
   const { setPendingPrompt } = useContext(UIContext);
-  const { streamingMessages } = useContext(ChatContext);
+  const { streamingMessages, streamingSteps } = useContext(ChatContext);
 
   const isUser = role === "user";
   const isAssistant = role === "assistant";
@@ -394,6 +399,11 @@ export default function ChatMessage({ message, isLast = false }) {
   // (tokens as they arrive) instead of the persisted Firestore content.
   const liveText = isAssistant ? streamingMessages?.[message.id] : undefined;
   const isStreaming = liveText !== undefined;
+
+  // Progress trace: live steps while streaming, else the steps saved on the
+  // finished message.
+  const liveSteps = isAssistant ? streamingSteps?.[message.id] : undefined;
+  const traceSteps = isStreaming ? liveSteps : steps;
   const sourceText = isStreaming ? String(liveText || "") : String(content || "");
 
   // Pull follow-up suggestions out of the assistant text so the ```followups```
@@ -527,6 +537,7 @@ export default function ChatMessage({ message, isLast = false }) {
           citations={citations}
           onCite={handleCite}
           isWaiting={isWaiting}
+          traceSlot={<ProgressTrace steps={traceSteps} active={isStreaming} />}
           sourcesSlot={sourcesSlot}
           downloadSlot={
             generatedFile?.url ? (

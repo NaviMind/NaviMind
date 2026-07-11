@@ -51,6 +51,20 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
       return next;
     });
 
+  // Live progress trace: assistant messageId → array of step objects
+  // ({ id, label }) the server emitted while working (library search, reading
+  // files, web search, drawings, writing) — rendered as a ChatGPT-style trace.
+  const [streamingSteps, setStreamingStepsMap] = useState({});
+  const setStreamingSteps = (id, steps) =>
+    setStreamingStepsMap((prev) => ({ ...prev, [id]: steps }));
+  const clearStreamingSteps = (id) =>
+    setStreamingStepsMap((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
   // Generation control (Stop button + abort).
   const generationAbortRef = useRef(null);
   const [generatingChatId, setGeneratingChatId] = useState(null);
@@ -188,6 +202,9 @@ export function useChatWorkspace({ projectChatSessions, setProjectChatSessions }
     streamingMessages,
     setStreamingMessage,
     clearStreamingMessage,
+    streamingSteps,
+    setStreamingSteps,
+    clearStreamingSteps,
     generatingChatId,
     beginGeneration,
     endGeneration,
