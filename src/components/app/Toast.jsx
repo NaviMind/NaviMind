@@ -1,58 +1,96 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 
-// Lightweight global toast. Fire from anywhere with:
+// Global NaviMind toast. Fire from anywhere with:
 //   window.dispatchEvent(new CustomEvent("navimind-toast", { detail: { message, type } }))
 // type: "success" (default) | "error"
-// Mounted once (in the app layout) so it survives navigation.
+//
+// Styled as a NaviMind card (compass mark + frosted panel) that slides IN from
+// the right edge and slides back OUT to the right on dismiss/timeout. Mounted
+// once in the app layout so it survives navigation.
 export default function Toast() {
   const [toast, setToast] = useState(null); // { message, type }
+  const [show, setShow] = useState(false);  // drives the slide in/out
   const [mounted, setMounted] = useState(false);
+  const hideTimer = useRef();
+  const removeTimer = useRef();
+
+  // Slide out to the right, then unmount once the transition has finished.
+  const dismiss = useCallback(() => {
+    clearTimeout(hideTimer.current);
+    clearTimeout(removeTimer.current);
+    setShow(false);
+    removeTimer.current = setTimeout(() => setToast(null), 380);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
-    let timer;
     const onToast = (e) => {
+      clearTimeout(hideTimer.current);
+      clearTimeout(removeTimer.current);
       setToast({ message: e.detail?.message || "", type: e.detail?.type || "success" });
-      clearTimeout(timer);
-      timer = setTimeout(() => setToast(null), 5000);
+      // Mount off-screen first, then slide in on the next frame.
+      requestAnimationFrame(() => requestAnimationFrame(() => setShow(true)));
+      hideTimer.current = setTimeout(() => dismiss(), 5000);
     };
     window.addEventListener("navimind-toast", onToast);
     return () => {
       window.removeEventListener("navimind-toast", onToast);
-      clearTimeout(timer);
+      clearTimeout(hideTimer.current);
+      clearTimeout(removeTimer.current);
     };
-  }, []);
+  }, [dismiss]);
 
   if (!mounted || !toast) return null;
 
   const isError = toast.type === "error";
 
   return createPortal(
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[200] px-3 w-full max-w-full flex justify-center pointer-events-none">
-      <div className={`px-4 py-2 rounded-lg flex items-center gap-2 text-white shadow font-medium w-fit min-w-[160px] max-w-full animate-fade-in pointer-events-auto
-        ${isError ? "bg-red-600" : "bg-emerald-600"}`}>
-        {isError ? (
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" />
-            <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" />
-          </svg>
-        ) : (
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-            <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-        <span className="flex-1">{toast.message}</span>
+    <div className="fixed top-5 right-5 z-[200] max-w-[calc(100vw-2.5rem)] pointer-events-none">
+      <div
+        className="pointer-events-auto flex items-center gap-3 w-[340px] max-w-full rounded-2xl
+          bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
+          shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_34px_rgba(0,0,0,0.55)]
+          ring-1 ring-black/[0.06] dark:ring-white/[0.08]
+          px-3.5 py-3"
+        style={{
+          transform: show ? "translateX(0)" : "translateX(calc(100% + 2rem))",
+          opacity: show ? 1 : 0,
+          transition:
+            "transform 380ms cubic-bezier(0.32, 0.72, 0, 1), opacity 320ms ease",
+        }}
+        role="status"
+      >
+        {/* Compass mark — the NaviMind brand, with a small red flag on errors */}
+        <span className="relative shrink-0 w-9 h-9 rounded-xl bg-blue-50 dark:bg-white/[0.06] flex items-center justify-center">
+          <img
+            src="/compass.png"
+            alt=""
+            aria-hidden
+            className="w-6 h-6 object-contain"
+            draggable={false}
+          />
+          {isError && (
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#1a2438] flex items-center justify-center">
+              <span className="text-white text-[9px] font-bold leading-none">!</span>
+            </span>
+          )}
+        </span>
+
+        <span className="flex-1 min-w-0 text-[13.5px] leading-snug text-gray-800 dark:text-gray-100">
+          {toast.message}
+        </span>
+
         <button
-          onClick={() => setToast(null)}
-          className="ml-2 flex items-center justify-center text-white/80 hover:text-white transition"
+          onClick={dismiss}
+          className="shrink-0 -mr-1 p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition"
           aria-label="Close"
         >
-          ✕
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
       </div>
     </div>,
