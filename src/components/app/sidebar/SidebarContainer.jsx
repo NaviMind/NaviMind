@@ -589,49 +589,66 @@ useEffect(() => {
 
   // Десктоп-версия — floating card. On WIDE windows it's a flex sibling that
   // pushes the work area. On NARROW windows (overlay mode) only the 4rem icon
-  // rail stays in flow; opening floats the full panel OVER the work area (with a
-  // click-away backdrop), so a small window isn't crushed.
+  // rail stays in flow; opening slides the full panel IN from the left, OVER the
+  // work area (with a click-away backdrop), so a small window isn't crushed.
   const desktopOpen = ui.isSidebarOpen;
-  const railCollapsed = overlay ? !desktopOpen : collapsedVisual;
-  const DesktopAside = (
-  <>
-    {/* Backdrop — only while overlaying the panel on a narrow desktop window */}
-    {overlay && desktopOpen && (
+
+  // The frosted card + sidebar content, at a given collapse state. Reused by the
+  // in-flow aside, the overlay rail, and the sliding overlay panel.
+  const cardPanel = (collapsed) => (
+    <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
+      bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
+      shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
+      dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
+      ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+      <div className="w-[17rem] h-full shrink-0 flex flex-col">
+        {SidebarContent({
+          showNewChatButton: true,
+          showCloseButton: true,
+          onCloseButtonClick: handleCloseSidebar,
+          collapsed,
+        })}
+      </div>
+    </div>
+  );
+
+  const DesktopAside = overlay ? (
+    <>
+      {/* Dimmed backdrop — fades in/out with the panel, click closes */}
       <div
-        className="hidden [@media(hover:hover)]:block fixed inset-0 z-[55] bg-black/20 dark:bg-black/50"
+        className="hidden [@media(hover:hover)]:block fixed inset-0 z-[55] bg-black/20 dark:bg-black/50 transition-opacity duration-300"
+        style={{ opacity: desktopOpen ? 1 : 0, pointerEvents: desktopOpen ? "auto" : "none" }}
         onClick={handleCloseSidebar}
         aria-hidden
       />
-    )}
+      {/* Icon rail — always in flow so the work area keeps its width */}
+      <aside
+        className="relative hidden [@media(hover:hover)]:flex overflow-visible flex-shrink-0 h-full text-gray-900 dark:text-white"
+        style={{ width: "4rem" }}
+      >
+        <div className="w-full h-full p-2 flex flex-col">{cardPanel(true)}</div>
+      </aside>
+      {/* Expanded panel — slides in from the left, over the work area */}
+      <div
+        className="hidden [@media(hover:hover)]:flex fixed top-0 left-0 z-[60] p-2 flex-col"
+        style={{
+          height: "var(--app-height, 100dvh)",
+          width: "18rem",
+          transform: desktopOpen ? "translateX(0)" : "translateX(-105%)",
+          transition: "transform 380ms cubic-bezier(0.32, 0.72, 0, 1)",
+          pointerEvents: desktopOpen ? "auto" : "none",
+        }}
+      >
+        {cardPanel(false)}
+      </div>
+    </>
+  ) : (
     <aside
       className="relative hidden [@media(hover:hover)]:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
-      style={{ width: overlay ? "4rem" : ui.isSidebarOpen ? "18rem" : "4rem" }}
+      style={{ width: desktopOpen ? "18rem" : "4rem" }}
     >
-      <div
-        className={`h-full p-2 flex flex-col ${
-          overlay && desktopOpen ? "absolute top-0 left-0 z-[60] w-[18rem]" : "w-full"
-        }`}
-      >
-        {/* Floating card — width follows the container. The content inside keeps a
-            fixed 17rem width, so as the card shrinks it simply clips: icons stay
-            put on the left while labels wipe away. One element, true morph. */}
-        <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
-          bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
-          shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
-          dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
-          ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
-          <div className="w-[17rem] h-full shrink-0 flex flex-col">
-            {SidebarContent({
-              showNewChatButton: true,
-              showCloseButton: true,
-              onCloseButtonClick: handleCloseSidebar,
-              collapsed: railCollapsed,
-            })}
-          </div>
-        </div>
-      </div>
+      <div className="w-full h-full p-2 flex flex-col">{cardPanel(collapsedVisual)}</div>
     </aside>
-  </>
   );
 
   // ЕДИНЫЙ return: сначала aside (мобилка или десктоп), затем TopicModal
