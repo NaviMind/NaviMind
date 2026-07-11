@@ -25,25 +25,33 @@ export default function ChatArea({ messages, children }) {
   // message lands leaves a one-frame gap with no assistant bubble, so the compass
   // vanishes and then reappears ("starts thinking again"). Waiting for both
   // removes that flicker.
+  // The user message and the assistant placeholder often arrive in SEPARATE
+  // Firestore snapshots. Track them independently so we can retire each half of
+  // the optimistic bubble as soon as its real counterpart lands:
+  //   • drop the optimistic USER bubble the moment the real user message lands
+  //     (otherwise the real + optimistic user messages BOTH show → duplicate);
+  //   • keep the optimistic ASSISTANT compass until the real assistant bubble
+  //     lands (otherwise the compass blinks out for a frame).
   const n = baseMessages.length;
-  const realPairReady =
-    n >= 2 &&
-    baseMessages[n - 1]?.role === "assistant" &&
-    baseMessages[n - 2]?.role === "user" &&
-    baseMessages[n - 2]?.content === pendingSend?.message;
+  const isForThisSend = pendingSend && pendingSend.chatId === activeChatId;
 
-  const showOptimistic =
-    pendingSend &&
-    pendingSend.chatId === activeChatId &&
-    !realPairReady;
+  const userLanded =
+    isForThisSend &&
+    ((baseMessages[n - 1]?.role === "user" && baseMessages[n - 1]?.content === pendingSend.message) ||
+     (baseMessages[n - 2]?.role === "user" && baseMessages[n - 2]?.content === pendingSend.message));
+  const assistantLanded = n >= 1 && baseMessages[n - 1]?.role === "assistant";
 
-  const displayMessages = showOptimistic
-    ? [
-        ...baseMessages,
-        { id: "__pending_user__", role: "user", content: pendingSend.message, attachments: pendingSend.attachments || [] },
-        { id: "__pending_ai__", role: "assistant", content: "NaviMind syncing…" },
-      ]
-    : baseMessages;
+  let displayMessages = baseMessages;
+  if (isForThisSend && (!userLanded || !assistantLanded)) {
+    const extra = [];
+    if (!userLanded) {
+      extra.push({ id: "__pending_user__", role: "user", content: pendingSend.message, attachments: pendingSend.attachments || [] });
+    }
+    if (!assistantLanded) {
+      extra.push({ id: "__pending_ai__", role: "assistant", content: "NaviMind syncing…" });
+    }
+    displayMessages = [...baseMessages, ...extra];
+  }
 
   const hasMessages = displayMessages.length > 0;
 
@@ -100,7 +108,7 @@ export default function ChatArea({ messages, children }) {
 
     // Новое сообщение в текущем чате → плавный скролл вниз.
     setTimeout(scrollToBottom, 50);
-  }, [messages, activeChatId, showOptimistic]);
+  }, [messages, activeChatId, isForThisSend]);
 
   // Follow the live-streaming answer: keep pinned to the bottom as tokens
   // arrive, but only if the user is already near the bottom (don't yank them
