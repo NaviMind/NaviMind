@@ -68,12 +68,12 @@ export default function Toast() {
         role="status"
       >
         {/* Compass mark — the NaviMind brand, with a small red flag on errors */}
-        <span className="relative shrink-0 w-9 h-9 rounded-xl bg-blue-50 dark:bg-white/[0.06] flex items-center justify-center">
+        <span className="relative shrink-0 w-9 h-9 flex items-center justify-center">
           <img
             src="/compass.png"
             alt=""
             aria-hidden
-            className="w-6 h-6 object-contain"
+            className="w-8 h-8 object-contain"
             draggable={false}
           />
           {isError && (
