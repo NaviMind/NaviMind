@@ -746,9 +746,9 @@ const perMessageGuidance = [
           // Progress trace: emit a `step` for each real phase of the work so the
           // client can show a ChatGPT/Claude-style trace of what NaviMind did.
           let _stepId = 0;
-          const emitStep = (label) =>
+          const emitStep = (label, kind) =>
             controller.enqueue(
-              encoder.encode(sse("step", JSON.stringify({ id: ++_stepId, label })))
+              encoder.encode(sse("step", JSON.stringify({ id: ++_stepId, label, kind })))
             );
 
           // ── Plan tier (authoritative, server-side) ──
@@ -766,7 +766,7 @@ const perMessageGuidance = [
           let chunks = [];
           let retrievedBlock = null;
           if (hasDocs) {
-            emitStep("Searching your library");
+            emitStep("Searching your library", "search");
             chunks = await retrieveContext(question, allVectorStoreIds, maxResults);
             // Respect the "past conversation memory" toggle: drop memory-* files.
             if (!searchPastChats) {
@@ -786,7 +786,7 @@ const perMessageGuidance = [
             if (readNames.length) {
               const shown = readNames.slice(0, 2).join(", ");
               const more = readNames.length > 2 ? ` +${readNames.length - 2} more` : "";
-              emitStep(`Reading ${shown}${more}`);
+              emitStep(`Reading ${shown}${more}`, "read");
             }
             retrievedBlock = buildRetrievedBlock(chunks, { drawingsStoreId });
           }
@@ -1057,7 +1057,7 @@ const perMessageGuidance = [
 
           if (hasDrawings) {
             const n = vesselDrawings.length;
-            emitStep(`Analyzing ${n} vessel drawing${n === 1 ? "" : "s"}`);
+            emitStep(`Analyzing ${n} vessel drawing${n === 1 ? "" : "s"}`, "drawings");
           }
 
           const genAbort = new AbortController();
@@ -1087,7 +1087,7 @@ const perMessageGuidance = [
               (cb?.type === "server_tool_use" || cb?.type === "web_search_tool_result")
             ) {
               webStepSent = true;
-              emitStep("Searching trusted maritime sources");
+              emitStep("Searching trusted maritime sources", "web");
             }
           });
 
@@ -1097,7 +1097,7 @@ const perMessageGuidance = [
           claudeStream.on("text", (delta) => {
             if (!writingStepSent) {
               writingStepSent = true;
-              emitStep("Writing the answer");
+              emitStep("Writing the answer", "write");
             }
             controller.enqueue(encoder.encode(sse("token", delta)));
           });

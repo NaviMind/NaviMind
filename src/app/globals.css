@@ -198,6 +198,23 @@ background: radial-gradient(
   animation: shine 4s linear infinite;
 }
 
+/* Shimmering "thinking" text for the active step in the progress trace. */
+@keyframes stepShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.step-shimmer {
+  background-image: linear-gradient(90deg, #9ca3af 0%, #9ca3af 40%, #1f2937 50%, #9ca3af 60%, #9ca3af 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: stepShimmer 1.6s linear infinite;
+}
+.dark .step-shimmer {
+  background-image: linear-gradient(90deg, #6b7280 0%, #6b7280 40%, #f3f4f6 50%, #6b7280 60%, #6b7280 100%);
+}
+
 /* === WelcomePage / лендинг: всегда тёмный фон, независимо от темы приложения === */
 .gradient-bg {
   background-color: #0b1220;

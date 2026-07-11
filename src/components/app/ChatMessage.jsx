@@ -274,13 +274,10 @@ function AssistantMessage({ content, copied, onCopy, onShare, showActions, follo
   if (isWaiting || isSyncing) {
     return (
       <div className="w-full flex justify-start mt-6">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3 select-none">
-            <img src="/compass.png" alt="NaviMind analyzing" className="w-10 h-10 compass-sway flex-shrink-0" />
-            <span className="text-[14px] text-gray-400 dark:text-gray-500">
-              Preparing an answer
-            </span>
-          </div>
+        <div className="flex flex-col gap-3">
+          {/* While analyzing we show only the compass — the live steps below say
+              what's actually happening, so a "Preparing an answer" label is noise. */}
+          <img src="/compass.png" alt="NaviMind analyzing" className="w-10 h-10 compass-sway flex-shrink-0 select-none" />
           {traceSlot}
         </div>
       </div>
