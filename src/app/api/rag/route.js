@@ -556,6 +556,7 @@ export async function POST(req) {
           "═══════════════════════════════════════════",
           "The user has enabled cross-topic context. The following are memory summaries from other topics they work in.",
           "Use this as background to provide richer, more connected answers. Do NOT surface these details unprompted — only draw on them when directly relevant.",
+          "CRITICAL — these summaries are from OTHER conversations and often mention documents/files that are NOT in this chat's library. A filename that appears ONLY here (i.e. not listed in the VESSEL LIBRARY / DOCUMENT REGISTRY blocks and not attached in this message) is a historical reference only: you do NOT have its content. NEVER claim to have opened, seen, read, rendered, or analyzed such a file, and never describe its pages or say they are blank. If the user asks about such a file, state plainly that it is not in the current chat's library.",
           "",
           crossTopicMemory,
           "═══════════════════════════════════════════",
