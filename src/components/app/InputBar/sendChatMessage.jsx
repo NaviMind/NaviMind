@@ -970,6 +970,15 @@ if (res.body && contentType.includes("text/event-stream")) {
           ? doc(db, "users", currentUser.uid, "topics", topicId, "chats", chatId)
           : doc(db, "users", currentUser.uid, "chats", chatId);
         await updateDoc(chatDocRef, { title: aiTitle });
+        // Surface the freshly-named chat as a NaviMind toast (bold title + the
+        // prompt it was derived from) — the "chat named" notification.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("navimind-toast", {
+              detail: { title: aiTitle, message: titleSeed, type: "success" },
+            })
+          );
+        }
       } catch { /* silent */ }
     }).catch(() => {});
   }

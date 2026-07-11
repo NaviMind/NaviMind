@@ -30,7 +30,11 @@ export default function Toast() {
     const onToast = (e) => {
       clearTimeout(hideTimer.current);
       clearTimeout(removeTimer.current);
-      setToast({ message: e.detail?.message || "", type: e.detail?.type || "success" });
+      setToast({
+        title: e.detail?.title || "",
+        message: e.detail?.message || "",
+        type: e.detail?.type || "success",
+      });
       // Mount off-screen first, then slide in on the next frame.
       requestAnimationFrame(() => requestAnimationFrame(() => setShow(true)));
       hideTimer.current = setTimeout(() => dismiss(), 5000);
@@ -79,9 +83,24 @@ export default function Toast() {
           )}
         </span>
 
-        <span className="flex-1 min-w-0 text-[13.5px] leading-snug text-gray-800 dark:text-gray-100">
-          {toast.message}
-        </span>
+        <div className="flex-1 min-w-0">
+          {toast.title ? (
+            <>
+              <p className="text-[13.5px] font-semibold text-gray-900 dark:text-white truncate">
+                {toast.title}
+              </p>
+              {toast.message && (
+                <p className="mt-0.5 text-[12px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-2">
+                  {toast.message}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[13.5px] leading-snug text-gray-800 dark:text-gray-100">
+              {toast.message}
+            </p>
+          )}
+        </div>
 
         <button
           onClick={dismiss}
