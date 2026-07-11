@@ -111,6 +111,24 @@ export default function SidebarContainer({
   }, [ui.isSidebarOpen]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Narrow desktop windows: opening the full 18rem sidebar as a flex sibling
+  // crushes the work area. Below this width (pointer devices only) we keep just
+  // the icon rail in flow and OVERLAY the expanded panel on top of the work area
+  // instead of pushing it. Touch devices use the slide-over and are excluded.
+  const [overlay, setOverlay] = useState(false);
+  useEffect(() => {
+    if (mobileMode) return;
+    const hover = window.matchMedia("(hover: hover)");
+    const compute = () => setOverlay(hover.matches && window.innerWidth < 900);
+    compute();
+    window.addEventListener("resize", compute);
+    hover.addEventListener("change", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      hover.removeEventListener("change", compute);
+    };
+  }, [mobileMode]);
+
   // Global Cmd/Ctrl+K to open search. Registered once (desktop instance only)
   // so the two mounted SidebarContainers don't toggle each other out.
   useEffect(() => {
@@ -569,32 +587,51 @@ useEffect(() => {
   </aside>
 );
 
-  // Десктоп-версия как переменная — floating card (same language as MiniSidebar)
+  // Десктоп-версия — floating card. On WIDE windows it's a flex sibling that
+  // pushes the work area. On NARROW windows (overlay mode) only the 4rem icon
+  // rail stays in flow; opening floats the full panel OVER the work area (with a
+  // click-away backdrop), so a small window isn't crushed.
+  const desktopOpen = ui.isSidebarOpen;
+  const railCollapsed = overlay ? !desktopOpen : collapsedVisual;
   const DesktopAside = (
-  <aside
-    className="hidden [@media(hover:hover)]:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
-    style={{ width: ui.isSidebarOpen ? "18rem" : "4rem" }}
-  >
-    <div className="w-full h-full p-2 flex flex-col">
-      {/* Floating card — width follows the aside. The content inside keeps a
-          fixed 17rem width, so as the card shrinks it simply clips: icons stay
-          put on the left while labels wipe away. One element, true morph. */}
-      <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
-        bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
-        shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
-        dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
-        ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
-        <div className="w-[17rem] h-full shrink-0 flex flex-col">
-          {SidebarContent({
-            showNewChatButton: true,
-            showCloseButton: true,
-            onCloseButtonClick: handleCloseSidebar,
-            collapsed: collapsedVisual,
-          })}
+  <>
+    {/* Backdrop — only while overlaying the panel on a narrow desktop window */}
+    {overlay && desktopOpen && (
+      <div
+        className="hidden [@media(hover:hover)]:block fixed inset-0 z-[55] bg-black/20 dark:bg-black/50"
+        onClick={handleCloseSidebar}
+        aria-hidden
+      />
+    )}
+    <aside
+      className="relative hidden [@media(hover:hover)]:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
+      style={{ width: overlay ? "4rem" : ui.isSidebarOpen ? "18rem" : "4rem" }}
+    >
+      <div
+        className={`h-full p-2 flex flex-col ${
+          overlay && desktopOpen ? "absolute top-0 left-0 z-[60] w-[18rem]" : "w-full"
+        }`}
+      >
+        {/* Floating card — width follows the container. The content inside keeps a
+            fixed 17rem width, so as the card shrinks it simply clips: icons stay
+            put on the left while labels wipe away. One element, true morph. */}
+        <div className="relative flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden
+          bg-white/95 dark:bg-[#1a2438]/95 backdrop-blur-md
+          shadow-[0_4px_24px_rgba(0,0,0,0.09),0_1px_4px_rgba(0,0,0,0.05)]
+          dark:shadow-[0_4px_28px_rgba(0,0,0,0.55)]
+          ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+          <div className="w-[17rem] h-full shrink-0 flex flex-col">
+            {SidebarContent({
+              showNewChatButton: true,
+              showCloseButton: true,
+              onCloseButtonClick: handleCloseSidebar,
+              collapsed: railCollapsed,
+            })}
+          </div>
         </div>
       </div>
-    </div>
     </aside>
+  </>
   );
 
   // ЕДИНЫЙ return: сначала aside (мобилка или десктоп), затем TopicModal
