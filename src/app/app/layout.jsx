@@ -36,7 +36,10 @@ function AppShell({ children }) {
     } catch { /* ignore */ }
   };
   const [showAdvancedReminder, setShowAdvancedReminder] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // Touch = no hover-capable pointer. The mobile slide-over sidebar is for touch
+  // devices only; a narrow DESKTOP window keeps the desktop sidebar (which
+  // auto-collapses to its icon rail), so we key off pointer capability, not width.
+  const [isTouch, setIsTouch] = useState(false);
 
   const {
     advancedTouched,
@@ -49,10 +52,11 @@ function AppShell({ children }) {
   } = useContext(UIContext);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 850);
+    const mq = window.matchMedia("(hover: hover)");
+    const check = () => setIsTouch(!mq.matches);
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    mq.addEventListener("change", check);
+    return () => mq.removeEventListener("change", check);
   }, []);
 
   useEffect(() => {
@@ -102,14 +106,14 @@ function AppShell({ children }) {
 
       <div
           id="nm-workarea"
-          className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] border-l border-gray-200 dark:border-transparent sm:border-l-0 text-gray-900 dark:text-white"
+          className="flex flex-col flex-1 min-w-0 overflow-x-hidden bg-[var(--bg-app)] border-l border-gray-200 dark:border-transparent [@media(hover:hover)]:border-l-0 text-gray-900 dark:text-white"
           style={{
             zIndex: 30,
             transition: "transform 420ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 420ms cubic-bezier(0.32, 0.72, 0, 1), box-shadow 420ms cubic-bezier(0.32, 0.72, 0, 1)",
-            transform: isMobile && isSidebarOpen ? "translateX(calc(100vw - 3rem))" : "translateX(0)",
-            borderTopLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
-            borderBottomLeftRadius: isMobile && isSidebarOpen ? "22px" : "0",
-            boxShadow: isMobile && isSidebarOpen ? "-8px 0 32px rgba(0,0,0,0.55)" : "-8px 0 32px rgba(0,0,0,0)",
+            transform: isTouch && isSidebarOpen ? "translateX(calc(100vw - 3rem))" : "translateX(0)",
+            borderTopLeftRadius: isTouch && isSidebarOpen ? "22px" : "0",
+            borderBottomLeftRadius: isTouch && isSidebarOpen ? "22px" : "0",
+            boxShadow: isTouch && isSidebarOpen ? "-8px 0 32px rgba(0,0,0,0.55)" : "-8px 0 32px rgba(0,0,0,0)",
           }}
         >
         <div className="flex flex-row flex-1 min-h-0 w-full max-w-full">

@@ -174,6 +174,25 @@ export function UIProvider({ children }) {
     localStorage.setItem("sidebarOpen", isSidebarOpen);
   }, [isSidebarOpen]);
 
+  // On pointer/desktop devices, auto-collapse the sidebar to its icon rail when
+  // the window gets narrow, so a small desktop window isn't cramped by the full
+  // 18rem panel. Acts ONLY on the downward crossing of the threshold, so it
+  // never fights a sidebar the user deliberately opened at a steady width.
+  // (Touch devices use the slide-over overlay, not the rail, so they're skipped.)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia?.("(hover: hover)")?.matches) return;
+    const NARROW = 900;
+    let wasWide = window.innerWidth >= NARROW;
+    const onResize = () => {
+      const isWide = window.innerWidth >= NARROW;
+      if (wasWide && !isWide) setSidebarOpen(false); // crossed into narrow → collapse
+      wasWide = isWide;
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("theme", theme);
     if (theme === "dark") {

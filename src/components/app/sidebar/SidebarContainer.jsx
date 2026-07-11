@@ -431,7 +431,7 @@ useEffect(() => {
   {/* Mobile: full-width "Create Topic" button (when topics already exist) —
       replaces the tiny "+", which is hard to tap on a phone. */}
   {Object.keys(customProjects || {}).length > 0 && (
-    <div className="sm:hidden -mx-2 px-1 py-0 mt-1">
+    <div className="[@media(hover:hover)]:hidden -mx-2 px-1 py-0 mt-1">
       <button
         onClick={() => setIsTopicModalOpen(true)}
         className="
@@ -479,7 +479,7 @@ useEffect(() => {
         My Topics
       </span>
       {/* Collapse chevron — small, sits next to label, fades in on section hover */}
-      <div className="relative hidden sm:flex items-center justify-center ml-1">
+      <div className="relative hidden [@media(hover:hover)]:flex items-center justify-center ml-1">
         <button
           onClick={() => setTopicsCollapsed((v) => !v)}
           className="
@@ -502,7 +502,7 @@ useEffect(() => {
         </button>
       </div>
       {/* Create topic (+) — desktop only; mobile uses the full-width button below */}
-      <HoverTipRight label="Create topic" className="ml-auto hidden sm:flex items-center justify-center">
+      <HoverTipRight label="Create topic" className="ml-auto hidden [@media(hover:hover)]:flex items-center justify-center">
         <button
           onClick={() => setIsTopicModalOpen(true)}
           className="
@@ -553,7 +553,7 @@ useEffect(() => {
   // Sidebar не двигается — main area съезжает вправо, открывая его
   const MobileAside = (
   <aside
-    className="fixed left-0 top-0 flex flex-col sm:hidden bg-[var(--bg-sidebar)] text-gray-900 dark:text-white"
+    className="fixed left-0 top-0 flex flex-col [@media(hover:hover)]:hidden bg-[var(--bg-sidebar)] text-gray-900 dark:text-white"
     style={{
       height: "var(--app-height, 100dvh)",
       width: "calc(100vw - 3rem)",
@@ -572,7 +572,7 @@ useEffect(() => {
   // Десктоп-версия как переменная — floating card (same language as MiniSidebar)
   const DesktopAside = (
   <aside
-    className="hidden sm:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
+    className="hidden [@media(hover:hover)]:flex overflow-visible flex-shrink-0 h-full transition-[width] duration-300 ease-in-out text-gray-900 dark:text-white"
     style={{ width: ui.isSidebarOpen ? "18rem" : "4rem" }}
   >
     <div className="w-full h-full p-2 flex flex-col">

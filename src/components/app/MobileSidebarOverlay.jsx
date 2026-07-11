@@ -17,7 +17,7 @@ export default function MobileSidebarOverlay() {
       />
       {/* Узкий клик-трап — только поверх 3rem полоски main area, закрывает sidebar */}
       <div
-        className="fixed top-0 bottom-0 right-0 sm:hidden"
+        className="fixed top-0 bottom-0 right-0 [@media(hover:hover)]:hidden"
         style={{
           width: "3rem",
           zIndex: 31,
