@@ -253,13 +253,15 @@ function GeneratedDocCard({ file, onOpen }) {
           </span>
         </span>
       </button>
-      {/* Download is its own action, separate from the file card. */}
+      {/* Download is its own action, separate from the file card — a calm,
+          soft control (not a loud filled button), clearly labelled so it reads
+          as downloadable. */}
       <a
         href={href}
         download={file.name}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3.5 py-2 transition"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 text-xs font-medium px-3 py-1.5 transition-colors"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
         </svg>
         Download
