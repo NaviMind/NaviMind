@@ -46,7 +46,14 @@ function blocks(tokens) {
   for (const tok of tokens) {
     switch (tok.type) {
       case "heading":
-        c.push({ text: inline(tok.tokens), fontSize: H_SIZE[tok.depth] || 12, bold: true, margin: [0, tok.depth <= 2 ? 10 : 6, 0, 4] });
+        // Navy accent for H1–H2, ink for deeper levels — matches the .docx.
+        c.push({
+          text: inline(tok.tokens),
+          fontSize: H_SIZE[tok.depth] || 12,
+          bold: true,
+          color: tok.depth <= 2 ? C(BRAND.navy) : C(BRAND.ink),
+          margin: [0, tok.depth <= 2 ? 12 : 8, 0, 4],
+        });
         break;
       case "paragraph":
         c.push({ text: inline(tok.tokens), margin: [0, 0, 0, 6] });
@@ -66,10 +73,29 @@ function blocks(tokens) {
       case "table": {
         const widths = (tok.header || []).map(() => "*");
         const body = [
-          (tok.header || []).map((h) => ({ text: inline(h.tokens), bold: true, fillColor: "#F2F4F7" })),
+          (tok.header || []).map((h) => ({ text: inline(h.tokens), bold: true, color: "#FFFFFF", fontSize: 9 })),
         ];
-        (tok.rows || []).forEach((r) => body.push(r.map((cell) => ({ text: inline(cell.tokens) }))));
-        c.push({ table: { headerRows: 1, widths, body }, layout: "lightHorizontalLines", margin: [0, 4, 0, 10] });
+        (tok.rows || []).forEach((r) =>
+          body.push(r.map((cell) => ({ text: inline(cell.tokens), fontSize: 9 })))
+        );
+        c.push({
+          table: { headerRows: 1, widths, body },
+          // Navy header, zebra body, thin hairlines, breathing padding — the
+          // same visual language as the .docx tables.
+          layout: {
+            fillColor: (rowIndex) =>
+              rowIndex === 0 ? C(BRAND.navy) : rowIndex % 2 === 0 ? "#F9FAFB" : null,
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => C(BRAND.line),
+            vLineColor: () => C(BRAND.line),
+            paddingLeft: () => 6,
+            paddingRight: () => 6,
+            paddingTop: () => 4,
+            paddingBottom: () => 4,
+          },
+          margin: [0, 4, 0, 12],
+        });
         break;
       }
       case "blockquote":
@@ -104,8 +130,8 @@ export async function markdownToPdf(markdown, title, meta = {}) {
   // "prepared for", no vessel/flag/class subtitle, no date — the user wants a
   // plain file they can reuse anywhere without deleting our chrome first.
   const content = [
-    { text: String(docTitle || "Document"), fontSize: 20, bold: true, color: C(BRAND.ink), margin: [0, 0, 0, 8] },
-    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.75, lineColor: "#D0D5DD" }], margin: [0, 0, 0, 14] },
+    { text: String(docTitle || "Document"), fontSize: 20, bold: true, color: C(BRAND.navy), margin: [0, 0, 0, 8] },
+    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: C(BRAND.navy) }], margin: [0, 0, 0, 14] },
     ...blocks(tokens),
   ];
 
