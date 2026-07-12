@@ -46,9 +46,17 @@ export async function GET(req) {
 
   const contentType =
     upstream.headers.get("content-type") || "application/octet-stream";
+  // HTTP headers are Latin-1 only. A filename with non-ASCII characters (e.g.
+  // Cyrillic "Разбор_сертификата") makes `new Headers(...)` throw, which crashed
+  // this route and surfaced as a browser "Site wasn't available" download error.
+  // Send an ASCII-safe `filename=` fallback plus an RFC 5987 `filename*=UTF-8''…`
+  // so modern browsers keep the original (Unicode) name and old ones still save.
+  const asciiName = name.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "'");
+  const contentDisposition =
+    `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(name)}`;
   const headers = new Headers({
     "Content-Type": contentType,
-    "Content-Disposition": `attachment; filename="${name}"`,
+    "Content-Disposition": contentDisposition,
     "Cache-Control": "private, max-age=0, no-store",
   });
   const len = upstream.headers.get("content-length");
