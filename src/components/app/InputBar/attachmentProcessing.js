@@ -15,6 +15,62 @@ export async function hashFile(file) {
   }
 }
 
+// iPhones save photos as HEIC/HEIF by default — a format that NEITHER the OCR
+// vision model nor Claude's answer-time vision can decode. When such a photo is
+// uploaded raw, both models receive undecodable bytes and the assistant reports
+// a "blank / white" page (it never actually saw the image). Browsers can't show
+// HEIC either, so the attachment thumbnail is blank too.
+//
+// Fix it at the single upstream point: transcode non-web-safe images to JPEG in
+// the browser BEFORE upload, so every downstream consumer — the preview, OCR,
+// and Claude vision — gets a normal JPEG. On the device that took the photo the
+// OS provides the HEIC codec, so canvas can render it. Web-safe images pass
+// through untouched, and any failure returns the original file rather than
+// blocking the upload.
+const WEB_SAFE_IMAGE = /^image\/(jpeg|png|webp|gif)$/i;
+const NON_WEB_SAFE_EXT = /\.(hei[cf]|tiff?|bmp|avif)$/i;
+
+export async function normalizeImageFile(file) {
+  try {
+    const type = file?.type || "";
+    const name = file?.name || "";
+    const looksImage = type.startsWith("image/") || NON_WEB_SAFE_EXT.test(name);
+    if (!looksImage) return file;
+
+    // Already a format both vision models accept (and the MIME isn't a lying
+    // ".jpg" wrapper around HEIC) → nothing to do.
+    if (WEB_SAFE_IMAGE.test(type) && !NON_WEB_SAFE_EXT.test(name)) return file;
+
+    if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
+      return file;
+    }
+
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    // White matte so any transparency doesn't flatten to black in the JPEG.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (!blob) return file;
+
+    const base = name.replace(/\.[^.]+$/, "") || name || "photo";
+    return new File([blob], `${base}.jpg`, {
+      type: "image/jpeg",
+      lastModified: file.lastModified || Date.now(),
+    });
+  } catch {
+    // Decode/encode failed (e.g. desktop browser without a HEIC codec) — leave
+    // the original file; the server also attempts a best-effort transcode.
+    return file;
+  }
+}
+
 // Retry a flaky async op a few times with linear backoff (network blips).
 export async function withRetry(fn, attempts = 3, baseDelay = 600) {
   let lastErr;

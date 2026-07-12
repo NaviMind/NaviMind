@@ -66,17 +66,26 @@ function isImage(file) {
   );
 }
 
-function isTiff(file) {
+// Image formats the OpenAI/Claude vision endpoints can't decode directly. The
+// client already transcodes these to JPEG before upload, but this is a
+// server-side backstop for anything that slips through (a desktop browser with
+// no HEIC codec, a re-used older attachment, a direct API caller). Best-effort:
+// if sharp's build lacks a decoder for the format it throws, and we fall through
+// to the visual-only path unchanged — no regression.
+function needsVisionTranscode(file) {
+  const t = file?.type || "";
+  const n = file?.name || "";
   return (
-    file?.type === "image/tiff" ||
-    /\.tiff?$/i.test(file?.name || "")
+    t === "image/tiff" || t === "image/heic" || t === "image/heif" ||
+    t === "image/bmp" || t === "image/avif" ||
+    /\.(tiff?|hei[cf]|bmp|avif)$/i.test(n)
   );
 }
 
-// TIFF is not accepted by the OpenAI vision endpoint — convert to JPEG first.
-// Uses sharp (bundled with Next.js) so no extra dependency is needed.
-async function tiffToJpegBuffer(tiffBuffer) {
-  return sharp(tiffBuffer).jpeg({ quality: 92 }).toBuffer();
+// Convert an image buffer to JPEG. Uses sharp (bundled with Next.js) so no extra
+// dependency is needed.
+async function toJpegBuffer(srcBuffer) {
+  return sharp(srcBuffer).jpeg({ quality: 92 }).toBuffer();
 }
 
 function isSpreadsheet(file) {
@@ -261,12 +270,13 @@ export async function POST(req) {
       // (faster answers). Purely-visual images aren't indexed (no store junk).
       if (isImage(file)) {
         try {
-          // TIFF files are not accepted by the OpenAI vision endpoint — convert
-          // to JPEG in-process so they follow the same OCR path as other images.
+          // HEIC/TIFF/BMP/AVIF aren't accepted by the OpenAI vision endpoint —
+          // convert to JPEG in-process so they follow the same OCR path as other
+          // images. (Normally already done client-side; this is the backstop.)
           let visionUrl = file.url;
-          if (isTiff(file)) {
-            const tiffBuf = await fetch(file.url).then((r) => r.arrayBuffer()).then(Buffer.from);
-            const jpegBuf = await tiffToJpegBuffer(tiffBuf);
+          if (needsVisionTranscode(file)) {
+            const srcBuf = await fetch(file.url).then((r) => r.arrayBuffer()).then(Buffer.from);
+            const jpegBuf = await toJpegBuffer(srcBuf);
             visionUrl = `data:image/jpeg;base64,${jpegBuf.toString("base64")}`;
           }
 

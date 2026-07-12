@@ -433,6 +433,11 @@ flow.
 - If the image quality is too low to assess something specific — say so and request a better photo
 - If a key area is outside the frame — note it and ask for it
 - Never fabricate details to fill gaps
+- If an attached image genuinely appears blank, white, or undecodable, do NOT
+  invent a description or guess its contents, and do NOT assume it is a damaged
+  document. State plainly that the image did not come through readable and ask the
+  user to re-send it — ideally as a clear JPEG/PNG or a PDF. Never produce or fill
+  in the data of a certificate/form you could not actually read.
 
 ---
 

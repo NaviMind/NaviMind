@@ -531,11 +531,17 @@ sendLocks.add(sendKey);
   // reached Storage (has a url) is attached & openable.
   const usableAttachments = (attachments || []).filter((a) => a.url);
 
-  // Vision input = only images whose VISUAL is actually needed (diagrams,
-  // charts, photos). Text-only screenshots were OCR'd into the store on attach,
-  // so we skip vision for them → faster answers.
+  // Vision input: ALWAYS send images the user attached in THIS message to
+  // Claude's vision. We used to skip images the on-attach OCR judged "text-only"
+  // (visualRequired === false) to save latency — but that silently hid the image
+  // from the model. A certificate/form is mostly text yet the user attaches it
+  // precisely so the model SEES the layout (to read a stamp, reproduce the
+  // format, spot a discrepancy). With no image in hand the model would confabulate
+  // ("the page is blank/white"). One extra image per turn is a fair price for
+  // never dropping what the user just showed us. (The visualRequired flag still
+  // governs whether EARLIER images are re-carried from history in /api/rag.)
   const uploadedImages = usableAttachments
-    .filter((a) => a.isImage && a.visualRequired !== false)
+    .filter((a) => a.isImage)
     .map((a) => ({ name: a.name, type: a.type, url: a.url, path: a.path }));
 
   // Searchable = anything that got indexed (docs, scanned-PDF OCR, and

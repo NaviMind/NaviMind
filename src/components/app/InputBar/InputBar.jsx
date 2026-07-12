@@ -17,6 +17,7 @@ import {
   expireIndexedFile,
   hashFile,
   withRetry,
+  normalizeImageFile,
 } from "./attachmentProcessing";
 import {
   getTopicData,
@@ -658,6 +659,17 @@ export default function InputBar({ respondToPendingPrompt = true, dropTargetRef 
         if (e.url) {
           patchEntry(e.id, { status: "indexing", progress: 100 });
           return;
+        }
+        // Transcode iPhone HEIC/other non-web-safe photos to JPEG before upload
+        // so OCR, answer-time vision, AND the thumbnail can all read the image.
+        if (e.isImage || (e.type || "").startsWith("image/")) {
+          const norm = await normalizeImageFile(e.file);
+          if (norm !== e.file) {
+            e.file = norm;
+            e.name = norm.name;
+            e.type = norm.type;
+            patchEntry(e.id, { name: norm.name, type: norm.type });
+          }
         }
         try {
           const meta = await withRetry(() =>
