@@ -27,8 +27,8 @@ function needsDocGeneration(question) {
     /\b(download|\.docx?|word file|as a (word|doc|document)|pdf)\b/.test(q) ||
     /(скачать|ворд|в ворде|документ|файл|бланк|шаблон|word)/.test(q);
   const docNoun =
-    /\b(checklist|check-list|form|report|letter|procedure|template|memo|plan|table|document|protocol)\b/.test(q) ||
-    /(чек-?лист|форм|отчёт|отчет|письмо|процедур|шаблон|бланк|документ|таблиц|протокол|акт)/.test(q);
+    /\b(checklist|check-list|form|report|letter|procedure|template|memo|plan|table|document|protocol|certificate|cert|statement|declaration|manifest|permit|record|log|logbook|minutes|notice|note of protest|invoice|receipt|register)\b/.test(q) ||
+    /(чек-?лист|форм|отчёт|отчет|письмо|процедур|шаблон|бланк|документ|таблиц|протокол|акт|сертификат|деклараци|манифест|разрешени|запис|журнал|ведомост|реестр|накладн|квитанц|извещени|заявлени)/.test(q);
   const createVerb =
     /\b(generate|create|make|draft|write up|build|prepare|produce|fill (in|out))\b/.test(q) ||
     /(сгенерируй|создай|сделай|состав|подготов|напиши|заполни|оформи)/.test(q);
