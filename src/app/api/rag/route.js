@@ -1092,12 +1092,23 @@ const perMessageGuidance = [
           });
 
           // Stream text deltas out as `token` events (thinking stays server-side).
-          // The first delta marks the transition to writing the answer.
+          // The first delta marks the transition to writing the answer. If the
+          // model starts a downloadable-document block (```navimind-doc), that is a
+          // distinct phase — building a file, not just prose — so it gets its own
+          // step in the trace with a document icon. The fence can arrive split
+          // across deltas, so we scan the accumulated text (not a single delta).
           let writingStepSent = false;
+          let docStepSent = false;
+          let textAcc = "";
           claudeStream.on("text", (delta) => {
             if (!writingStepSent) {
               writingStepSent = true;
               emitStep("Writing the answer", "write");
+            }
+            textAcc += delta;
+            if (!docStepSent && textAcc.includes("```navimind-doc")) {
+              docStepSent = true;
+              emitStep("Preparing your document", "doc");
             }
             controller.enqueue(encoder.encode(sse("token", delta)));
           });

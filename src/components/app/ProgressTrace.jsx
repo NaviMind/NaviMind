@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, FileText, Layers, Globe, PenLine, Sparkles } from "lucide-react";
+import { Search, FileText, Layers, Globe, PenLine, FileDown, Sparkles } from "lucide-react";
 
 // A ChatGPT/Claude-style progress trace of the real work the assistant did
 // (library search, reading files, drawings, web search, writing), streamed live
@@ -14,6 +14,7 @@ const ICON_BY_KIND = {
   drawings: Layers,
   web: Globe,
   write: PenLine,
+  doc: FileDown,
 };
 const iconFor = (kind) => ICON_BY_KIND[kind] || Sparkles;
 
