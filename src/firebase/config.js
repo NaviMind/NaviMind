@@ -14,6 +14,11 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
+// Exported so the push-notification helper can init Firebase Cloud Messaging
+// against the same app instance (messaging is browser-only, so it's created
+// lazily in that helper, guarded by isSupported()).
+export { app };
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);

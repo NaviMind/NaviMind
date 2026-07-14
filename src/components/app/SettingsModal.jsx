@@ -106,6 +106,82 @@ function ThemeToggle({ themePreference, setThemePreference }) {
   );
 }
 
+// ─── Notifications toggle ─────────────────────────────────────────────────────
+// Lets the user turn on OS push notifications ("answer ready") for this device.
+// Self-contained: checks support/permission, requests it on toggle, and stores
+// the device token. Hidden entirely on browsers/devices that can't do push.
+
+function NotificationsCell() {
+  const [supported, setSupported] = useState(null); // null = checking
+  const [perm, setPerm] = useState("default");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const mod = await import("@/lib/push/client");
+      const ok = await mod.isPushSupported();
+      if (!alive) return;
+      setSupported(ok);
+      setPerm(mod.notificationPermission());
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (supported === null) return null;      // still checking — render nothing
+  if (!supported) return null;              // unsupported device (e.g. iOS Safari tab)
+
+  const on = perm === "granted";
+
+  const toggle = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const mod = await import("@/lib/push/client");
+      const uid = auth.currentUser?.uid;
+      if (on) {
+        await mod.disablePush(uid);
+        setPerm("default");
+      } else {
+        const res = await mod.enablePush(uid);
+        setPerm(res.ok ? "granted" : mod.notificationPermission());
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const denied = perm === "denied";
+
+  return (
+    <button
+      onClick={denied ? undefined : toggle}
+      disabled={busy || denied}
+      className="w-full flex items-center gap-3 px-4 py-[13px] text-left rounded-2xl bg-gray-50 dark:bg-white/[0.05] ring-1 ring-gray-200 dark:ring-white/[0.06] transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.08] disabled:cursor-default"
+    >
+      <SvgIcon name="Chat.svg" />
+      <span className="flex-1 min-w-0">
+        <span className="block text-[14px] text-gray-800 dark:text-white/90">Notifications</span>
+        <span className="block text-[11px] text-gray-400 mt-0.5">
+          {denied ? "Blocked in browser settings" : "Get notified when an answer is ready"}
+        </span>
+      </span>
+      {/* Switch */}
+      <span
+        className={`relative shrink-0 w-9 h-5 rounded-full transition-colors ${
+          on ? "bg-blue-600" : "bg-gray-300 dark:bg-white/15"
+        } ${denied ? "opacity-40" : ""}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+            on ? "translate-x-4" : ""
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 // ─── Individual setting cell ──────────────────────────────────────────────────
 
 function SettingCell({ iconName, label, onPress, badge, right }) {
@@ -261,6 +337,11 @@ function SettingsMain({ userDoc, loading, theme, onNavigate, onClose, onLogout }
               right={<IcChevron />}
               onPress={() => onNavigate("terms")}
             />
+          </div>
+
+          {/* Notifications */}
+          <div className="mt-2.5">
+            <NotificationsCell />
           </div>
 
           {/* Appearance — compact segmented control, no separate heading */}

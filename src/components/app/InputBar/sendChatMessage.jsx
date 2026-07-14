@@ -973,6 +973,24 @@ if (res.body && contentType.includes("text/event-stream")) {
           },
         })
       );
+
+      // Cross-device / backgrounded push: notify the user's other devices (and a
+      // backgrounded one here) via FCM. Fire-and-forget; no-ops server-side if
+      // the user has no registered push tokens. The in-app toast above already
+      // covers a focused device, so this never double-notifies.
+      if (currentUser?.uid) {
+        fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: currentUser.uid,
+            title: "Answer ready",
+            body: (trimmedMessage || firstAttachmentName || "").slice(0, 140),
+            chatId,
+            projId: inTopic ? topicId : "global",
+          }),
+        }).catch(() => {});
+      }
     }
 
     // Build + attach the file AFTER the answer is on screen (best-effort).
