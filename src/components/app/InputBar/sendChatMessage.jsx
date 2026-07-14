@@ -957,6 +957,24 @@ if (res.body && contentType.includes("text/event-stream")) {
     clearStreamingMessage?.(aiMessageId);
     clearStreamingSteps?.(aiMessageId);
 
+    // Answer-ready notification: if the user has since navigated away to another
+    // chat (or elsewhere), surface a NaviMind toast so they know the reply landed;
+    // clicking it jumps straight to this chat. The Toast suppresses itself when
+    // the user is still viewing this chat, so we can fire unconditionally here.
+    if (typeof window !== "undefined" && !aborted) {
+      window.dispatchEvent(
+        new CustomEvent("navimind-toast", {
+          detail: {
+            title: "Answer ready",
+            message: (trimmedMessage || firstAttachmentName || "").slice(0, 140),
+            type: "success",
+            chatId,
+            projId: inTopic ? topicId : "global",
+          },
+        })
+      );
+    }
+
     // Build + attach the file AFTER the answer is on screen (best-effort).
     // Format follows the user's request — PDF if they asked for it, else Word.
     if (docMarkdown && !aborted) {
